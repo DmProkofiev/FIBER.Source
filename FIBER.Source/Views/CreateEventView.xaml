@@ -1,0 +1,268 @@
+﻿<UserControl x:Class="FIBER.Source.Views.CreateEventView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Background="#D8171717" CornerRadius="15" Margin="20" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Создание события"
+                       FontFamily="Times New Roman" FontSize="28" FontWeight="Bold"
+                       Foreground="White" Margin="30,20,30,10"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Margin="0,0,15,0" Padding="30,5,10,20">
+                <StackPanel MaxWidth="800">
+
+                    <!-- Основные поля события -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Название:"
+                                   Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <TextBox Grid.Row="0" Grid.Column="1"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Дата:"
+                                   Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1">
+                            <DatePicker SelectedDate="{Binding Date, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource ModernDatePickerStyle}"/>
+                            <TextBlock Text="Сведения отсутствуют" Foreground="#AAAAAA" FontSize="11"
+                                       FontStyle="Italic" Margin="2,2,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Date}" Value="{x:Null}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Описание:"
+                                   Style="{StaticResource FormLabelStyle}"
+                                   VerticalAlignment="Top" Margin="0,8,15,0"/>
+                        <TextBox Grid.Row="4" Grid.Column="1"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="90" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top"/>
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Заметки:"
+                                   Style="{StaticResource FormLabelStyle}"
+                                   VerticalAlignment="Top" Margin="0,8,15,0"/>
+                        <TextBox Grid.Row="6" Grid.Column="1"
+                                 Style="{StaticResource ModernTextBoxStyle}"
+                                 Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="70" AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top"/>
+
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Организатор:"
+                                   Style="{StaticResource FormLabelStyle}"
+                                   VerticalAlignment="Top" Margin="0,8,15,0"/>
+                        <StackPanel Grid.Row="8" Grid.Column="1">
+                            <TextBlock Text="Компания:" Foreground="#CCCCCC" FontSize="12"
+                                       FontFamily="Times New Roman" FontWeight="Bold" Margin="2,0,0,3"/>
+                            <ComboBox Style="{StaticResource ModernComboBoxStyle}"
+                                      ItemsSource="{Binding Companies}"
+                                      SelectedValue="{Binding OrganizerCompanyId}"
+                                      SelectedValuePath="Id"
+                                      DisplayMemberPath="Name"/>
+                            <TextBlock Text="Человек:" Foreground="#CCCCCC" FontSize="12"
+                                       FontFamily="Times New Roman" FontWeight="Bold" Margin="2,8,0,3"/>
+                            <ComboBox Style="{StaticResource ModernComboBoxStyle}"
+                                      ItemsSource="{Binding Persons}"
+                                      SelectedValue="{Binding OrganizerPersonId}"
+                                      SelectedValuePath="Id"
+                                      DisplayMemberPath="DisplayName"/>
+                            <TextBlock Text="Оба поля необязательны. Если не заданы — «Сведения отсутствуют»."
+                                       Foreground="#AAAAAA" FontSize="11" FontStyle="Italic"
+                                       Margin="2,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Участники -->
+                    <Border Background="#22FFFFFF" CornerRadius="8" Padding="12" Margin="0,20,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Участники" FontFamily="Times New Roman" FontSize="16"
+                                       FontWeight="Bold" Foreground="White" Margin="0,0,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0" Style="{StaticResource ModernComboBoxStyle}"
+                                          ItemsSource="{Binding Persons}"
+                                          SelectedValue="{Binding SelectedPersonId}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="DisplayName"/>
+                                <Button Grid.Column="1" Content="+ Человек"
+                                        Command="{Binding AddPersonParticipantCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Height="32" Padding="10,4" Margin="6,0,0,0" FontSize="13"/>
+                                <ComboBox Grid.Column="3" Style="{StaticResource ModernComboBoxStyle}"
+                                          ItemsSource="{Binding Companies}"
+                                          SelectedValue="{Binding SelectedCompanyId}"
+                                          SelectedValuePath="Id"
+                                          DisplayMemberPath="Name"/>
+                                <Button Grid.Column="4" Content="+ Компания"
+                                        Command="{Binding AddCompanyParticipantCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Height="32" Padding="10,4" Margin="6,0,0,0" FontSize="13"/>
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding PendingParticipants}" Margin="0,10,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#11FFFFFF" CornerRadius="4" Padding="8" Margin="0,2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
+                                                           Foreground="White" FontFamily="Times New Roman"
+                                                           FontSize="14" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Content="✕" Width="26" Height="26"
+                                                        Background="#CCFF0000" Foreground="White" BorderThickness="0"
+                                                        Command="{Binding DataContext.RemoveParticipantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="Участники не добавлены" Foreground="#888888"
+                                       FontFamily="Times New Roman" FontSize="13" Margin="2,6,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding PendingParticipants.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Drop-зона медиа -->
+                    <Border Margin="0,20,0,0" Height="110" CornerRadius="8"
+                            BorderBrush="#55000000" BorderThickness="2"
+                            Background="#33FFFFFF"
+                            AllowDrop="True"
+                            Drop="DropZone_Drop"
+                            DragOver="DropZone_DragOver"
+                            DragLeave="DropZone_DragLeave">
+                        <Grid>
+                            <TextBlock Text="Перетащите сюда изображения или файлы для прикрепления"
+                                       FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
+                                       Foreground="#666666" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       TextWrapping="Wrap" TextAlignment="Center" Margin="10"/>
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                          Margin="5">
+                                <ItemsControl ItemsSource="{Binding TempFiles}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Width="90" Height="90" Margin="5">
+                                                <Border CornerRadius="4" ClipToBounds="True" Background="#DDDDDD"
+                                                        ToolTip="{Binding FileName}">
+                                                    <Grid>
+                                                        <Image Source="{Binding ImageSource}" Stretch="UniformToFill">
+                                                            <Image.Style>
+                                                                <Style TargetType="Image">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsImage}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Image.Style>
+                                                        </Image>
+                                                        <TextBlock Text="{Binding FileName}"
+                                                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                                   Padding="5">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsImage}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
+                                                </Border>
+                                                <Button Content="✕"
+                                                        Command="{Binding DataContext.RemoveTempFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                        Width="22" Height="22"
+                                                        Background="#CCFF0000" Foreground="White"
+                                                        BorderThickness="0"
+                                                        Margin="0,-5,-5,0">
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <Button Content="Создать"
+                            Command="{Binding CreateCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            HorizontalAlignment="Center"
+                            Width="220" Height="46"
+                            FontSize="18"
+                            Margin="0,25,0,10"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

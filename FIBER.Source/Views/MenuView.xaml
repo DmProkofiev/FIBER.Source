@@ -1,0 +1,91 @@
+﻿<UserControl x:Class="FIBER.Source.Views.MenuView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Margin="30" MaxWidth="420" VerticalAlignment="Center">
+
+        <!-- «Создать объект»: раскрывает подменю -->
+        <Button Content="Создать объект"
+                Command="{Binding ToggleCreateSubmenuCommand}">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsCreateSubmenuOpen}" Value="True">
+                            <Setter Property="Background" Value="#99FFFFFF"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+
+        <!-- Подменю: типы создаваемых объектов -->
+        <StackPanel>
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsCreateSubmenuOpen}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+
+            <Button Content="Событие"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="CreateEvent"
+                    Margin="30,0,0,10">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}"/>
+                </Button.Style>
+            </Button>
+
+            <Button Content="Личность"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="CreatePerson"
+                    Margin="30,0,0,10">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}"/>
+                </Button.Style>
+            </Button>
+
+            <Button Content="Организация"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="CreateCompany"
+                    Margin="30,0,0,10">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}"/>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+
+        <!-- Поиск объекта -->
+        <Button Content="Поиск объекта"
+                Command="{Binding NavigateCommand}"
+                CommandParameter="Search">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DataContext.CurrentPanelKey, RelativeSource={RelativeSource AncestorType=Window}}" Value="Search">
+                            <Setter Property="Background" Value="#99FFFFFF"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+
+        <!-- Настройки приложения -->
+        <Button Content="Настройки приложения"
+                Command="{Binding NavigateCommand}"
+                CommandParameter="Settings">
+            <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource MenuButtonStyle}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding DataContext.CurrentPanelKey, RelativeSource={RelativeSource AncestorType=Window}}" Value="Settings">
+                            <Setter Property="Background" Value="#99FFFFFF"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ConsoleApp/ConsoleApp.csproj" Id="86122a01-acf2-4c5d-ae48-9b7adaa3e06c" />
+  <Project Path="FIBER.Source/FIBER.Source.csproj" />
+</Solution>

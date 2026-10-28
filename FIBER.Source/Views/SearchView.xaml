@@ -1,0 +1,970 @@
+﻿<UserControl x:Class="FIBER.Source.Views.SearchView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:FIBER.Source.Helpers">
+    <TabControl Background="Transparent" BorderThickness="0">
+
+        <!-- ================= ЛИЧНОСТИ ================= -->
+        <TabItem Header="Личности">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380" MinWidth="280"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*" MinWidth="320"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Margin="20,20,0,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Поиск личностей" FontFamily="Times New Roman" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource ModernTextBoxStyle}" Height="32" VerticalAlignment="Center"
+                                 Text="{Binding PersonQuery, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="1" Content="Найти" Command="{Binding SearchPersonsCommand}" Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="8,0,0,0" Height="32" Width="90" Padding="0" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="4" Background="#33FFFFFF" CornerRadius="6" Padding="8,6" Height="96">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Стратегия:" Foreground="White" FontFamily="Times New Roman"
+                                       FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Row="0" Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
+                                      ItemsSource="{Binding SearchStrategies}"
+                                      SelectedItem="{Binding SelectedStrategy}"
+                                      DisplayMemberPath="DisplayName"
+                                      Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Статус:" Foreground="White" FontFamily="Times New Roman"
+                                       FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
+                                      ItemsSource="{Binding StatusFilters}"
+                                      SelectedItem="{Binding SelectedStatusFilter}"
+                                      DisplayMemberPath="Display"
+                                      Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="6" Background="#66FFFFFF" CornerRadius="8" Padding="4">
+                        <ListBox ItemsSource="{Binding PersonResults}" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.SelectPersonCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}" HorizontalContentAlignment="Stretch"
+                                            Background="Transparent" BorderBrush="Transparent" Padding="10,8" Margin="2">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding DisplayName}" FontFamily="Times New Roman" FontSize="16" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding AliasCountDisplay}" FontFamily="Times New Roman" FontSize="13" Foreground="#3498DB" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding BirthDateDisplay, StringFormat='Дата рождения: {0}'}" FontFamily="Times New Roman" FontSize="13" Foreground="#333333" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding StatusDisplay, StringFormat='Статус: {0}'}" FontFamily="Times New Roman" FontSize="12" Foreground="#5A5A5A" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="2" Margin="0,20,20,20" Background="#66FFFFFF" CornerRadius="10" Padding="4">
+                    <Grid>
+                        <TextBlock Text="Выберите запись в списке" FontFamily="Times New Roman" FontSize="18" Foreground="#5A5A5A" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPersonSelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <Grid Margin="16">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPersonSelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding SelectedPersonDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdatePersonCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
+                                <Button Grid.Column="3" Content="Дубликаты" Click="DuplicatesPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#3498DB" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="5" Content="Связи" Click="RelationsPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="7" Content="Экспорт" Click="ExportPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="9" Content="Удалить" Command="{Binding DeletePersonCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="ID" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Id}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Дата рождения" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.BirthDateDisplay}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Паспорт" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Passport, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Профессия" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Job, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Телефон" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Phone, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Город" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.City, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Страна" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPersonCountryName}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Транспорт" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Car, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Email" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Mail, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Соцсети" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.SocialMedia, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Адрес" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Address, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedPerson.Notes, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Псевдонимы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+                                            <ItemsControl ItemsSource="{Binding SelectedPerson.Aliases}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="●" Foreground="#27AE60" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsPrimary}" Value="True">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource FieldValueStyle}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="—">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource FieldValueStyle}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SelectedPerson.Aliases.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
+                                            <TabControl Background="Transparent" BorderThickness="0">
+                                                <TabItem Header="Фото">
+                                                    <ItemsControl ItemsSource="{Binding PersonImages}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
+                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
+                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                        Background="#222222" Tag="Person">
+                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Видео">
+                                                    <ItemsControl ItemsSource="{Binding PersonVideos}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="*"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
+                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
+                                                                        </Border>
+                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Аудио">
+                                                    <ItemsControl ItemsSource="{Binding PersonAudio}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <StackPanel Grid.Row="0">
+                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
+                                                                        </StackPanel>
+                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                            </TabControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearPersonSelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </TabItem>
+
+        <!-- ================= ОРГАНИЗАЦИИ ================= -->
+        <TabItem Header="Организации">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380" MinWidth="280"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*" MinWidth="320"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Margin="20,20,0,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Поиск организаций" FontFamily="Times New Roman" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource ModernTextBoxStyle}" Height="32" VerticalAlignment="Center"
+                                 Text="{Binding CompanyQuery, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="1" Content="Найти" Command="{Binding SearchCompaniesCommand}" Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="8,0,0,0" Height="32" Width="90" Padding="0" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="4" Background="#66FFFFFF" CornerRadius="8" Padding="4" Margin="0,10,0,0">
+                        <ListBox ItemsSource="{Binding CompanyResults}" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.SelectCompanyCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}" HorizontalContentAlignment="Stretch"
+                                            Background="Transparent" BorderBrush="Transparent" Padding="10,8" Margin="2">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontFamily="Times New Roman" FontSize="16" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding RegistrationNumber, StringFormat='Рег. номер: {0}', TargetNullValue='Рег. номер: Сведения отсутствуют'}" FontFamily="Times New Roman" FontSize="13" Foreground="#333333" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="2" Margin="0,20,20,20" Background="#66FFFFFF" CornerRadius="10" Padding="4">
+                    <Grid>
+                        <TextBlock Text="Выберите запись в списке" FontFamily="Times New Roman" FontSize="18" Foreground="#5A5A5A" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasCompanySelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <Grid Margin="16">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasCompanySelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding SelectedCompanyDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateCompanyCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
+                                <Button Grid.Column="3" Content="Связи" Click="RelationsCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="5" Content="Экспорт" Click="ExportCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="7" Content="Удалить" Command="{Binding DeleteCompanyCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="ID" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Id}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Рег. номер" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.RegistrationNumber, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Адрес" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Address, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Телефон" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Phone, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Email" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Mail, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Сайт" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Website, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedCompany.Notes, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
+                                            <TabControl Background="Transparent" BorderThickness="0">
+                                                <TabItem Header="Фото">
+                                                    <ItemsControl ItemsSource="{Binding CompanyImages}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
+                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
+                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                        Background="#222222" Tag="Company">
+                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Видео">
+                                                    <ItemsControl ItemsSource="{Binding CompanyVideos}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="*"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
+                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
+                                                                        </Border>
+                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Аудио">
+                                                    <ItemsControl ItemsSource="{Binding CompanyAudio}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <StackPanel Grid.Row="0">
+                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
+                                                                        </StackPanel>
+                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                            </TabControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearCompanySelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </TabItem>
+
+        <!-- ================= СОБЫТИЯ ================= -->
+        <TabItem Header="События">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380" MinWidth="280"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="*" MinWidth="320"/>
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Margin="20,20,0,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="10"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Поиск событий" FontFamily="Times New Roman" FontSize="24" FontWeight="Bold" Foreground="White"/>
+
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource ModernTextBoxStyle}" Height="32" VerticalAlignment="Center"
+                                 Text="{Binding EventQuery, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="1" Content="Найти" Command="{Binding SearchEventsCommand}" Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="8,0,0,0" Height="32" Width="90" Padding="0" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="4" Background="#66FFFFFF" CornerRadius="8" Padding="4" Margin="0,10,0,0">
+                        <ListBox ItemsSource="{Binding EventResults}" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding DataContext.SelectEventCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                            CommandParameter="{Binding}" HorizontalContentAlignment="Stretch"
+                                            Background="Transparent" BorderBrush="Transparent" Padding="10,8" Margin="2">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontFamily="Times New Roman" FontSize="16" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding DateDisplay, StringFormat='Дата: {0}'}" FontFamily="Times New Roman" FontSize="13" Foreground="#333333" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding OrganizerCompanyName, StringFormat='Организатор: {0}', TargetNullValue='Организатор: Сведения отсутствуют'}" FontFamily="Times New Roman" FontSize="12" Foreground="#5A5A5A" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="2" Margin="0,20,20,20" Background="#66FFFFFF" CornerRadius="10" Padding="4">
+                    <Grid>
+                        <TextBlock Text="Выберите запись в списке" FontFamily="Times New Roman" FontSize="18" Foreground="#5A5A5A" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasEventSelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <Grid Margin="16">
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasEventSelection}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="10"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding SelectedEventDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateEventCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
+                                <Button Grid.Column="3" Content="Связи" Click="RelationsEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="5" Content="Экспорт" Click="ExportEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button Grid.Column="7" Content="Удалить" Command="{Binding DeleteEventCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
+
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="ID" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedEvent.Id}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Дата" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedEvent.DateDisplay}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Организатор" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedEvent.OrganizerCompany.Name, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Описание" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedEvent.Description, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBlock Text="{Binding SelectedEvent.Notes, TargetNullValue='Сведения отсутствуют'}" Style="{StaticResource FieldValueStyle}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
+                                            <TabControl Background="Transparent" BorderThickness="0">
+                                                <TabItem Header="Фото">
+                                                    <ItemsControl ItemsSource="{Binding EventImages}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
+                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
+                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                        Background="#222222" Tag="Event">
+                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Видео">
+                                                    <ItemsControl ItemsSource="{Binding EventVideos}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="*"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
+                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
+                                                                        </Border>
+                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                                <TabItem Header="Аудио">
+                                                    <ItemsControl ItemsSource="{Binding EventAudio}" Margin="0,5,0,0">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
+                                                                    <Grid>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+                                                                        <StackPanel Grid.Row="0">
+                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
+                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
+                                                                        </StackPanel>
+                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
+                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
+                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                                                        </Grid>
+                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </TabItem>
+                                            </TabControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+
+                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearEventSelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </TabItem>
+
+    </TabControl>
+</UserControl>

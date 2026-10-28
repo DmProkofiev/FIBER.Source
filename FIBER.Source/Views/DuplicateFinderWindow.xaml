@@ -1,0 +1,56 @@
+﻿<Window x:Class="FIBER.Source.Views.DuplicateFinderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Поиск дубликатов" Height="600" Width="800"
+        WindowStartupLocation="CenterOwner"
+        Background="#1F1F1F">
+    <Border Background="#D8171717" CornerRadius="15" Margin="20" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="30,20,30,10">
+                <TextBlock Text="Поиск дубликатов" FontFamily="Times New Roman" FontSize="28" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="{Binding SourcePersonName, StringFormat='Исходная запись: {0}'}"
+                           FontFamily="Times New Roman" FontSize="14" Foreground="#CCCCCC" Margin="0,5,0,0"/>
+            </StackPanel>
+
+            <Grid Grid.Row="1" Margin="30,10,30,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Стратегия:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
+                          ItemsSource="{Binding Strategies}"
+                          SelectedItem="{Binding SelectedStrategy}"
+                          DisplayMemberPath="Name"/>
+                <Button Grid.Column="2" Content="Искать" Command="{Binding SearchCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Height="34" Width="120" Padding="0" Margin="10,0,0,0"/>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#22FFFFFF" CornerRadius="8" Margin="30,10,30,10" Padding="8">
+                <ListView ItemsSource="{Binding Candidates}" Background="Transparent" BorderThickness="0" Foreground="White">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Совпадение" Width="100" DisplayMemberBinding="{Binding ScoreText}"/>
+                            <GridViewColumn Header="Имя" Width="300" DisplayMemberBinding="{Binding DisplayName}"/>
+                            <GridViewColumn Header="Дата рождения" Width="140" DisplayMemberBinding="{Binding BirthDate}"/>
+                            <GridViewColumn Header="Статус" Width="140" DisplayMemberBinding="{Binding StatusText}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </Border>
+
+            <Button Grid.Row="3" Content="Закрыть" Height="40" Width="160" Margin="0,0,0,20"
+                    HorizontalAlignment="Center" Click="Close_Click"
+                    Background="#7F7F7F" Foreground="White" FontSize="16" FontWeight="Bold" Cursor="Hand"/>
+        </Grid>
+    </Border>
+</Window>
