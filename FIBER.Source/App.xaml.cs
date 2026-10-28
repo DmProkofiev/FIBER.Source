@@ -1,4 +1,4 @@
-﻿using FIBER.Source.Helpers;
+using FIBER.Source.Helpers;
 using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Infrastructure.Hosting;
 using FIBER.Source.Interfaces;
@@ -111,6 +111,7 @@ public partial class App : Application
         builder.Services.AddSingleton<ICompanyService, CompanyService>();
         builder.Services.AddSingleton<IEventService, EventService>();
         builder.Services.AddSingleton<IRelationService, RelationService>();
+        builder.Services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
         builder.Services.AddSingleton<IExportService, ExportService>();
         builder.Services.AddSingleton<IMLService, MLServiceStub>();
         builder.Services.AddSingleton<ITrayService, TrayService>();

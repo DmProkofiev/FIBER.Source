@@ -1,4 +1,4 @@
-﻿<Window x:Class="FIBER.Source.Views.DuplicateFinderWindow"
+<Window x:Class="FIBER.Source.Views.DuplicateFinderWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Поиск дубликатов" Height="600" Width="800"
@@ -24,13 +24,18 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="Стратегия:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <ComboBox Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
                           ItemsSource="{Binding Strategies}"
                           SelectedItem="{Binding SelectedStrategy}"
                           DisplayMemberPath="Name"/>
-                <Button Grid.Column="2" Content="Искать" Command="{Binding SearchCommand}"
+                <TextBlock Grid.Column="2" Text="Порог:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Center" Margin="10,0,6,0"/>
+                <TextBox Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}" Width="60" VerticalAlignment="Center"
+                         Text="{Binding Threshold, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button Grid.Column="4" Content="Искать" Command="{Binding SearchCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Height="34" Width="120" Padding="0" Margin="10,0,0,0"/>
             </Grid>

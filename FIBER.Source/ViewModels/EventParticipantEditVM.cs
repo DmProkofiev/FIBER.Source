@@ -1,5 +1,6 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using FIBER.Source.Contracts.Inputs;
+using FIBER.Source.Models.Enums;
 
 namespace FIBER.Source.ViewModels;
 
@@ -13,7 +14,10 @@ public partial class EventParticipantEditVM : ObservableObject
 
     public bool IsCompany => CompanyId.HasValue;
 
-    public EventParticipantInput ToInput() => new(PersonId, CompanyId);
+    public EventParticipantRole Role { get; set; } = EventParticipantRole.Participant;
+    public string Notes { get; set; } = string.Empty;
+
+    public EventParticipantInput ToInput() => new(PersonId, CompanyId, Role, Notes);
 
     public static EventParticipantEditVM ForPerson(int personId, string displayName) => new()
     {

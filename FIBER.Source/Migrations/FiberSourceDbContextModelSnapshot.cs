@@ -407,32 +407,6 @@ namespace FIBER.Source.Migrations
                     b.ToTable("CompanyInteractions", (string)null);
                 });
 
-            modelBuilder.Entity("FIBER.Source.Models.Joins.Employment", b =>
-                {
-                    b.Property<int>("PersonId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Position")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("PersonId", "CompanyId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.ToTable("Employments", (string)null);
-                });
-
             modelBuilder.Entity("FIBER.Source.Models.Joins.EventParticipant", b =>
                 {
                     b.Property<int>("Id")
@@ -445,7 +419,14 @@ namespace FIBER.Source.Migrations
                     b.Property<int>("EventId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("PersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Role")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -491,25 +472,31 @@ namespace FIBER.Source.Migrations
 
             modelBuilder.Entity("FIBER.Source.Models.Joins.PersonRelationship", b =>
                 {
-                    b.Property<int>("PersonId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("RelatedPersonId")
+                    b.Property<int>("Kind")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("RelationType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                    b.Property<int>("PersonId")
+                        .HasColumnType("INTEGER");
 
-                    b.HasKey("PersonId", "RelatedPersonId");
+                    b.Property<int>("RelatedPersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
 
                     b.HasIndex("RelatedPersonId")
                         .HasDatabaseName("IX_PersonRelationship_RelatedPersonId");
+
+                    b.HasIndex("PersonId", "RelatedPersonId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_PersonRelationship_Natural");
 
                     b.ToTable("PersonRelationships", (string)null);
                 });
@@ -586,14 +573,22 @@ namespace FIBER.Source.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("FullName")
-                        .HasMaxLength(200)
+                    b.Property<string>("FirstName")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
+
+                    b.Property<int>("Gender")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Job")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("LastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
 
                     b.Property<string>("Mail")
                         .HasMaxLength(200)
@@ -613,6 +608,11 @@ namespace FIBER.Source.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SecondName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<string>("SocialMedia")
                         .HasColumnType("TEXT");
 
@@ -627,18 +627,18 @@ namespace FIBER.Source.Migrations
 
                     b.HasIndex("CountryCode");
 
-                    b.HasIndex("FullName")
-                        .HasDatabaseName("IX_Person_FullName_Identified")
-                        .HasFilter("\"Status\" = 1");
-
                     b.HasIndex("MergedIntoPersonId");
+
+                    b.HasIndex("LastName", "FirstName")
+                        .HasDatabaseName("IX_Person_Name_Identified")
+                        .HasFilter("\"Status\" = 1");
 
                     b.HasIndex("Status", "CreatedAt")
                         .HasDatabaseName("IX_Person_Status_CreatedAt");
 
                     b.ToTable("People", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Person_Status_FullName", "(Status = 0 AND FullName IS NULL) OR (Status = 1 AND FullName IS NOT NULL)");
+                            t.HasCheckConstraint("CK_Person_Status_FullName", "(Status = 0 AND LastName IS NULL AND FirstName IS NULL AND SecondName IS NULL) OR (Status = 1 AND LastName IS NOT NULL AND FirstName IS NOT NULL)");
                         });
                 });
 
@@ -722,27 +722,6 @@ namespace FIBER.Source.Migrations
                     b.Navigation("TargetCompany");
                 });
 
-            modelBuilder.Entity("FIBER.Source.Models.Joins.Employment", b =>
-                {
-                    b.HasOne("FIBER.Source.Models.Company", "Company")
-                        .WithMany("Employees")
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_Employment_Company");
-
-                    b.HasOne("FIBER.Source.Models.Person", "Person")
-                        .WithMany("Employments")
-                        .HasForeignKey("PersonId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_Employment_Person");
-
-                    b.Navigation("Company");
-
-                    b.Navigation("Person");
-                });
-
             modelBuilder.Entity("FIBER.Source.Models.Joins.EventParticipant", b =>
                 {
                     b.HasOne("FIBER.Source.Models.Company", "Company")
@@ -788,14 +767,14 @@ namespace FIBER.Source.Migrations
                     b.HasOne("FIBER.Source.Models.Person", "Person")
                         .WithMany("Relationships")
                         .HasForeignKey("PersonId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_PersonRelationship_Person");
 
                     b.HasOne("FIBER.Source.Models.Person", "RelatedPerson")
                         .WithMany("ReverseRelationships")
                         .HasForeignKey("RelatedPersonId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK_PersonRelationship_RelatedPerson");
 
@@ -837,8 +816,6 @@ namespace FIBER.Source.Migrations
 
             modelBuilder.Entity("FIBER.Source.Models.Company", b =>
                 {
-                    b.Navigation("Employees");
-
                     b.Navigation("EventParticipations");
 
                     b.Navigation("IncomingInteractions");
@@ -861,8 +838,6 @@ namespace FIBER.Source.Migrations
             modelBuilder.Entity("FIBER.Source.Models.Person", b =>
                 {
                     b.Navigation("Aliases");
-
-                    b.Navigation("Employments");
 
                     b.Navigation("EventParticipations");
 

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Helpers;
@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using FIBER.Source.Services;
 
 namespace FIBER.Source.ViewModels;
 
@@ -226,13 +227,20 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     return;
                 }
 
+                PersonService.SplitFullName(FullName.Trim(),
+                    out string promLastName, out string promFirstName, out string? promSecondName);
+
                 await _personService.PromoteAsync(PersonId, new PromotePersonInput(
-                    FullName: FullName.Trim(),
+                    LastName: promLastName,
+                    FirstName: promFirstName,
+                    SecondName: promSecondName,
+                    Gender: Gender.Unknown,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim()));
 
                 var personInput = new PersonInput(
-                    FullName: FullName.Trim(), BirthDate: BirthDate, Passport: Passport.Trim(),
+                    LastName: promLastName, FirstName: promFirstName, SecondName: promSecondName,
+                    Gender: Gender.Unknown, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
@@ -250,8 +258,12 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     return;
                 }
 
+                PersonService.SplitFullName(FullName.Trim(),
+                    out string lastName, out string firstName, out string? secondName);
+
                 var input = new PersonInput(
-                    FullName: FullName.Trim(), BirthDate: BirthDate, Passport: Passport.Trim(),
+                    LastName: lastName, FirstName: firstName, SecondName: secondName,
+                    Gender: Gender.Unknown, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),

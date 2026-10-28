@@ -1,40 +1,28 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using FIBER.Source.Helpers;
-using FIBER.Source.Interfaces;
-using FIBER.Source.Models;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using FIBER.Source.Helpers;
+using FIBER.Source.Interfaces;
 
 namespace FIBER.Source.ViewModels;
 
-public sealed class DuplicateCandidate
-{
-    public Person Person { get; init; } = null!;
-    public double Score { get; init; }
-    public string DisplayName => Person.FullName ?? $"Аноним #{Person.Id}";
-    public string BirthDate => Person.BirthDate?.ToString("dd.MM.yyyy") ?? "Сведения отсутствуют";
-    public string StatusText => Person.Status.ToString();
-    public string ScoreText => $"{Score * 100:0}%";
-}
-
 public partial class DuplicateFinderViewModel : ObservableObject
 {
-    private readonly IPersonService _personService;
-    private readonly IComparisonStrategyFactory _strategyFactory;
-    private readonly int _sourcePersonId;
-    private Person? _sourcePerson;
+    public const double DefaultThreshold = 0.6;
 
-    public DuplicateFinderViewModel(int personId, IPersonService personService, IComparisonStrategyFactory strategyFactory)
+    private readonly IDuplicateFinderService _duplicateFinderService;
+    private readonly int _sourcePersonId;
+
+    public DuplicateFinderViewModel(int personId, IDuplicateFinderService duplicateFinderService)
     {
         _sourcePersonId = personId;
-        _personService = personService;
-        _strategyFactory = strategyFactory;
-        Strategies = new ObservableCollection<IComparisonStrategy>(_strategyFactory.All);
+        _duplicateFinderService = duplicateFinderService;
+        Strategies = new ObservableCollection<IComparisonStrategy>(duplicateFinderService.Strategies);
         _selectedStrategy = Strategies.FirstOrDefault();
+        _threshold = DefaultThreshold;
     }
 
     public ObservableCollection<IComparisonStrategy> Strategies { get; }
@@ -43,19 +31,21 @@ public partial class DuplicateFinderViewModel : ObservableObject
     [ObservableProperty] private IComparisonStrategy? _selectedStrategy;
     [ObservableProperty] private string _sourcePersonName = string.Empty;
     [ObservableProperty] private bool _isBusy;
+    [ObservableProperty] private double _threshold = DefaultThreshold;
 
     public async Task InitializeAsync()
     {
         try
         {
-            _sourcePerson = await _personService.GetByIdAsync(_sourcePersonId);
-            if (_sourcePerson is null)
+            var result = await _duplicateFinderService.FindAsync(
+                _sourcePersonId, SelectedStrategy?.Name, Threshold);
+            if (result is null)
             {
                 Notification.Show("Ошибка", $"Личность Id={_sourcePersonId} не найдена", NotificationType.Error);
                 return;
             }
-            SourcePersonName = _sourcePerson.FullName ?? $"Аноним #{_sourcePerson.Id}";
-            await SearchAsync();
+            SourcePersonName = result.Source.FullName ?? $"Аноним #{result.Source.Id}";
+            foreach (var c in result.Candidates) Candidates.Add(c);
         }
         catch (Exception ex) { Notification.Show("Ошибка", ex.Message, NotificationType.Error); }
     }
@@ -63,21 +53,18 @@ public partial class DuplicateFinderViewModel : ObservableObject
     [RelayCommand]
     private async Task SearchAsync()
     {
-        if (_sourcePerson is null || SelectedStrategy is null) return;
+        if (SelectedStrategy is null) return;
         IsBusy = true;
         try
         {
-            var all = await _personService.GetAllExceptAsync(_sourcePersonId);
-            var results = new List<DuplicateCandidate>(all.Count);
-            foreach (var candidate in all)
-            {
-                double score;
-                try { score = SelectedStrategy.Compare(_sourcePerson, candidate); }
-                catch { score = 0; }
-                if (score > 0) results.Add(new DuplicateCandidate { Person = candidate, Score = score });
-            }
+            var result = await _duplicateFinderService.FindAsync(
+                _sourcePersonId, SelectedStrategy.Name, Threshold);
             Candidates.Clear();
-            foreach (var c in results.OrderByDescending(c => c.Score)) Candidates.Add(c);
+            if (result is not null)
+            {
+                SourcePersonName = result.Source.FullName ?? $"Аноним #{result.Source.Id}";
+                foreach (var c in result.Candidates) Candidates.Add(c);
+            }
         }
         catch (Exception ex) { Notification.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
         finally { IsBusy = false; }

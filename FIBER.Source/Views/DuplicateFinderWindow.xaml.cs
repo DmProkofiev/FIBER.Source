@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using FIBER.Source.Interfaces;
 using FIBER.Source.ViewModels;
 
@@ -10,11 +10,10 @@ public partial class DuplicateFinderWindow : Window
     // Создаёт VM и запускает первичный поиск
     public DuplicateFinderWindow(
         int personId,
-        IPersonService personService,
-        IComparisonStrategyFactory strategyFactory)
+        IDuplicateFinderService duplicateFinderService)
     {
         InitializeComponent();
-        var vm = new DuplicateFinderViewModel(personId, personService, strategyFactory);
+        var vm = new DuplicateFinderViewModel(personId, duplicateFinderService);
         DataContext = vm;
         Loaded += async (_, _) => await vm.InitializeAsync();
     }

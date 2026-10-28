@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Helpers;
@@ -9,6 +9,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using FIBER.Source.Services;
 
 namespace FIBER.Source.ViewModels;
 
@@ -125,8 +126,14 @@ public partial class CreatePersonViewModel : ObservableValidator
                     return;
                 }
 
+                PersonService.SplitFullName(FullName.Trim(),
+                    out string lastName, out string firstName, out string? secondName);
+
                 var input = new PersonInput(
-                    FullName: FullName.Trim(),
+                    LastName: lastName,
+                    FirstName: firstName,
+                    SecondName: secondName,
+                    Gender: Gender.Unknown,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim(),
                     Job: Job.Trim(),

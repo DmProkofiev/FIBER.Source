@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +20,8 @@ public sealed record DuplicateFinderResult(
 
 public interface IDuplicateFinderService
 {
+    IReadOnlyList<IComparisonStrategy> Strategies { get; }
+
     Task<DuplicateFinderResult?> FindAsync(
         int sourcePersonId,
         string? strategyKey,

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -162,33 +162,6 @@ namespace FIBER.Source.Migrations
                         name: "FK_MediaAttachmentLink_Media",
                         column: x => x.MediaAttachmentId,
                         principalTable: "MediaAttachments",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Employments",
-                columns: table => new
-                {
-                    PersonId = table.Column<int>(type: "INTEGER", nullable: false),
-                    CompanyId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Position = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
-                    StartDate = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    EndDate = table.Column<DateTime>(type: "TEXT", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Employments", x => new { x.PersonId, x.CompanyId });
-                    table.ForeignKey(
-                        name: "FK_Employment_Company",
-                        column: x => x.CompanyId,
-                        principalTable: "Companies",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Employment_Person",
-                        column: x => x.PersonId,
-                        principalTable: "People",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -360,11 +333,6 @@ namespace FIBER.Source.Migrations
                 column: "TargetCompanyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Employments_CompanyId",
-                table: "Employments",
-                column: "CompanyId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_EventParticipants_CompanyId",
                 table: "EventParticipants",
                 column: "CompanyId");
@@ -483,9 +451,6 @@ namespace FIBER.Source.Migrations
 
             migrationBuilder.DropTable(
                 name: "CompanyInteractions");
-
-            migrationBuilder.DropTable(
-                name: "Employments");
 
             migrationBuilder.DropTable(
                 name: "EventParticipants");

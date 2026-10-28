@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.ViewModels;

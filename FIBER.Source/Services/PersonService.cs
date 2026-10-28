@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,15 +19,18 @@ public sealed class PersonService : IPersonService
     private readonly IDbContextFactory<FiberSourceDbContext> _contextFactory;
     private readonly ISearchStrategyFactory _searchFactory;
     private readonly IAuditLogService _auditLog;
+    private readonly IMediaService _mediaService;
 
     public PersonService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         ISearchStrategyFactory searchFactory,
-        IAuditLogService auditLog)
+        IAuditLogService auditLog,
+        IMediaService mediaService)
     {
         _contextFactory = contextFactory;
         _searchFactory = searchFactory;
         _auditLog = auditLog;
+        _mediaService = mediaService;
     }
 
     private static string? NullIfEmpty(string? value) =>
@@ -45,6 +48,30 @@ public sealed class PersonService : IPersonService
     {
         var parts = new[] { last, first, second }.Where(p => !string.IsNullOrWhiteSpace(p));
         return string.Join(" ", parts);
+    }
+
+    // Разбор строки ФИО в фамилию/имя/отчество: первое слово — фамилия, последнее — отчество (если слов >= 3)
+    internal static void SplitFullName(string fullName, out string lastName, out string firstName, out string? secondName)
+    {
+        var parts = fullName.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1)
+        {
+            lastName = parts[0];
+            firstName = parts[0];
+            secondName = null;
+        }
+        else if (parts.Length == 2)
+        {
+            lastName = parts[0];
+            firstName = parts[1];
+            secondName = null;
+        }
+        else
+        {
+            lastName = parts[0];
+            secondName = parts[^1];
+            firstName = string.Join(" ", parts[1..^1]);
+        }
     }
 
     public async Task<Person> CreateIdentifiedAsync(PersonInput input)
@@ -493,6 +520,7 @@ public sealed class PersonService : IPersonService
             await tx.RollbackAsync();
             throw;
         }
+        await _mediaService.RemoveAllLinksForOwnerAsync(MediaOwnerType.Person, id);
         await _auditLog.LogAsync("Person.Delete", $"Id={id}");
     }
 }

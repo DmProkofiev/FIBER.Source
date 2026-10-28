@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -19,6 +19,8 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         _personService = personService;
         _strategyFactory = strategyFactory;
     }
+
+    public IReadOnlyList<IComparisonStrategy> Strategies => _strategyFactory.All;
 
     public async Task<DuplicateFinderResult?> FindAsync(
         int sourcePersonId,

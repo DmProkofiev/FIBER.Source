@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls.Primitives;
@@ -50,10 +50,9 @@ public partial class SearchView : UserControl
         var services = ((App)Application.Current).Services;
         if (services is null) return;
 
-        var personService = services.GetRequiredService<IPersonService>();
-        var strategyFactory = services.GetRequiredService<IComparisonStrategyFactory>();
+        var duplicateFinderService = services.GetRequiredService<IDuplicateFinderService>();
 
-        var window = new DuplicateFinderWindow(vm.SelectedPerson.Id, personService, strategyFactory)
+        var window = new DuplicateFinderWindow(vm.SelectedPerson.Id, duplicateFinderService)
         {
             Owner = Window.GetWindow(this)
         };
