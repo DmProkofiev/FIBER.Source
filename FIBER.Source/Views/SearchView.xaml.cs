@@ -59,45 +59,6 @@ public partial class SearchView : UserControl
         window.ShowDialog();
     }
 
-    // Открывает окно связей для выбранной персоны
-    private void RelationsPerson_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedPerson == null) return;
-        OpenRelations(MediaOwnerType.Person, vm.SelectedPerson.Id);
-    }
-
-    // Открывает окно связей для выбранной организации
-    private void RelationsCompany_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedCompany == null) return;
-        OpenRelations(MediaOwnerType.Company, vm.SelectedCompany.Id);
-    }
-
-    // Открывает окно связей для выбранного события
-    private void RelationsEvent_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedEvent == null) return;
-        OpenRelations(MediaOwnerType.Event, vm.SelectedEvent.Id);
-    }
-
-    // Открывает окно связей для указанного владельца
-    private void OpenRelations(MediaOwnerType ownerType, int ownerId)
-    {
-        var services = ((App)Application.Current).Services;
-        if (services is null) return;
-
-        var window = new RelationsWindow(
-            ownerType, ownerId,
-            services.GetRequiredService<IRelationService>(),
-            services.GetRequiredService<IPersonService>(),
-            services.GetRequiredService<ICompanyService>(),
-            services.GetRequiredService<IEventService>())
-        {
-            Owner = Window.GetWindow(this)
-        };
-        window.ShowDialog();
-    }
-
     // Экспорт выбранной персоны
     private async void ExportPerson_Click(object sender, RoutedEventArgs e)
     {

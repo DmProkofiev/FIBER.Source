@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
@@ -19,6 +19,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly IEventService _eventService;
     private readonly ICountryService _countryService;
     private readonly IMediaService _mediaService;
+    private readonly IRelationService _relationService;
     private readonly ISearchStrategyFactory _strategyFactory;
 
     public event Action<int>? UpdatePersonRequested;
@@ -31,6 +32,7 @@ public partial class SearchViewModel : ObservableObject
         IEventService eventService,
         ICountryService countryService,
         IMediaService mediaService,
+        IRelationService relationService,
         ISearchStrategyFactory strategyFactory)
     {
         _personService = personService;
@@ -38,6 +40,7 @@ public partial class SearchViewModel : ObservableObject
         _eventService = eventService;
         _countryService = countryService;
         _mediaService = mediaService;
+        _relationService = relationService;
         _strategyFactory = strategyFactory;
 
         _selectedStatusFilter = StatusFilters.First();
@@ -48,6 +51,7 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<MediaItemViewModel> PersonImages { get; } = new();
     public ObservableCollection<MediaItemViewModel> PersonVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> PersonAudio { get; } = new();
+    public ObservableCollection<RelationItemViewModel> PersonRelations { get; } = new();
 
     public ObservableCollection<IdentityFilter> StatusFilters { get; } = new()
     {
@@ -87,6 +91,7 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<MediaItemViewModel> CompanyImages { get; } = new();
     public ObservableCollection<MediaItemViewModel> CompanyVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> CompanyAudio { get; } = new();
+    public ObservableCollection<RelationItemViewModel> CompanyRelations { get; } = new();
 
     [ObservableProperty] private string _companyQuery = string.Empty;
 
@@ -104,6 +109,7 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<MediaItemViewModel> EventImages { get; } = new();
     public ObservableCollection<MediaItemViewModel> EventVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> EventAudio { get; } = new();
+    public ObservableCollection<RelationItemViewModel> EventRelations { get; } = new();
 
     [ObservableProperty] private string _eventQuery = string.Empty;
 
@@ -166,7 +172,10 @@ public partial class SearchViewModel : ObservableObject
         {
             SelectedPerson = await _personService.GetByIdAsync(summary.Id);
             if (SelectedPerson != null)
+            {
                 await LoadMediaAsync(MediaOwnerType.Person, SelectedPerson.Id, PersonImages, PersonVideos, PersonAudio);
+                await LoadPersonRelationsAsync(SelectedPerson);
+            }
         }
         catch (Exception ex)
         {
@@ -175,7 +184,7 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearPersonSelection() { DisposeMedia(PersonImages, PersonVideos, PersonAudio); SelectedPerson = null; }
+    private void ClearPersonSelection() { DisposeMedia(PersonImages, PersonVideos, PersonAudio); PersonRelations.Clear(); SelectedPerson = null; }
 
     [RelayCommand]
     private void UpdatePerson() { if (SelectedPerson != null) UpdatePersonRequested?.Invoke(SelectedPerson.Id); }
@@ -248,7 +257,10 @@ public partial class SearchViewModel : ObservableObject
         {
             SelectedCompany = await _companyService.GetByIdAsync(summary.Id);
             if (SelectedCompany != null)
+            {
                 await LoadMediaAsync(MediaOwnerType.Company, SelectedCompany.Id, CompanyImages, CompanyVideos, CompanyAudio);
+                await LoadCompanyRelationsAsync(SelectedCompany);
+            }
         }
         catch (Exception ex)
         {
@@ -257,7 +269,7 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearCompanySelection() { DisposeMedia(CompanyImages, CompanyVideos, CompanyAudio); SelectedCompany = null; }
+    private void ClearCompanySelection() { DisposeMedia(CompanyImages, CompanyVideos, CompanyAudio); CompanyRelations.Clear(); SelectedCompany = null; }
 
     [RelayCommand]
     private void UpdateCompany() { if (SelectedCompany != null) UpdateCompanyRequested?.Invoke(SelectedCompany.Id); }
@@ -310,7 +322,10 @@ public partial class SearchViewModel : ObservableObject
         {
             SelectedEvent = await _eventService.GetByIdAsync(summary.Id);
             if (SelectedEvent != null)
+            {
                 await LoadMediaAsync(MediaOwnerType.Event, SelectedEvent.Id, EventImages, EventVideos, EventAudio);
+                await LoadEventRelationsAsync(SelectedEvent);
+            }
         }
         catch (Exception ex)
         {
@@ -319,7 +334,7 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearEventSelection() { DisposeMedia(EventImages, EventVideos, EventAudio); SelectedEvent = null; }
+    private void ClearEventSelection() { DisposeMedia(EventImages, EventVideos, EventAudio); EventRelations.Clear(); SelectedEvent = null; }
 
     [RelayCommand]
     private void UpdateEvent() { if (SelectedEvent != null) UpdateEventRequested?.Invoke(SelectedEvent.Id); }
@@ -342,6 +357,63 @@ public partial class SearchViewModel : ObservableObject
             Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
         finally { IsEventBusy = false; }
+    }
+
+    // ===== Связи: только отображение в SearchView (CRUD — в режиме редактирования) =====
+
+    private static string PersonDisplayName(Person? p) =>
+        p?.FullName ?? p?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value ?? (p != null ? $"Аноним #{p.Id}" : "—");
+
+    private async Task LoadPersonRelationsAsync(Person person)
+    {
+        PersonRelations.Clear();
+
+        foreach (var r in await _relationService.ListRelationshipsAsync(person.Id))
+            PersonRelations.Add(new RelationItemViewModel(r.KindDisplay, PersonDisplayName(r.RelatedPerson)));
+
+        foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
+            PersonRelations.Add(new RelationItemViewModel("Участие в событии", ep.Event?.Title ?? "—"));
+
+    }
+
+    private async Task LoadCompanyRelationsAsync(Company company)
+    {
+        CompanyRelations.Clear();
+
+        // Взаимодействия «компания ↔ компания»: прямые и обратные (из навигационных свойств GetByIdAsync).
+        foreach (var ci in company.OutgoingInteractions)
+            CompanyRelations.Add(new RelationItemViewModel(
+                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType,
+                ci.TargetCompany?.Name ?? "—"));
+
+        foreach (var ci in company.IncomingInteractions)
+            CompanyRelations.Add(new RelationItemViewModel(
+                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType + " (обратная)",
+                ci.SourceCompany?.Name ?? "—"));
+
+        foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
+            CompanyRelations.Add(new RelationItemViewModel($"Событие: {ep.RoleDisplay}",
+                ep.Event?.Title ?? "—"));
+
+    }
+
+    private async Task LoadEventRelationsAsync(Event evt)
+    {
+        EventRelations.Clear();
+
+        if (evt.OrganizerPerson != null)
+            EventRelations.Add(new RelationItemViewModel("Организатор", PersonDisplayName(evt.OrganizerPerson)));
+        if (evt.OrganizerCompany != null)
+            EventRelations.Add(new RelationItemViewModel("Организатор", evt.OrganizerCompany.Name));
+
+        foreach (var ep in await _relationService.ListParticipantsByEventAsync(evt.Id))
+        {
+            string target = ep.Person != null ? PersonDisplayName(ep.Person)
+                        : ep.Company != null ? ep.Company.Name
+                        : "—";
+            EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", target));
+        }
+
     }
 
     private async Task LoadMediaAsync(

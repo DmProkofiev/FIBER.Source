@@ -8,6 +8,8 @@ using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Models.Helpers;
+using FIBER.Source.Models.Joins;
 using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;

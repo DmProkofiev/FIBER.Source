@@ -145,7 +145,7 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
     private static string Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value)
             ? string.Empty
-            : string.Join(' ', value.Trim().Split(default: null, options: StringSplitOptions.RemoveEmptyEntries));
+            : string.Join(' ', value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     // Отсечь организационно-правовую форму для сравнения «ядра» названия.
     private static string StripLegalForm(string name)
@@ -164,8 +164,8 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
             lowered = lowered.Replace(form, string.Empty);
 
         return string.Join(' ',
-            lowered.Split(default: new[] { ' ', '.', ',', '"', '\'', '(', ')' },
-                    options: StringSplitOptions.RemoveEmptyEntries));
+            lowered.Split(new[] { ' ', '.', ',', '"', '\'', '(', ')' },
+                    StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static int Levenshtein(string s, string t)

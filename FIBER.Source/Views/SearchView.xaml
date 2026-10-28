@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="FIBER.Source.Views.SearchView"
+<UserControl x:Class="FIBER.Source.Views.SearchView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:helpers="clr-namespace:FIBER.Source.Helpers">
@@ -150,17 +150,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                <Button Grid.Column="5" Content="Связи" Click="RelationsPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                                <Button Grid.Column="7" Content="Экспорт" Click="ExportPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="5" Content="Экспорт" Click="ExportPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -170,7 +160,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                <Button Grid.Column="9" Content="Удалить" Command="{Binding DeletePersonCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="7" Content="Удалить" Command="{Binding DeletePersonCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -300,7 +290,26 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Связи" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+                                            <ItemsControl ItemsSource="{Binding PersonRelations}" ItemTemplate="{StaticResource RelationItemTemplate}"/>
+                                            <TextBlock Text="Связи отсутствуют" Foreground="#888888" FontFamily="Times New Roman" FontSize="15" Margin="0,3,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding PersonRelations.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+<Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">
@@ -507,17 +516,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding SelectedCompanyDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateCompanyCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
-                                <Button Grid.Column="3" Content="Связи" Click="RelationsCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                                <Button Grid.Column="5" Content="Экспорт" Click="ExportCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="3" Content="Экспорт" Click="ExportCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -527,7 +526,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                <Button Grid.Column="7" Content="Удалить" Command="{Binding DeleteCompanyCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="5" Content="Удалить" Command="{Binding DeleteCompanyCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -584,7 +583,26 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Связи" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+                                            <ItemsControl ItemsSource="{Binding CompanyRelations}" ItemTemplate="{StaticResource RelationItemTemplate}"/>
+                                            <TextBlock Text="Связи отсутствуют" Foreground="#888888" FontFamily="Times New Roman" FontSize="15" Margin="0,3,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CompanyRelations.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+<Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">
@@ -792,17 +810,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding SelectedEventDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateEventCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
-                                <Button Grid.Column="3" Content="Связи" Click="RelationsEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#9B59B6" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                                <Button Grid.Column="5" Content="Экспорт" Click="ExportEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="3" Content="Экспорт" Click="ExportEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -812,7 +820,7 @@
                                         </ControlTemplate>
                                     </Button.Template>
                                 </Button>
-                                <Button Grid.Column="7" Content="Удалить" Command="{Binding DeleteEventCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
+                                <Button Grid.Column="5" Content="Удалить" Command="{Binding DeleteEventCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
                                         Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
                                     <Button.Template>
                                         <ControlTemplate TargetType="Button">
@@ -857,7 +865,26 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Связи" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,6"/>
+                                            <ItemsControl ItemsSource="{Binding EventRelations}" ItemTemplate="{StaticResource RelationItemTemplate}"/>
+                                            <TextBlock Text="Связи отсутствуют" Foreground="#888888" FontFamily="Times New Roman" FontSize="15" Margin="0,3,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding EventRelations.Count}" Value="0">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+
+<Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">

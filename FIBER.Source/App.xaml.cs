@@ -78,6 +78,18 @@ public partial class App : Application
 
         builder.Services.AddSingleton(_databaseService);
 
+        // VM создаются DI-контейнером вместе со всеми зависимостями (сервисы, DbContextFactory).
+        builder.Services.AddSingleton<MenuViewModel>();
+        builder.Services.AddSingleton<CreatePersonViewModel>();
+        builder.Services.AddSingleton<CreateCompanyViewModel>();
+        builder.Services.AddSingleton<CreateEventViewModel>();
+        builder.Services.AddSingleton<SearchViewModel>();
+        builder.Services.AddSingleton<UpdatePersonViewModel>();
+        builder.Services.AddSingleton<UpdateCompanyViewModel>();
+        builder.Services.AddSingleton<UpdateEventViewModel>();
+        builder.Services.AddSingleton<SettingsViewModel>();
+        builder.Services.AddSingleton<MainViewModel>();
+
         builder.Services.AddDbContextFactory<FiberSourceDbContext>((sp, options) =>
         {
             var db = sp.GetRequiredService<IDatabaseService>();
@@ -117,17 +129,6 @@ public partial class App : Application
         builder.Services.AddSingleton<ITrayService, TrayService>();
 
         builder.Services.AddHostedService<StorageMaintenanceService>();
-
-        builder.Services.AddSingleton<MenuViewModel>();
-        builder.Services.AddSingleton<CreatePersonViewModel>();
-        builder.Services.AddSingleton<CreateCompanyViewModel>();
-        builder.Services.AddSingleton<CreateEventViewModel>();
-        builder.Services.AddSingleton<SearchViewModel>();
-        builder.Services.AddSingleton<UpdatePersonViewModel>();
-        builder.Services.AddSingleton<UpdateCompanyViewModel>();
-        builder.Services.AddSingleton<UpdateEventViewModel>();
-        builder.Services.AddSingleton<SettingsViewModel>();
-        builder.Services.AddSingleton<MainViewModel>();
 
         try
         {

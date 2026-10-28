@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Joins;
@@ -9,6 +9,7 @@ public interface IRelationService
 {
     Task<IReadOnlyList<EventParticipant>> ListEventParticipantsAsync(int personId);
     Task<IReadOnlyList<EventParticipant>> ListParticipantsByEventAsync(int eventId);
+    Task<IReadOnlyList<EventParticipant>> ListParticipantsByCompanyAsync(int companyId);
     Task AddEventParticipantAsync(int eventId, int? personId, int? companyId,
         EventParticipantRole role, string notes);
     Task RemoveEventParticipantAsync(int participantId);

@@ -1,4 +1,4 @@
-﻿<Application x:Class="FIBER.Source.App"
+<Application x:Class="FIBER.Source.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
@@ -219,6 +219,20 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,3,0,0"/>
         </Style>
+
+        <!-- ====== Карточка «Связи» (только просмотр; CRUD — в режиме редактирования) ====== -->
+        <DataTemplate x:Key="RelationItemTemplate">
+            <Grid Margin="0,3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="260"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Kind}" FontFamily="Times New Roman" FontSize="14"
+                           FontWeight="Bold" Foreground="#8E44AD" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <TextBlock Grid.Column="1" Text="{Binding Target}" FontFamily="Times New Roman" FontSize="15"
+                           Foreground="Black" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </Grid>
+        </DataTemplate>
 
         <!-- ====== Тонкий скроллбар ====== -->
         <Style TargetType="ScrollBar">

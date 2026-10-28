@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -42,6 +42,15 @@ public sealed class RelationService : IRelationService
             .Include(ep => ep.Person).ThenInclude(p => p!.Aliases)
             .Include(ep => ep.Company)
             .Where(ep => ep.EventId == eventId)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<EventParticipant>> ListParticipantsByCompanyAsync(int companyId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.EventParticipants.AsNoTracking()
+            .Include(ep => ep.Event)
+            .Where(ep => ep.CompanyId == companyId)
             .ToListAsync();
     }
 
