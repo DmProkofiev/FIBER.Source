@@ -113,7 +113,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IRelationService, RelationService>();
         builder.Services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
         builder.Services.AddSingleton<IExportService, ExportService>();
-        builder.Services.AddSingleton<IMLService, MLServiceStub>();
+
         builder.Services.AddSingleton<ITrayService, TrayService>();
 
         builder.Services.AddHostedService<StorageMaintenanceService>();

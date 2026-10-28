@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using FIBER.Source.Models.Enums;
 
 namespace FIBER.Source.Contracts.Inputs;
@@ -15,4 +15,5 @@ public record AnonymousPersonInput(
     string Mail = "",
     string SocialMedia = "",
     string Address = "",
-    IReadOnlyList<PersonAliasInput>? Aliases = null);
+    IReadOnlyList<PersonAliasInput>? Aliases = null,
+    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null);

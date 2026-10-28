@@ -39,6 +39,12 @@ public partial class UpdatePersonViewModel : ObservableValidator
     public ObservableCollection<MediaItemViewModel> ExistingVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingAudio { get; } = new();
     public ObservableCollection<PersonAliasEditVM> Aliases { get; } = new();
+    // Связи «персона ↔ персона»: исходящие редактируются, обратные показаны для информации.
+    public ObservableCollection<PersonRelationshipEditVM> Relationships { get; } = new();
+    // Справочник персон для ComboBox выбора цели новой связи.
+    public ObservableCollection<Contracts.Summaries.PersonSummary> AvailablePersons { get; } = new();
+
+    [ObservableProperty] private int? _selectedRelatedPersonId;
 
     [ObservableProperty] private int _personId;
     [ObservableProperty] private IdentityStatus _currentStatus;
@@ -94,7 +100,14 @@ public partial class UpdatePersonViewModel : ObservableValidator
         TempFiles.Clear();
         ClearExistingMedia();
         Aliases.Clear();
+        Relationships.Clear();
+        SelectedRelatedPersonId = null;
         IsInPromoteMode = false;
+
+        // Справочник персон для выбора цели связи (исключаем саму редактируемую персону).
+        AvailablePersons.Clear();
+        foreach (var p in await _personService.SearchAsync(string.Empty))
+            if (p.Id != personId) AvailablePersons.Add(p);
 
         if (Countries.Count == 0)
         {
@@ -140,6 +153,12 @@ public partial class UpdatePersonViewModel : ObservableValidator
         foreach (var a in person.Aliases.Where(a => !a.IsPrimary))
             Aliases.Add(PersonAliasEditVM.FromModel(a));
 
+        // Связи: сначала исходящие (редактируемые), затем обратные (только просмотр).
+        foreach (var r in person.Relationships)
+            Relationships.Add(PersonRelationshipEditVM.FromModel(r));
+        foreach (var r in person.ReverseRelationships)
+            Relationships.Add(PersonRelationshipEditVM.FromReverse(r));
+
         var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Person, personId);
         foreach (var media in mediaList)
         {
@@ -165,6 +184,46 @@ public partial class UpdatePersonViewModel : ObservableValidator
     {
         if (alias != null) Aliases.Remove(alias);
     }
+
+    // ----- Связи «персона ↔ персона»: CRUD внутри редактора -----
+
+    [RelayCommand]
+    private void AddRelationship()
+    {
+        if (SelectedRelatedPersonId == null) return;
+
+        var target = AvailablePersons.FirstOrDefault(p => p.Id == SelectedRelatedPersonId.Value);
+        if (target == null) return;
+
+        // Защита от дубля на уровне UI: такая цель уже есть в списке связей.
+        if (Relationships.Any(r => r.RelatedPersonId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            SelectedRelatedPersonId = null;
+            return;
+        }
+
+        Relationships.Add(new PersonRelationshipEditVM
+        {
+            RelatedPersonId = target.Id,
+            DisplayName = target.DisplayName,
+            Kind = PersonRelationKind.Friend
+        });
+        SelectedRelatedPersonId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveRelationship(PersonRelationshipEditVM relationship)
+    {
+        if (relationship == null) return;
+        Relationships.Remove(relationship);
+    }
+
+    private List<PersonRelationshipEditInput> BuildRelationshipsInput() =>
+        Relationships
+            .Where(r => !r.IsReverseOnly && r.RelatedPersonId.HasValue)
+            .Select(r => r.ToInput())
+            .ToList();
 
     [RelayCommand]
     private void EnterPromoteMode()
@@ -246,7 +305,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(), Notes: Notes.Trim(),
                     Status: IdentityStatus.Identified,
-                    Aliases: aliasesInput);
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
 
                 await _personService.UpdateAsync(PersonId, personInput);
             }
@@ -269,7 +328,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(), Notes: Notes.Trim(),
                     Status: IdentityStatus.Identified,
-                    Aliases: aliasesInput);
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
 
                 await _personService.UpdateAsync(PersonId, input);
             }
@@ -288,7 +347,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(),
-                    Aliases: aliasesInput);
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
 
                 await _personService.UpdateAnonymousAsync(PersonId, input);
             }

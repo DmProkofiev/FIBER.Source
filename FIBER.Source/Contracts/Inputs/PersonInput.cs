@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FIBER.Source.Models.Enums;
 
@@ -21,4 +21,5 @@ public record PersonInput(
     string Address,
     string Notes,
     IdentityStatus? Status = null,
-    IReadOnlyList<PersonAliasInput>? Aliases = null);
+    IReadOnlyList<PersonAliasInput>? Aliases = null,
+    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null);

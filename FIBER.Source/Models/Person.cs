@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -39,7 +39,9 @@ public class Person
     public ICollection<PersonAlias> Aliases { get; set; } = new List<PersonAlias>();
     public ICollection<EventParticipant> EventParticipations { get; set; } = new List<EventParticipant>();
     public ICollection<Event> OrganizerEvents { get; set; } = new List<Event>();
+    // Прямые связи: данная персона — инициатор («Person» в PersonRelationship).
     public ICollection<PersonRelationship> Relationships { get; set; } = new List<PersonRelationship>();
+    // Связи, где данная персона является «связанной» (обратная сторона связи другой персоны).
     public ICollection<PersonRelationship> ReverseRelationships { get; set; } = new List<PersonRelationship>();
 
     [NotMapped]

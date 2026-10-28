@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Contracts.Summaries;
@@ -17,6 +17,9 @@ public interface ICompanyService
 
     // Возвращает список организаций (с фильтром по подстроке имени)
     Task<IReadOnlyList<CompanySummary>> ListAsync(string? query);
+
+    // Полный список организаций кроме указанной (для выбора цели связи в редакторе)
+    Task<IReadOnlyList<Company>> GetAllExceptAsync(int excludeId);
 
     // Обновляет поля организации
     Task UpdateAsync(int id, CompanyInput input);

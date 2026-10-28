@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,5 +11,6 @@ namespace FIBER.Source.Contracts.Inputs
         string Phone,
         string Mail,
         string Website,
-        string Notes);
+        string Notes,
+        IReadOnlyList<CompanyInteractionEditInput>? Interactions = null);
 }

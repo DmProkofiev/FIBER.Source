@@ -14,9 +14,22 @@ public sealed record DuplicateCandidate(Person Person, double Score)
     public string ScoreText => $"{Score * 100:0}%";
 }
 
+// Кандидат в дубликаты организации.
+public sealed record CompanyDuplicateCandidate(Company Company, double Score)
+{
+    public string DisplayName => Company.Name;
+    public string RegistrationNumber =>
+        string.IsNullOrWhiteSpace(Company.RegistrationNumber) ? "Сведения отсутствуют" : Company.RegistrationNumber!;
+    public string ScoreText => $"{Score * 100:0}%";
+}
+
 public sealed record DuplicateFinderResult(
     Person Source,
     IReadOnlyList<DuplicateCandidate> Candidates);
+
+public sealed record CompanyDuplicateFinderResult(
+    Company Source,
+    IReadOnlyList<CompanyDuplicateCandidate> Candidates);
 
 public interface IDuplicateFinderService
 {
@@ -25,6 +38,13 @@ public interface IDuplicateFinderService
     Task<DuplicateFinderResult?> FindAsync(
         int sourcePersonId,
         string? strategyKey,
+        double minScore = 0.0,
+        CancellationToken ct = default);
+
+    // Поиск дубликатов организации по ключевым полям (название / рег. номер).
+    Task<CompanyDuplicateFinderResult?> FindCompanyAsync(
+        int sourceCompanyId,
+        string strategyKey,
         double minScore = 0.0,
         CancellationToken ct = default);
 }

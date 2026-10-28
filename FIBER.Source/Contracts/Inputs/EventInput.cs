@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace FIBER.Source.Contracts.Inputs;
@@ -10,4 +10,5 @@ public record EventInput(
     string Notes,
     int? OrganizerCompanyId,
     int? OrganizerPersonId,
-    IReadOnlyList<EventParticipantInput> Participants);
+    IReadOnlyList<EventParticipantInput> Participants,
+    IReadOnlyList<EventParticipantEditInput>? ParticipantLinks = null);

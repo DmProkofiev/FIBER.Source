@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -257,7 +257,12 @@ public sealed class EventService : IEventService
 
         await using var context = await _contextFactory.CreateDbContextAsync();
         await ValidateOrganizersAsync(context, input);
-        await ValidateParticipantsAsync(context, input);
+
+        // Режим точечного CRUD связей (участники с Id): валидируем новый набор.
+        if (input.ParticipantLinks is not null)
+            await ValidateParticipantLinksAsync(context, input.ParticipantLinks);
+        else
+            await ValidateParticipantsAsync(context, input);
 
         await using var tx = await context.Database.BeginTransactionAsync();
         try
@@ -274,19 +279,29 @@ public sealed class EventService : IEventService
             ev.OrganizerCompanyId = input.OrganizerCompanyId;
             ev.OrganizerPersonId = input.OrganizerPersonId;
 
-            context.EventParticipants.RemoveRange(ev.Participants);
-            await context.SaveChangesAsync();
-
-            foreach (var p in input.Participants)
+            if (input.ParticipantLinks is not null)
             {
-                context.EventParticipants.Add(new EventParticipant
+                // CRUD связей «событие ↔ участник» без пересоздания существующих записей:
+                // изменённые поля обновляются на месте, удалённые — удаляются, новые — добавляются.
+                await SyncParticipantsAsync(context, ev, input.ParticipantLinks);
+            }
+            else
+            {
+                // Обратная совместимость (старый путь): полное пересоздание списка участников.
+                context.EventParticipants.RemoveRange(ev.Participants);
+                await context.SaveChangesAsync();
+
+                foreach (var p in input.Participants)
                 {
-                    EventId = ev.Id,
-                    PersonId = p.PersonId,
-                    CompanyId = p.CompanyId,
-                    Role = p.Role,
-                    Notes = p.Notes ?? string.Empty
-                });
+                    context.EventParticipants.Add(new EventParticipant
+                    {
+                        EventId = ev.Id,
+                        PersonId = p.PersonId,
+                        CompanyId = p.CompanyId,
+                        Role = p.Role,
+                        Notes = p.Notes ?? string.Empty
+                    });
+                }
             }
 
             await context.SaveChangesAsync();
@@ -298,6 +313,82 @@ public sealed class EventService : IEventService
             await tx.RollbackAsync();
             throw;
         }
+    }
+
+    private static async Task ValidateParticipantLinksAsync(
+        FiberSourceDbContext context, IReadOnlyList<EventParticipantEditInput> links)
+    {
+        var personIds = new HashSet<int>();
+        var companyIds = new HashSet<int>();
+
+        foreach (var p in links)
+        {
+            var hasPerson = p.PersonId.HasValue;
+            var hasCompany = p.CompanyId.HasValue;
+
+            if (hasPerson == hasCompany)
+                throw new InvalidOperationException(
+                    "Участник должен быть либо человеком, либо компанией");
+
+            if (hasPerson && !personIds.Add(p.PersonId!.Value))
+                throw new InvalidOperationException($"Участник-человек Id={p.PersonId} указан дважды");
+
+            if (hasCompany && !companyIds.Add(p.CompanyId!.Value))
+                throw new InvalidOperationException($"Участник-компания Id={p.CompanyId} указана дважды");
+        }
+
+        if (personIds.Count > 0)
+        {
+            var found = await context.People.CountAsync(p => personIds.Contains(p.Id));
+            if (found != personIds.Count)
+                throw new InvalidOperationException("Один или несколько участников-людей не найдены");
+        }
+        if (companyIds.Count > 0)
+        {
+            var found = await context.Companies.CountAsync(c => companyIds.Contains(c.Id));
+            if (found != companyIds.Count)
+                throw new InvalidOperationException("Одна или несколько участников-компаний не найдены");
+        }
+    }
+
+    // ===== Синхронизация связей «событие ↔ участник» (CRUD внутри Update) =====
+    private static async Task SyncParticipantsAsync(
+        FiberSourceDbContext context, Event ev, IReadOnlyList<EventParticipantEditInput> links)
+    {
+        // DELETE: отсутствующие во входных данных.
+        var inputIds = links.Where(l => l.Id.HasValue).Select(l => l.Id!.Value).ToHashSet();
+        foreach (var existing in ev.Participants.ToList())
+        {
+            if (!inputIds.Contains(existing.Id))
+            {
+                ev.Participants.Remove(existing);
+                context.EventParticipants.Remove(existing);
+            }
+        }
+
+        // UPDATE: роль/заметки существующих записей меняются на месте.
+        foreach (var input in links.Where(l => l.Id.HasValue))
+        {
+            var link = ev.Participants.FirstOrDefault(p => p.Id == input.Id!.Value);
+            if (link is null) continue;
+            link.Role = input.Role;
+            link.Notes = input.Notes ?? string.Empty;
+        }
+
+        // CREATE: новые участники.
+        foreach (var input in links.Where(l => !l.Id.HasValue))
+        {
+            context.EventParticipants.Add(new EventParticipant
+            {
+                EventId = ev.Id,
+                PersonId = input.PersonId,
+                CompanyId = input.CompanyId,
+                Role = input.Role,
+                Notes = input.Notes ?? string.Empty
+            });
+        }
+
+        await context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)

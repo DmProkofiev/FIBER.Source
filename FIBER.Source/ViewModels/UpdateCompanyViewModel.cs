@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Helpers;
@@ -31,6 +31,13 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     public ObservableCollection<MediaItemViewModel> ExistingVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingAudio { get; } = new();
 
+    // Взаимодействия «компания → компания»: исходящие редактируются, обратные — для информации.
+    public ObservableCollection<CompanyInteractionEditVM> Interactions { get; } = new();
+    // Справочник организаций для ComboBox выбора цели новой связи.
+    public ObservableCollection<Models.Company> AvailableCompanies { get; } = new();
+
+    [ObservableProperty] private int? _selectedTargetCompanyId;
+
     [ObservableProperty] private int _companyId;
 
     [ObservableProperty]
@@ -52,6 +59,8 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         _mediaService.DeleteTempFiles(TempFiles);
         TempFiles.Clear();
         ClearExistingMedia();
+        Interactions.Clear();
+        SelectedTargetCompanyId = null;
 
         var company = await _companyService.GetByIdAsync(companyId);
         if (company == null)
@@ -61,6 +70,11 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             return;
         }
 
+        // Справочник организаций для выбора цели связи (исключаем саму организацию).
+        AvailableCompanies.Clear();
+        foreach (var c in await _companyService.GetAllExceptAsync(companyId))
+            AvailableCompanies.Add(c);
+
         CompanyId = company.Id;
         Name = company.Name;
         RegistrationNumber = company.RegistrationNumber ?? string.Empty;
@@ -69,6 +83,12 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         Mail = company.Mail ?? string.Empty;
         Website = company.Website ?? string.Empty;
         Notes = company.Notes ?? string.Empty;
+
+        // Взаимодействия: сначала исходящие (редактируемые), затем обратные (только просмотр).
+        foreach (var ci in company.OutgoingInteractions)
+            Interactions.Add(CompanyInteractionEditVM.FromModel(ci));
+        foreach (var ci in company.IncomingInteractions)
+            Interactions.Add(CompanyInteractionEditVM.FromReverse(ci));
 
         var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Company, companyId);
         foreach (var media in mediaList)
@@ -86,6 +106,46 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         foreach (var m in ExistingAudio) m.Dispose();
         ExistingImages.Clear(); ExistingVideos.Clear(); ExistingAudio.Clear();
     }
+
+    // ----- Взаимодействия «компания → компания»: CRUD внутри редактора -----
+
+    [RelayCommand]
+    private void AddInteraction()
+    {
+        if (SelectedTargetCompanyId == null) return;
+
+        var target = AvailableCompanies.FirstOrDefault(c => c.Id == SelectedTargetCompanyId.Value);
+        if (target == null) return;
+
+        // Защита от дубля на уровне UI: такая цель уже есть в списке связей.
+        if (Interactions.Any(i => i.TargetCompanyId == target.Id))
+        {
+            Notification.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
+            SelectedTargetCompanyId = null;
+            return;
+        }
+
+        Interactions.Add(new CompanyInteractionEditVM
+        {
+            TargetCompanyId = target.Id,
+            DisplayName = target.Name,
+            InteractionType = "Партнёр"
+        });
+        SelectedTargetCompanyId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveInteraction(CompanyInteractionEditVM interaction)
+    {
+        if (interaction == null) return;
+        Interactions.Remove(interaction);
+    }
+
+    private List<CompanyInteractionEditInput> BuildInteractionsInput() =>
+        Interactions
+            .Where(i => !i.IsReverseOnly && i.TargetCompanyId.HasValue)
+            .Select(i => i.ToInput())
+            .ToList();
 
     public async Task HandleFilesDropAsync(string[] files)
     {
@@ -132,7 +192,8 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         {
             var input = new CompanyInput(
                 Name.Trim(), RegistrationNumber.Trim(), Address.Trim(),
-                Phone.Trim(), Mail.Trim(), Website.Trim(), Notes.Trim());
+                Phone.Trim(), Mail.Trim(), Website.Trim(), Notes.Trim(),
+                Interactions: BuildInteractionsInput());
 
             await _companyService.UpdateAsync(CompanyId, input);
 

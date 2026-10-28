@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Contracts.Summaries;
@@ -123,6 +123,13 @@ public partial class UpdateEventViewModel : ObservableValidator
             {
                 Participants.Add(EventParticipantEditVM.ForCompany(p.Company.Id, p.Company.Name));
             }
+
+            // Точечный CRUD связей: запоминаем Id существующей записи участника,
+            // чтобы при сохранении обновлять её на месте, а не пересоздавать.
+            var last = Participants[^1];
+            last.Id = p.Id;
+            last.Role = p.Role;
+            last.Notes = p.Notes;
         }
 
         var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Event, eventId);
@@ -186,7 +193,13 @@ public partial class UpdateEventViewModel : ObservableValidator
         if (SelectedPersonId == null) return;
         var person = Persons.FirstOrDefault(p => p.Id == SelectedPersonId.Value);
         if (person == null) return;
-        if (Participants.Any(p => p.PersonId == person.Id)) return;
+        // Защита от дубля: такой участник уже в списке.
+        if (Participants.Any(p => p.PersonId == person.Id))
+        {
+            Notification.Show("Внимание", "Этот участник уже добавлен", NotificationType.Warning);
+            SelectedPersonId = null;
+            return;
+        }
 
         Participants.Add(EventParticipantEditVM.ForPerson(person.Id, person.DisplayName));
         SelectedPersonId = null;
@@ -198,7 +211,13 @@ public partial class UpdateEventViewModel : ObservableValidator
         if (SelectedCompanyId == null) return;
         var company = Companies.FirstOrDefault(c => c.Id == SelectedCompanyId.Value);
         if (company == null) return;
-        if (Participants.Any(p => p.CompanyId == company.Id)) return;
+        // Защита от дубля: такой участник уже в списке.
+        if (Participants.Any(p => p.CompanyId == company.Id))
+        {
+            Notification.Show("Внимание", "Эта организация уже добавлена как участник", NotificationType.Warning);
+            SelectedCompanyId = null;
+            return;
+        }
 
         Participants.Add(EventParticipantEditVM.ForCompany(company.Id, company.Name));
         SelectedCompanyId = null;
@@ -229,7 +248,10 @@ public partial class UpdateEventViewModel : ObservableValidator
                 Notes.Trim(),
                 OrganizerCompanyId,
                 OrganizerPersonId,
-                Participants.Select(p => p.ToInput()).ToList());
+                Participants.Select(p => p.ToInput()).ToList(),
+                // Точечный CRUD связей: участники с Id обновляются на месте,
+                // без Id — создаются, удалённые из списка — удаляются.
+                ParticipantLinks: Participants.Select(p => p.ToEditInput()).ToList());
 
             await _eventService.UpdateAsync(EventId, input);
 
