@@ -131,7 +131,7 @@
                                                 <TextBox Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
-                                                <Button Grid.Column="3" Content="✕" Width="26" Height="26"
+                                                <Button Grid.Column="3" Content="×" Width="26" Height="26"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.RemoveParticipantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -174,7 +174,7 @@
                                                 <Border CornerRadius="4" ClipToBounds="True" Background="#DDD">
                                                     <Image Source="{Binding ImageSource}" Stretch="Uniform" />
                                                 </Border>
-                                                <Button Content="✕" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
+                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}">
@@ -199,7 +199,7 @@
                                                 <Border Background="#2C3E50" CornerRadius="4" Padding="5">
                                                     <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                 </Border>
-                                                <Button Content="✕" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
+                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -216,7 +216,7 @@
                                                 <Border Background="#27AE60" CornerRadius="4" Padding="5">
                                                     <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                 </Border>
-                                                <Button Content="✕" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
+                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -280,7 +280,7 @@
                                                         </TextBlock>
                                                     </Grid>
                                                 </Border>
-                                                <Button Content="✕"
+                                                <Button Content="×"
                                                         Command="{Binding DataContext.RemoveTempFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"
                                                         HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -305,11 +305,7 @@
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,25,0,10">
-                        <Button Content="Сохранить" Command="{Binding SaveCommand}" Width="200" Height="46" FontSize="18" Margin="0,0,16,0">
-                            <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}"/>
-                            </Button.Style>
-                        </Button>
+                        <Button Content="Сохранить" Command="{Binding SaveCommand}" Width="200" Height="46" FontSize="18" Margin="0,0,16,0" Style="{StaticResource PrimaryButtonStyle}"/>
                         <Button Content="Отмена" Command="{Binding CancelCommand}" Width="160" Height="46" FontSize="18">
                             <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">

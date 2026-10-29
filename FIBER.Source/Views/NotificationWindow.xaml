@@ -42,7 +42,7 @@
                     <TextBlock x:Name="TitleText" Grid.Column="1" VerticalAlignment="Center"
                                FontFamily="Times New Roman" FontSize="20" FontWeight="Bold"
                                Foreground="White" TextWrapping="Wrap"/>
-                    <Button Grid.Column="2" Content="✕" Width="28" Height="28"
+                    <Button Grid.Column="2" Content="×" Width="28" Height="28"
                             Background="Transparent" Foreground="#AAAAAA" BorderThickness="0"
                             FontSize="14" Cursor="Hand" Click="Close_Click" VerticalAlignment="Top"/>
                 </Grid>

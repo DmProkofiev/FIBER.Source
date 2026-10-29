@@ -28,9 +28,9 @@ public partial class NotificationWindow : Window
     {
         (string glyph, System.Windows.Media.Color color) = type switch
         {
-            NotificationType.Success => ("✓", System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60)),
+            NotificationType.Success => ("+", System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60)),
             NotificationType.Warning => ("!", System.Windows.Media.Color.FromRgb(0xF3, 0x9C, 0x12)),
-            NotificationType.Error => ("✕", System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C)),
+            NotificationType.Error => ("×", System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C)),
             _ => ("i", System.Windows.Media.Color.FromRgb(0x34, 0x98, 0xDB))
         };
         IconText.Text = glyph;

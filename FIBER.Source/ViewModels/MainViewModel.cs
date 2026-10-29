@@ -166,24 +166,23 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // Возврат в поиск после сохранения/отмены Person
-    private void OnUpdateFinished()
+    // Возврат в экран после сохранения/отмены (Person — экран поиска, Company/Event — настройки)
+    private void OnUpdateFinished() => ShowSearch();
+
+    private void OnCompanyUpdateFinished() => ShowSettings();
+
+    private void OnEventUpdateFinished() => ShowSettings();
+
+    // Переход на экран поиска (после сохранения/отмены Person)
+    private void ShowSearch()
     {
         CurrentContent = _search;
         CurrentPanelKey = "Search";
         _ = _search.InitializeAsync();
     }
 
-    // Возврат в настройки после сохранения/отмены Company
-    private void OnCompanyUpdateFinished()
-    {
-        CurrentContent = _settings;
-        CurrentPanelKey = "Settings";
-        _ = _settings.LoadDataAsync();
-    }
-
-    // Возврат в настройки после сохранения/отмены Event
-    private void OnEventUpdateFinished()
+    // Переход на экран настроек (после сохранения/отмены Company/Event)
+    private void ShowSettings()
     {
         CurrentContent = _settings;
         CurrentPanelKey = "Settings";

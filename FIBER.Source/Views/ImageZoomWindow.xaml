@@ -17,7 +17,7 @@
                 <TextBlock x:Name="TitleText" Foreground="White" FontSize="18" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBlock Text="Колесико: зум | Мышь: перемещение | Стрелки: листать | Esc: закрыть" Foreground="Gray" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <Button Content="✕" Width="40" Height="40" FontSize="20" Click="Close_Click" Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="×" Width="40" Height="40" FontSize="20" Click="Close_Click" Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -46,7 +46,7 @@
             </Image>
 
             <!-- 2. Кнопки навигации (сверху над картинкой) -->
-            <Button x:Name="PrevButton" Content="❮" Click="Prev_Click"
+            <Button x:Name="PrevButton" Content="&lt;" Click="Prev_Click"
                     HorizontalAlignment="Left" VerticalAlignment="Center"
                     Width="60" Height="100" Margin="20,0,0,0"
                     Background="#55000000" Foreground="White" FontSize="40"
@@ -60,7 +60,7 @@
                 </Button.Template>
             </Button>
 
-            <Button x:Name="NextButton" Content="❯" Click="Next_Click"
+            <Button x:Name="NextButton" Content=">" Click="Next_Click"
                     HorizontalAlignment="Right" VerticalAlignment="Center"
                     Width="60" Height="100" Margin="0,0,20,0"
                     Background="#55000000" Foreground="White" FontSize="40"

@@ -148,7 +148,7 @@
                                                 <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
                                                            Foreground="White" FontFamily="Times New Roman"
                                                            FontSize="14" VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1" Content="✕" Width="26" Height="26"
+                                                <Button Grid.Column="1" Content="×" Width="26" Height="26"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.RemoveParticipantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -230,7 +230,7 @@
                                                         </TextBlock>
                                                     </Grid>
                                                 </Border>
-                                                <Button Content="✕"
+                                                <Button Content="×"
                                                         Command="{Binding DataContext.RemoveTempFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"
                                                         HorizontalAlignment="Right" VerticalAlignment="Top"

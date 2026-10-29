@@ -113,7 +113,7 @@
                                                         </TextBlock>
                                                     </Grid>
                                                 </Border>
-                                                <Button Content="✕"
+                                                <Button Content="×"
                                                         Command="{Binding DataContext.RemoveTempFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"
                                                         HorizontalAlignment="Right" VerticalAlignment="Top"
