@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
@@ -6,6 +6,7 @@ using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Services;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -30,6 +31,8 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IEventService _eventService;
     /// <summary>Сервис управления БД.</summary>
     private readonly IDatabaseService _databaseService;
+    /// <summary>Сервис сидинга тестовых данных.</summary>
+    private readonly ISeedDataService _seedDataService;
 
     /// <summary>Запрос на редактирование организации.</summary>
     public event Action<int>? UpdateCompanyRequested;
@@ -43,7 +46,8 @@ public partial class SettingsViewModel : ObservableObject
         IMediaService mediaService,
         ICompanyService companyService,
         IEventService eventService,
-        IDatabaseService databaseService)
+        IDatabaseService databaseService,
+        ISeedDataService seedDataService)
     {
         _auditLogService = auditLogService;
         _contextFactory = contextFactory;
@@ -51,6 +55,7 @@ public partial class SettingsViewModel : ObservableObject
         _companyService = companyService;
         _eventService = eventService;
         _databaseService = databaseService;
+        _seedDataService = seedDataService;
     }
 
     /// <summary>Люди.</summary>
@@ -70,6 +75,8 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _appVersion = "FIBER Source 1.0.0";
     /// <summary>Путь к файлу БД.</summary>
     [ObservableProperty] private string _dbPath = string.Empty;
+    /// <summary>Результат последнего сидинга.</summary>
+    [ObservableProperty] private string _seedResult = string.Empty;
     /// <summary>Старый пароль.</summary>
     [ObservableProperty] private string _oldPassword = string.Empty;
     /// <summary>Новый пароль.</summary>
@@ -93,10 +100,26 @@ public partial class SettingsViewModel : ObservableObject
         var peopleRaw = await context.People.AsNoTracking()
             .Where(p => p.MergedIntoPersonId == null)
             .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new { p.Id, p.FullName, p.Status, p.BirthDate })
+            // Поле FullName в модели не маппится (NotMapped) — в SQL оно не транслируется,
+            // поэтому выбираем компоненты ФИО и склеиваем их после загрузки.
+            .Select(p => new { p.Id, p.LastName, p.FirstName, p.SecondName, p.Status, p.BirthDate })
             .ToListAsync();
+
+        var personIdsForAlias = peopleRaw
+            .Where(p => p.Status == Models.Enums.IdentityStatus.Anonymous)
+            .Select(p => p.Id).ToList();
+        var primaryAliases = personIdsForAlias.Count > 0
+            ? await context.PersonAliases.AsNoTracking()
+                .Where(a => a.IsPrimary && personIdsForAlias.Contains(a.PersonId))
+                .ToDictionaryAsync(a => a.PersonId, a => a.Value)
+            : new Dictionary<int, string>();
+
         Replace(People, peopleRaw.Select(p => new PersonSummary(
-            p.Id, p.FullName ?? "Аноним #" + p.Id, p.Status, p.BirthDate,
+            p.Id,
+            p.Status == Models.Enums.IdentityStatus.Identified
+                ? Services.Search.PersonSearchFilters.JoinFullName(p.LastName, p.FirstName, p.SecondName)
+                : primaryAliases.GetValueOrDefault(p.Id, "Аноним #" + p.Id),
+            p.Status, p.BirthDate,
             mediaByOwner.GetValueOrDefault((MediaOwnerType.Person, p.Id), 0))));
 
         var companiesRaw = await _companyService.ListAsync(null);
@@ -118,8 +141,23 @@ public partial class SettingsViewModel : ObservableObject
         var companyIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Company).Select(m => m.OwnerId).Distinct().ToList();
         var eventIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Event).Select(m => m.OwnerId).Distinct().ToList();
 
-        var peopleDict = await context.People.Where(p => personIds.Contains(p.Id))
-            .ToDictionaryAsync(p => p.Id, p => p.FullName ?? $"Аноним #{p.Id}");
+        var peopleRawDict = await context.People.AsNoTracking()
+            .Where(p => personIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.LastName, p.FirstName, p.SecondName, p.Status })
+            .ToListAsync();
+        var anonymousIdsForDict = peopleRawDict
+            .Where(p => p.Status == Models.Enums.IdentityStatus.Anonymous)
+            .Select(p => p.Id).ToList();
+        var primaryAliasesForDict = anonymousIdsForDict.Count > 0
+            ? await context.PersonAliases.AsNoTracking()
+                .Where(a => a.IsPrimary && anonymousIdsForDict.Contains(a.PersonId))
+                .ToDictionaryAsync(a => a.PersonId, a => a.Value)
+            : new Dictionary<int, string>();
+        var peopleDict = peopleRawDict.ToDictionary(
+            p => p.Id,
+            p => p.Status == Models.Enums.IdentityStatus.Identified
+                ? Services.Search.PersonSearchFilters.JoinFullName(p.LastName, p.FirstName, p.SecondName)
+                : primaryAliasesForDict.GetValueOrDefault(p.Id, $"Аноним #{p.Id}"));
         var companiesDict = await context.Companies.Where(c => companyIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name);
         var eventsDict = await context.Events.Where(e => eventIds.Contains(e.Id))
@@ -211,6 +249,34 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             Notification.Show("Ошибка экспорта", ex.Message, NotificationType.Error);
+        }
+    }
+
+    /// <summary>Заполнить БД тестовыми данными.</summary>
+    [RelayCommand]
+    private async Task SeedDataAsync()
+    {
+        try
+        {
+            var result = await _seedDataService.SeedAsync();
+            if (result.Skipped)
+            {
+                SeedResult = "В БД уже есть данные — сидинг пропущен.";
+                Notification.Show("Информация", SeedResult, NotificationType.Warning);
+            }
+            else
+            {
+                SeedResult =
+                    $"Создано: персон {result.PersonsCreated}, организаций {result.CompaniesCreated}, " +
+                    $"событий {result.EventsCreated}, связей {result.RelationshipsCreated}.";
+                await _auditLogService.LogAsync("Database.Seed", SeedResult);
+                Notification.Show("Сидинг завершён", SeedResult, NotificationType.Success);
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Notification.Show("Ошибка сидинга", ex.Message, NotificationType.Error);
         }
     }
 

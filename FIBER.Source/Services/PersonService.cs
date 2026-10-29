@@ -463,7 +463,8 @@ public sealed class PersonService : IPersonService
 
         var ids = rows.Select(r => r.Id).ToList();
 
-        var anonymousIds = rows.Where(r => r.LastName == null).Select(r => r.Id).ToList();
+        // Анонимом считается запись со статусом Anonymous (не по пустой фамилии!).
+        var anonymousIds = rows.Where(r => r.Status == IdentityStatus.Anonymous).Select(r => r.Id).ToList();
         var primaryAliases = anonymousIds.Count > 0
             ? await context.PersonAliases
                 .AsNoTracking()
@@ -487,8 +488,11 @@ public sealed class PersonService : IPersonService
 
         return rows.Select(r => new PersonSummary(
             r.Id,
-            r.LastName != null && r.FirstName != null
-                ? BuildFullName(r.LastName, r.FirstName, r.SecondName)
+            // Имя отображаем по статусу; ФИО склеиваем из всех непустых компонентов
+            // (LastName + FirstName + SecondName), в том числе если заполнено только одно из них.
+            r.Status == IdentityStatus.Identified
+                ? FIBER.Source.Services.Search.PersonSearchFilters
+                    .JoinFullName(r.LastName, r.FirstName, r.SecondName)
                 : primaryAliases.GetValueOrDefault(r.Id, "Аноним #" + r.Id),
             r.Status,
             r.BirthDate,

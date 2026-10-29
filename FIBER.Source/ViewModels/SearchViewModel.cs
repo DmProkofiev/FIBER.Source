@@ -26,6 +26,11 @@ public partial class SearchViewModel : ObservableObject
     public event Action<int>? UpdateCompanyRequested;
     public event Action<int>? UpdateEventRequested;
 
+    // Переход по связи на целевой объект (из списка связей в карточке записи).
+    public event Action<int>? NavigateToPersonRequested;
+    public event Action<int>? NavigateToCompanyRequested;
+    public event Action<int>? NavigateToEventRequested;
+
     public SearchViewModel(
         IPersonService personService,
         ICompanyService companyService,
@@ -75,7 +80,10 @@ public partial class SearchViewModel : ObservableObject
     [ObservableProperty] private bool _isPersonBusy;
 
     public bool HasPersonSelection => SelectedPerson != null;
-    public string SelectedPersonDisplayName => SelectedPerson?.FullName ?? $"Аноним #{SelectedPerson?.Id}";
+    public string SelectedPersonDisplayName =>
+        SelectedPerson == null
+            ? string.Empty
+            : SelectedPerson.FullName ?? $"Аноним #{SelectedPerson.Id}";
 
     public string SelectedPersonCountryName
     {
@@ -133,7 +141,14 @@ public partial class SearchViewModel : ObservableObject
 
         if (SearchStrategies.Count == 0)
         {
-            foreach (var s in _strategyFactory.All) SearchStrategies.Add(s);
+            // Фиксированный порядок стратегий в списке (словарь фабрики не гарантирует порядок).
+            var orderedKeys = new[] { "fullname", "fullname_birthdate", "id", "passport", "phone", "alias" };
+            var all = _strategyFactory.All.ToList();
+            foreach (var key in orderedKeys)
+                foreach (var s in all.Where(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)))
+                    SearchStrategies.Add(s);
+            foreach (var s in all.Where(x => !orderedKeys.Contains(x.Key, StringComparer.OrdinalIgnoreCase)))
+                SearchStrategies.Add(s);
             SelectedStrategy = SearchStrategies.FirstOrDefault(s => s.Key == "fullname")
                                ?? SearchStrategies.FirstOrDefault();
         }
@@ -217,8 +232,7 @@ public partial class SearchViewModel : ObservableObject
         try
         {
             var id = SelectedPerson.Id;
-            await _personService.DeleteAsync(id);
-            await _mediaService.RemoveAllLinksForOwnerAsync(MediaOwnerType.Person, id);
+            await _personService.DeleteAsync(id); // удаление медиа-линков внутри сервиса (см. ТЗ §5.3)
             ClearPersonSelection();
             await LoadPersonsAsync();
         }
@@ -359,6 +373,26 @@ public partial class SearchViewModel : ObservableObject
         finally { IsEventBusy = false; }
     }
 
+    // ===== Навигация по связям =====
+
+    [RelayCommand] private void NavigateRelation(RelationItemViewModel? item)
+    {
+        if (item == null || !item.TargetId.HasValue || !item.TargetType.HasValue) return;
+
+        switch (item.TargetType.Value)
+        {
+            case RelationTargetType.Person:
+                NavigateToPersonRequested?.Invoke(item.TargetId.Value);
+                break;
+            case RelationTargetType.Company:
+                NavigateToCompanyRequested?.Invoke(item.TargetId.Value);
+                break;
+            case RelationTargetType.Event:
+                NavigateToEventRequested?.Invoke(item.TargetId.Value);
+                break;
+        }
+    }
+
     // ===== Связи: только отображение в SearchView (CRUD — в режиме редактирования) =====
 
     private static string PersonDisplayName(Person? p) =>
@@ -369,10 +403,26 @@ public partial class SearchViewModel : ObservableObject
         PersonRelations.Clear();
 
         foreach (var r in await _relationService.ListRelationshipsAsync(person.Id))
-            PersonRelations.Add(new RelationItemViewModel(r.KindDisplay, PersonDisplayName(r.RelatedPerson)));
+        {
+            var related = r.RelatedPerson;
+            if (related is null) continue;
+            PersonRelations.Add(new RelationItemViewModel(
+                r.KindDisplay,
+                PersonDisplayName(related),
+                RelationTargetType.Person,
+                related.Id));
+        }
 
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
-            PersonRelations.Add(new RelationItemViewModel("Участие в событии", ep.Event?.Title ?? "—"));
+        {
+            var evt = ep.Event;
+            if (evt is null) continue;
+            PersonRelations.Add(new RelationItemViewModel(
+                "Участие в событии",
+                evt.Title,
+                RelationTargetType.Event,
+                evt.Id));
+        }
 
     }
 
@@ -382,18 +432,36 @@ public partial class SearchViewModel : ObservableObject
 
         // Взаимодействия «компания ↔ компания»: прямые и обратные (из навигационных свойств GetByIdAsync).
         foreach (var ci in company.OutgoingInteractions)
+        {
+            var target = ci.TargetCompany;
+            if (target is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
                 string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType,
-                ci.TargetCompany?.Name ?? "—"));
+                target.Name,
+                RelationTargetType.Company,
+                target.Id));
+        }
 
         foreach (var ci in company.IncomingInteractions)
+        {
+            var source = ci.SourceCompany;
+            if (source is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
                 string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType + " (обратная)",
-                ci.SourceCompany?.Name ?? "—"));
+                source.Name,
+                RelationTargetType.Company,
+                source.Id));
+        }
 
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
+        {
+            var evt = ep.Event;
+            if (evt is null) continue;
             CompanyRelations.Add(new RelationItemViewModel($"Событие: {ep.RoleDisplay}",
-                ep.Event?.Title ?? "—"));
+                evt.Title,
+                RelationTargetType.Event,
+                evt.Id));
+        }
 
     }
 
@@ -402,16 +470,24 @@ public partial class SearchViewModel : ObservableObject
         EventRelations.Clear();
 
         if (evt.OrganizerPerson != null)
-            EventRelations.Add(new RelationItemViewModel("Организатор", PersonDisplayName(evt.OrganizerPerson)));
+            EventRelations.Add(new RelationItemViewModel("Организатор", PersonDisplayName(evt.OrganizerPerson),
+                RelationTargetType.Person, evt.OrganizerPerson.Id));
         if (evt.OrganizerCompany != null)
-            EventRelations.Add(new RelationItemViewModel("Организатор", evt.OrganizerCompany.Name));
+            EventRelations.Add(new RelationItemViewModel("Организатор", evt.OrganizerCompany.Name,
+                RelationTargetType.Company, evt.OrganizerCompany.Id));
 
         foreach (var ep in await _relationService.ListParticipantsByEventAsync(evt.Id))
         {
-            string target = ep.Person != null ? PersonDisplayName(ep.Person)
-                        : ep.Company != null ? ep.Company.Name
-                        : "—";
-            EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", target));
+            if (ep.Person != null)
+            {
+                EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", PersonDisplayName(ep.Person),
+                    RelationTargetType.Person, ep.Person.Id));
+            }
+            else if (ep.Company != null)
+            {
+                EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", ep.Company.Name,
+                    RelationTargetType.Company, ep.Company.Id));
+            }
         }
 
     }

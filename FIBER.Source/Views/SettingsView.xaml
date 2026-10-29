@@ -231,6 +231,10 @@
                                     Command="{Binding ExportUnencryptedCommand}"
                                     Height="32" Background="#9B59B6" Foreground="White"
                                     FontWeight="Bold" Cursor="Hand" BorderThickness="0"/>
+                            <Button Content="Создать тестовые данные (100 персон, org, события)"
+                                    Command="{Binding SeedDataCommand}"
+                                    Height="32" Background="#27AE60" Foreground="White"
+                                    FontWeight="Bold" Cursor="Hand" BorderThickness="0" Margin="0,12,0,0"/>
                         </StackPanel>
                     </Expander>
                 </Grid>

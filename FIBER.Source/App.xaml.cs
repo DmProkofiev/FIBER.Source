@@ -125,6 +125,7 @@ public partial class App : Application
         builder.Services.AddSingleton<IRelationService, RelationService>();
         builder.Services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
         builder.Services.AddSingleton<IExportService, ExportService>();
+        builder.Services.AddSingleton<ISeedDataService, SeedDataService>();
 
         builder.Services.AddSingleton<ITrayService, TrayService>();
 

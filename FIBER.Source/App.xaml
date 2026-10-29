@@ -220,7 +220,7 @@
             <Setter Property="Margin" Value="0,3,0,0"/>
         </Style>
 
-        <!-- ====== Карточка «Связи» (только просмотр; CRUD — в режиме редактирования) ====== -->
+        <!-- ====== Карточка «Связи» (только просмотр) ====== -->
         <DataTemplate x:Key="RelationItemTemplate">
             <Grid Margin="0,3">
                 <Grid.ColumnDefinitions>

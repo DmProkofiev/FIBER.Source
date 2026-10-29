@@ -13,6 +13,10 @@ public class TrayService : ITrayService
 
     public void Initialize(Action onOpen, Action onExit)
     {
+        // Защита от дублирования: если иконка уже создана — не создаём повторно.
+        // Повторный вызов Initialize создавал бы несколько NotifyIcon в лотке.
+        if (_notifyIcon != null) return;
+
         _notifyIcon = new Forms.NotifyIcon();
 
         // Загружаем иконку из ресурсов
