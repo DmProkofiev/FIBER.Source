@@ -10,6 +10,8 @@ using FIBER.Source.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 using UserControl = System.Windows.Controls.UserControl;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using Clipboard = System.Windows.Clipboard;
 
 namespace FIBER.Source.Views;
 
@@ -156,5 +158,21 @@ public partial class SearchView : UserControl
             vm.IsDragging = false;
             vm.Position = slider.Value;
         }
+    }
+
+    // Обрабатывает выделение и копирование текста (Ctrl+C) для read-only TextBlock'ов и TextBox'ов
+    private void SearchView_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.C || Keyboard.Modifiers != ModifierKeys.Control) return;
+
+        var focused = Keyboard.FocusedElement;
+        string text = string.Empty;
+        if (focused is System.Windows.Controls.TextBox textBox) text = textBox.SelectedText;
+        else if (focused is System.Windows.Controls.TextBlock textBlock) text = textBlock.Text;
+
+        if (string.IsNullOrEmpty(text)) return;
+
+        Clipboard.SetText(text);
+        e.Handled = true;
     }
 }
