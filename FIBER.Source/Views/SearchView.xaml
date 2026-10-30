@@ -141,34 +141,16 @@
                                 <TextBlock Grid.Column="0" Text="{Binding SelectedPersonDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdatePersonCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
                                 <Button Grid.Column="3" Content="Дубликаты" Click="DuplicatesPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#3498DB" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#3498DB" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                                 <Button Grid.Column="5" Content="Экспорт" Click="ExportPerson_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                                 <Button Grid.Column="7" Content="Удалить" Command="{Binding DeletePersonCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                             </Grid>
 
@@ -517,24 +499,12 @@
                                 <TextBlock Grid.Column="0" Text="{Binding SelectedCompanyDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateCompanyCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
                                 <Button Grid.Column="3" Content="Экспорт" Click="ExportCompany_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                                 <Button Grid.Column="5" Content="Удалить" Command="{Binding DeleteCompanyCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                             </Grid>
 
@@ -811,24 +781,12 @@
                                 <TextBlock Grid.Column="0" Text="{Binding SelectedEventDisplayName}" FontFamily="Times New Roman" FontSize="22" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                 <Button Grid.Column="1" Content="Редактировать" Command="{Binding UpdateEventCommand}" Style="{StaticResource PrimaryButtonStyle}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"/>
                                 <Button Grid.Column="3" Content="Экспорт" Click="ExportEvent_Click" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#16A085" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                                 <Button Grid.Column="5" Content="Удалить" Command="{Binding DeleteEventCommand}" Height="34" Padding="14,4" FontSize="14" VerticalAlignment="Center"
-                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Button.Template>
+                                        Background="#E74C3C" Foreground="White" FontFamily="Times New Roman" FontWeight="Bold" Cursor="Hand" BorderBrush="Transparent"
+                                        Template="{StaticResource ActionButtonTemplate}">
                                 </Button>
                             </Grid>
 

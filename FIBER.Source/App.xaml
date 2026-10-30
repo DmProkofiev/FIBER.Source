@@ -38,6 +38,20 @@
             <Setter Property="Margin" Value="15,0,0,0"/>
         </Style>
 
+        <!-- ====== Общий шаблон кнопки закрытия ====== -->
+        <ControlTemplate x:Key="CloseButtonTemplate" TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="11">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </ControlTemplate>
+
+        <!-- ====== Общий шаблон кнопки действия ====== -->
+        <ControlTemplate x:Key="ActionButtonTemplate" TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </ControlTemplate>
+
         <!-- ====== Стиль кнопки меню ====== -->
         <Style x:Key="MenuButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="Black"/>

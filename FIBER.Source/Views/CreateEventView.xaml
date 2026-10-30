@@ -237,15 +237,8 @@
                                                         Width="22" Height="22"
                                                         Background="#CCFF0000" Foreground="White"
                                                         BorderThickness="0"
-                                                        Margin="0,-5,-5,0">
-                                                    <Button.Template>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="{TemplateBinding Background}" CornerRadius="11">
-                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Button.Template>
-                                                </Button>
+                                                        Margin="0,-5,-5,0"
+                                                        Template="{StaticResource CloseButtonTemplate}" />
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
