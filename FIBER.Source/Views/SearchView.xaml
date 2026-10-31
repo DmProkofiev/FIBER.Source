@@ -9,14 +9,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Кнопка «Назад»: видна, пока в маршруте есть переходы по связям -->
-        <Border Grid.Row="0" HorizontalAlignment="Left" Margin="20,12,0,0" Padding="4"
-                Background="#33FFFFFF" CornerRadius="8"
-                Visibility="{Binding NavigationHistoryCount, Converter={StaticResource PositiveCountToVisibilityConverter}}">
-            <Button Content="Назад" Command="{Binding NavigateBackCommand}"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    Height="32" Padding="14,4" FontSize="14"/>
-        </Border>
+
 
     <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" SelectedIndex="{Binding SelectedTabIndex}">
 
@@ -399,7 +392,7 @@
                                                                             <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                                                         </Grid>
                                                                         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
+                                                                            <Button Content="Воспроизвести" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
                                                                             <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
                                                                             <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
                                                                         </StackPanel>
@@ -415,8 +408,21 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearPersonSelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
-                        </Grid>
+                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <Button Content="Отменить" Command="{Binding ClearPersonSelectionCommand}"
+            Height="30" Padding="14,4"
+            FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+            Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+            Cursor="Hand"/>
+                                    <Button Content="Назад" Command="{Binding NavigateBackCommand}"
+            Height="30" Padding="14,4"
+            FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+            Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+            Cursor="Hand"
+            Margin="8,0,0,0"
+            Visibility="{Binding NavigationHistoryCount, Converter={StaticResource PositiveCountToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </Grid>
                     </Grid>
                 </Border>
             </Grid>
