@@ -156,6 +156,8 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="12"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Профессия:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
@@ -184,6 +186,13 @@
                         <TextBlock Grid.Row="14" Grid.Column="0" Text="Адрес:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,8,15,0"/>
                         <TextBox Grid.Row="14" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}" Text="{Binding Address, UpdateSourceTrigger=PropertyChanged}"
                                  Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+
+                        <TextBlock Grid.Row="16" Grid.Column="0" Text="Пол:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <ComboBox Grid.Row="16" Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
+                                  ItemsSource="{Binding GenderChoices}"
+                                  SelectedValue="{Binding SelectedGender}"
+                                  SelectedValuePath="Value"
+                                  DisplayMemberPath="Display"/>
                     </Grid>
 
                     <Grid Margin="0,15,0,0">

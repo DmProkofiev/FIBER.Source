@@ -9,6 +9,7 @@ using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Joins;
+using FIBER.Source.Services.Search;
 using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;
@@ -172,8 +173,15 @@ public sealed class EventService : IEventService
 
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var t = query.Trim();
-            q = q.Where(e => e.Title.Contains(t));
+            // SQLite NOCASE не работает для кириллицы — ищем по вариантам регистра через LIKE.
+            var term = SearchTerm.NormalizeWord(query);
+            var predicate = PredicateBuilder.False<Event>();
+            foreach (var variant in SqliteLike.CaseVariants(term))
+            {
+                var escaped = SqliteLike.Escape(variant);
+                predicate = predicate.Or(e => EF.Functions.Like(e.Title, "%" + escaped + "%"));
+            }
+            q = q.Where(predicate);
         }
 
         var raw = await q

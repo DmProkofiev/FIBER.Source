@@ -5,6 +5,7 @@ using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Models.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
@@ -56,12 +57,17 @@ public partial class UpdatePersonViewModel : ObservableValidator
     public bool ShowAnonymousFields => !IsIdentified && !IsInPromoteMode;
     public bool ShowPromoteButton => !IsIdentified && !IsInPromoteMode;
 
-    public string StatusDisplay => IsIdentified ? "Identified" : "Not identified";
+    public string StatusDisplay => IsIdentified ? "Идентифицирована" : "Не идентифицирована";
+
+    /// <summary>Варианты выбора пола.</summary>
+    public IReadOnlyList<GenderOption> GenderChoices { get; } = GenderOptions.All;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "ФИО обязательно")]
     private string _fullName = string.Empty;
+
+    [ObservableProperty] private Gender _selectedGender = Gender.Unknown;
 
     [ObservableProperty] private DateTime? _birthDate;
     [ObservableProperty] private string _passport = string.Empty;
@@ -125,6 +131,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
         PersonId = person.Id;
         CurrentStatus = person.Status;
+        SelectedGender = person.Gender;
 
         // Опциональные поля в БД могут быть NULL — в TextBox показываем пусто.
         Job = person.Job ?? string.Empty;
@@ -289,17 +296,25 @@ public partial class UpdatePersonViewModel : ObservableValidator
                 PersonService.SplitFullName(FullName.Trim(),
                     out string promLastName, out string promFirstName, out string? promSecondName);
 
+                // Прежний основной псевдоним анонима сохраняем как обычный псевдоним
+                // (новый основной автоматически не создаётся — ФИО хранится в полях персоны).
+                if (!string.IsNullOrWhiteSpace(PrimaryAlias) &&
+                    !aliasesInput.Any(a => string.Equals(a.Value, PrimaryAlias.Trim(), StringComparison.OrdinalIgnoreCase)))
+                {
+                    aliasesInput.Add(new PersonAliasInput(null, PrimaryAlias.Trim(), AliasType.Alias, false));
+                }
+
                 await _personService.PromoteAsync(PersonId, new PromotePersonInput(
                     LastName: promLastName,
                     FirstName: promFirstName,
                     SecondName: promSecondName,
-                    Gender: Gender.Unknown,
+                    Gender: SelectedGender,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim()));
 
                 var personInput = new PersonInput(
                     LastName: promLastName, FirstName: promFirstName, SecondName: promSecondName,
-                    Gender: Gender.Unknown, BirthDate: BirthDate, Passport: Passport.Trim(),
+                    Gender: SelectedGender, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
@@ -322,7 +337,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
                 var input = new PersonInput(
                     LastName: lastName, FirstName: firstName, SecondName: secondName,
-                    Gender: Gender.Unknown, BirthDate: BirthDate, Passport: Passport.Trim(),
+                    Gender: SelectedGender, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
@@ -343,6 +358,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
                 var input = new AnonymousPersonInput(
                     PrimaryAlias: PrimaryAlias.Trim(),
                     Notes: Notes.Trim(),
+                    Gender: SelectedGender,
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),

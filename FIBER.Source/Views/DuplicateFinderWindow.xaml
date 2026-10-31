@@ -15,7 +15,7 @@
 
             <StackPanel Grid.Row="0" Margin="30,20,30,10">
                 <TextBlock Text="Поиск дубликатов" FontFamily="Times New Roman" FontSize="28" FontWeight="Bold" Foreground="White"/>
-                <TextBlock Text="{Binding SourcePersonName, StringFormat='Исходная запись: {0}'}"
+                <TextBlock Text="{Binding SourceName, StringFormat='Исходная запись: {0}'}"
                            FontFamily="Times New Roman" FontSize="14" Foreground="#CCCCCC" Margin="0,5,0,0"/>
             </StackPanel>
 
@@ -33,8 +33,11 @@
                           SelectedItem="{Binding SelectedStrategy}"
                           DisplayMemberPath="Name"/>
                 <TextBlock Grid.Column="2" Text="Порог:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Center" Margin="10,0,6,0"/>
-                <TextBox Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}" Width="60" VerticalAlignment="Center"
-                         Text="{Binding Threshold, UpdateSourceTrigger=PropertyChanged}"/>
+                <ComboBox Grid.Column="3" Style="{StaticResource ModernComboBoxStyle}" Width="90" VerticalAlignment="Center"
+                          ItemsSource="{Binding ThresholdOptions}"
+                          DisplayMemberPath="Display"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding Threshold, Mode=TwoWay}"/>
                 <Button Grid.Column="4" Content="Искать" Command="{Binding SearchCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Height="34" Width="120" Padding="0" Margin="10,0,0,0"/>
@@ -42,19 +45,30 @@
 
             <Border Grid.Row="2" Background="#22FFFFFF" CornerRadius="8" Margin="30,10,30,10" Padding="8">
                 <ListView ItemsSource="{Binding Candidates}" Background="Transparent" BorderThickness="0" Foreground="White">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <EventSetter Event="MouseDoubleClick" Handler="PersonCandidate_MouseDoubleClick"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="Совпадение" Width="100" DisplayMemberBinding="{Binding ScoreText}"/>
-                            <GridViewColumn Header="Имя" Width="300" DisplayMemberBinding="{Binding DisplayName}"/>
-                            <GridViewColumn Header="Дата рождения" Width="140" DisplayMemberBinding="{Binding BirthDate}"/>
-                            <GridViewColumn Header="Статус" Width="140" DisplayMemberBinding="{Binding StatusText}"/>
+                            <GridViewColumn Header="ID" Width="60" DisplayMemberBinding="{Binding Id}"/>
+                            <GridViewColumn Header="Имя" Width="260" DisplayMemberBinding="{Binding DisplayName}"/>
+                            <GridViewColumn Header="Дата рождения" Width="130" DisplayMemberBinding="{Binding BirthDate}"/>
+                            <GridViewColumn Header="Пол" Width="100" DisplayMemberBinding="{Binding GenderText}"/>
                         </GridView>
                     </ListView.View>
                 </ListView>
             </Border>
 
+            <TextBlock Grid.Row="3" Text="Двойной клик по строке — открыть запись"
+                       FontFamily="Times New Roman" FontSize="12" FontStyle="Italic"
+                       Foreground="#AAAAAA" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+
             <Button Grid.Row="3" Content="Закрыть" Height="40" Width="160" Margin="0,0,0,20"
-                    HorizontalAlignment="Center" Click="Close_Click"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Click="Close_Click"
                     Background="#7F7F7F" Foreground="White" FontSize="16" FontWeight="Bold" Cursor="Hand"/>
         </Grid>
     </Border>

@@ -3,7 +3,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:helpers="clr-namespace:FIBER.Source.Helpers"
              PreviewKeyDown="SearchView_PreviewKeyDown">
-    <TabControl Background="Transparent" BorderThickness="0">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Кнопка «Назад»: видна, пока в маршруте есть переходы по связям -->
+        <Border Grid.Row="0" HorizontalAlignment="Left" Margin="20,12,0,0" Padding="4"
+                Background="#33FFFFFF" CornerRadius="8"
+                Visibility="{Binding NavigationHistoryCount, Converter={StaticResource PositiveCountToVisibilityConverter}}">
+            <Button Content="Назад" Command="{Binding NavigateBackCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Height="32" Padding="14,4" FontSize="14"/>
+        </Border>
+
+    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" SelectedIndex="{Binding SelectedTabIndex}">
 
         <!-- ================= ЛИЧНОСТИ ================= -->
         <TabItem Header="Личности">
@@ -167,6 +182,12 @@
                                         <StackPanel>
                                             <TextBlock Text="Дата рождения" Style="{StaticResource FieldLabelStyle}"/>
                                             <TextBox Text="{Binding SelectedPerson.BirthDateDisplay, Mode=OneWay}" Style="{StaticResource ReadOnlyFieldValueTextBoxStyle}" IsReadOnly="True"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource FieldCardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Пол" Style="{StaticResource FieldLabelStyle}"/>
+                                            <TextBox Text="{Binding SelectedPerson.GenderDisplay, Mode=OneWay}" Style="{StaticResource ReadOnlyFieldValueTextBoxStyle}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </Border>
                                     <Border Style="{StaticResource FieldCardStyle}">
@@ -724,7 +745,7 @@
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontFamily="Times New Roman" FontSize="16" FontWeight="Bold" Foreground="Black" TextWrapping="Wrap"/>
                                             <TextBlock Text="{Binding DateDisplay, StringFormat='Дата: {0}'}" FontFamily="Times New Roman" FontSize="13" Foreground="#333333" Margin="0,2,0,0"/>
-                                            <TextBlock Text="{Binding OrganizerCompanyName, StringFormat='Организатор: {0}', TargetNullValue='Организатор: Сведения отсутствуют'}" FontFamily="Times New Roman" FontSize="12" Foreground="#5A5A5A" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding OrganizerDisplay, StringFormat='Организатор: {0}'}" FontFamily="Times New Roman" FontSize="12" Foreground="#5A5A5A" Margin="0,2,0,0"/>
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -808,7 +829,7 @@
                                     <Border Style="{StaticResource FieldCardStyle}">
                                         <StackPanel>
                                             <TextBlock Text="Организатор" Style="{StaticResource FieldLabelStyle}"/>
-                                            <TextBox Text="{Binding SelectedEvent.OrganizerCompany.Name, TargetNullValue='Сведения отсутствуют', Mode=OneWay}" Style="{StaticResource ReadOnlyFieldValueTextBoxStyle}" IsReadOnly="True"/>
+                                            <TextBox Text="{Binding SelectedEvent.OrganizerDisplay, Mode=OneWay}" Style="{StaticResource ReadOnlyFieldValueTextBoxStyle}" IsReadOnly="True"/>
                                         </StackPanel>
                                     </Border>
                                     <Border Style="{StaticResource FieldCardStyle}">
@@ -953,4 +974,5 @@
         </TabItem>
 
     </TabControl>
+    </Grid>
 </UserControl>

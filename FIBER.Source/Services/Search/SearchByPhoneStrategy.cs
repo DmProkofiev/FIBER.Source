@@ -24,7 +24,16 @@ public sealed class SearchByPhoneStrategy : ISearchStrategy
         }
 
         // Replace/Contains(string) транслируются провайдером SQLite корректно.
+        // Удаляем все распространённые разделители: «+7 (900) 111-22-33» → «79001112233».
         return query.Where(p =>
-            p.Phone != null && p.Phone.Replace(" ", "").Replace("-", "").Contains(digits));
+            p.Phone != null &&
+            p.Phone
+                .Replace(" ", "")
+                .Replace("-", "")
+                .Replace("(", "")
+                .Replace(")", "")
+                .Replace("+", "")
+                .Replace(".", "")
+                .Contains(digits));
     }
 }

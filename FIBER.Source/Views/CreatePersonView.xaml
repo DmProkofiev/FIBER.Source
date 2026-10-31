@@ -144,6 +144,13 @@
                             </Grid>
                         </StackPanel>
 
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Пол:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
+                                  ItemsSource="{Binding GenderChoices}"
+                                  SelectedValue="{Binding SelectedGender}"
+                                  SelectedValuePath="Value"
+                                  DisplayMemberPath="Display"/>
+
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Профессия:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
                         <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}" Text="{Binding Job, UpdateSourceTrigger=PropertyChanged}"/>
 

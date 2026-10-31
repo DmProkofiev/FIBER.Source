@@ -56,6 +56,9 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         var strategy = _strategyFactory.Resolve(strategyKey);
         var all = await _personService.GetAllExceptAsync(sourcePersonId);
 
+        // ТЗ §5.4.2: для анонимов с коротким (< 5 символов) основным псевдонимом порог 0.75.
+        double effectiveMinScore = EffectiveMinScore(source, minScore);
+
         var candidates = new List<DuplicateCandidate>(all.Count);
         foreach (var candidate in all)
         {
@@ -65,12 +68,22 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
             try { score = strategy.Compare(source, candidate); }
             catch { score = 0; }
 
-            if (score > 0 && score >= minScore)
+            if (score > 0 && score >= effectiveMinScore)
                 candidates.Add(new DuplicateCandidate(candidate, score));
         }
 
         var ordered = candidates.OrderByDescending(c => c.Score).ToList();
         return new DuplicateFinderResult(source, ordered);
+    }
+
+    // Минимальный порог отсечения: для анонимов с коротким (< 5 символов) псевдонимом — 0.75.
+    private static double EffectiveMinScore(Person source, double minScore)
+    {
+        if (source.Status != Models.Enums.IdentityStatus.Anonymous) return minScore;
+
+        var primaryAlias = source.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value;
+        bool shortAlias = string.IsNullOrWhiteSpace(primaryAlias) || primaryAlias.Trim().Length < 5;
+        return shortAlias ? Math.Max(minScore, 0.75) : minScore;
     }
 
     public async Task<CompanyDuplicateFinderResult?> FindCompanyAsync(

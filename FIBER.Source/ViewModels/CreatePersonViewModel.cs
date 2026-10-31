@@ -5,6 +5,7 @@ using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Models.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -37,6 +38,11 @@ public partial class CreatePersonViewModel : ObservableValidator
     private bool _isAnonymousMode;
 
     public bool IsIdentifiedMode => !IsAnonymousMode;
+
+    /// <summary>Варианты выбора пола.</summary>
+    public IReadOnlyList<GenderOption> GenderChoices { get; } = GenderOptions.All;
+
+    [ObservableProperty] private Gender _selectedGender = Gender.Unknown;
 
     [ObservableProperty] private string _job = string.Empty;
     [ObservableProperty] private string _phone = string.Empty;
@@ -103,6 +109,7 @@ public partial class CreatePersonViewModel : ObservableValidator
                 var input = new AnonymousPersonInput(
                     PrimaryAlias: PrimaryAlias.Trim(),
                     Notes: Notes.Trim(),
+                    Gender: SelectedGender,
                     Job: Job.Trim(),
                     Phone: Phone.Trim(),
                     City: City.Trim(),
@@ -133,7 +140,7 @@ public partial class CreatePersonViewModel : ObservableValidator
                     LastName: lastName,
                     FirstName: firstName,
                     SecondName: secondName,
-                    Gender: Gender.Unknown,
+                    Gender: SelectedGender,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim(),
                     Job: Job.Trim(),
@@ -178,6 +185,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         BirthDate = null;
         Passport = string.Empty;
         PrimaryAlias = string.Empty;
+        SelectedGender = Gender.Unknown;
         Job = string.Empty;
         Phone = string.Empty;
         City = string.Empty;

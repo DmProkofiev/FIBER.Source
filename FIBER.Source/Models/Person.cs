@@ -12,9 +12,9 @@ public class Person
     public int Id { get; set; }
     public IdentityStatus Status { get; set; } = IdentityStatus.Anonymous;
 
-    public string? LastName { get; set; } // отчество
+    public string? LastName { get; set; } // фамилия
     public string? FirstName { get; set; } // имя
-    public string? SecondName { get; set; } // фамилия
+    public string? SecondName { get; set; } // отчество
 
     public Gender Gender { get; set; } = Gender.Unknown;
 
@@ -54,4 +54,12 @@ public class Person
 
     [NotMapped]
     public string BirthDateDisplay => BirthDate?.ToString("dd.MM.yyyy") ?? "Сведения отсутствуют";
+
+    [NotMapped]
+    public string GenderDisplay => Gender switch
+    {
+        Enums.Gender.Male => "Мужской",
+        Enums.Gender.Female => "Женский",
+        _ => "Сведения отсутствуют"
+    };
 }

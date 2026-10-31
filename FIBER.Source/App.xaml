@@ -3,8 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
              xmlns:views="clr-namespace:FIBER.Source.Views"
+             xmlns:converters="clr-namespace:FIBER.Source.Helpers.Converters"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
+
+        <!-- ====== Конвертеры ====== -->
+        <converters:PositiveCountToVisibilityConverter x:Key="PositiveCountToVisibilityConverter"/>
 
         <!-- ====== Медиа-стили ====== -->
         <Style x:Key="MediaButtonStyle" TargetType="Button">
@@ -117,6 +121,63 @@
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ====== Вкладки: единый интерактивный стиль для всех TabItem ====== -->
+        <!-- Неявный (implicit) стиль — применяется автоматически, без ссылок в разметке.
+             Вкладки идут вплотную друг к другу (единая полоса-сегменты). -->
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="Background" Value="#EEF2F5"/>
+            <Setter Property="BorderBrush" Value="#C9D3DC"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="FontFamily" Value="Times New Roman"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="18,8"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Наведение: мягкая синяя подсветка -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#DCE7F0"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#9FB6C7"/>
+                                <Setter Property="Foreground" Value="#1F4E79"/>
+                            </Trigger>
+                            <!-- Активная вкладка: синий акцент существующей палитры -->
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#1F4E79"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#173A5A"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <!-- Клавиатурный фокус -->
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#3498DB"/>
+                                <Setter TargetName="TabBorder" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="TabBorder" Property="Opacity" Value="0.45"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -254,10 +315,35 @@
                     <ColumnDefinition Width="260"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding Kind}" FontFamily="Times New Roman" FontSize="14"
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Text="{Binding Kind}"
+                           FontFamily="Times New Roman" FontSize="14"
                            FontWeight="Bold" Foreground="#8E44AD" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                <TextBlock Grid.Column="1" Text="{Binding Target}" FontFamily="Times New Roman" FontSize="15"
-                           Foreground="Black" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Row="0" Grid.Column="1"
+                        Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        CommandParameter="{Binding}"
+                        Background="Transparent" BorderThickness="0" Padding="0" Margin="0"
+                        Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left">
+                    <TextBlock Text="{Binding Target}" FontFamily="Times New Roman" FontSize="15"
+                               Foreground="#1F4E79" TextDecorations="Underline" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </Button>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Details}"
+                           FontFamily="Times New Roman" FontSize="13" FontStyle="Italic"
+                           Foreground="#666666" TextWrapping="Wrap" Margin="0,2,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasDetails}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
         </DataTemplate>
 

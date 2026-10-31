@@ -105,7 +105,7 @@ public sealed class RelationService : IRelationService
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.PersonRelationships.AsNoTracking()
             .Include(r => r.Person)
-            .Include(r => r.RelatedPerson)
+            .Include(r => r.RelatedPerson).ThenInclude(p => p.Aliases)
             .Where(r => r.PersonId == personId)
             .ToListAsync();
     }

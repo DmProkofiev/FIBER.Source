@@ -46,12 +46,6 @@ public sealed class PersonService : IPersonService
                 $"Дата рождения не может быть позже {DateTime.Today:dd.MM.yyyy}");
     }
 
-    private static string BuildFullName(string last, string first, string? second)
-    {
-        var parts = new[] { last, first, second }.Where(p => !string.IsNullOrWhiteSpace(p));
-        return string.Join(" ", parts);
-    }
-
     // Разбор строки ФИО в фамилию/имя/отчество: первое слово — фамилия, последнее — отчество (если слов >= 3)
     internal static void SplitFullName(string fullName, out string lastName, out string firstName, out string? secondName)
     {
@@ -212,16 +206,6 @@ public sealed class PersonService : IPersonService
 
         foreach (var alias in person.Aliases) alias.IsPrimary = false;
 
-        var fullName = BuildFullName(person.LastName, person.FirstName, person.SecondName);
-        context.PersonAliases.Add(new PersonAlias
-        {
-            PersonId = person.Id,
-            Value = fullName,
-            Type = AliasType.LegalName,
-            IsPrimary = true,
-            CreatedAt = DateTime.UtcNow
-        });
-
         await context.SaveChangesAsync();
         await _auditLog.LogAsync("Person.Promote", $"Id={person.Id}");
         return person;
@@ -260,13 +244,20 @@ public sealed class PersonService : IPersonService
         person.Address = NullIfEmpty(input.Address);
         person.Notes = NullIfEmpty(input.Notes);
 
+        // Псевдонимы идентифицированной личности не создаются автоматически:
+        // ФИО хранится в LastName/FirstName/SecondName, а Aliases — только явно добавленные имена.
+        // null — не трогать псевдонимы; список (в т.ч. пустой) — полная синхронизация.
         if (input.Aliases != null)
         {
-            var extras = input.Aliases
-                .Where(a => !a.IsPrimary && !string.IsNullOrWhiteSpace(a.Value))
+            // У идентифицированной личности псевдонимы не основные — флаг IsPrimary не используется.
+            foreach (var alias in person.Aliases) alias.IsPrimary = false;
+
+            var aliases = input.Aliases
+                .Where(a => !string.IsNullOrWhiteSpace(a.Value))
+                .Select(a => new PersonAliasInput(a.Id, a.Value, a.Type, IsPrimary: false))
                 .ToList();
 
-            await SyncAliasesAsync(context, person, extras);
+            await SyncAliasesAsync(context, person, aliases);
         }
 
         // Связи с другими персонами: добавление / изменение / удаление.
@@ -338,7 +329,14 @@ public sealed class PersonService : IPersonService
         var alias = person.Aliases.FirstOrDefault(a => a.Id == aliasId);
         if (alias == null) return;
 
-        if (!alias.IsPrimary)
+        if (person.Status == IdentityStatus.Identified)
+        {
+            // У идентифицированной личности псевдонимы необязательны:
+            // удаляем без назначения нового основного (ФИО хранится в полях персоны).
+            context.PersonAliases.Remove(alias);
+            await context.SaveChangesAsync();
+        }
+        else if (!alias.IsPrimary)
         {
             context.PersonAliases.Remove(alias);
             await context.SaveChangesAsync();
@@ -505,6 +503,8 @@ public sealed class PersonService : IPersonService
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.People.AsNoTracking()
+            // Псевдонимы нужны стратегиям сравнения (Levenshtein для анонимов).
+            .Include(p => p.Aliases)
             .Where(p => p.Id != excludeId && p.MergedIntoPersonId == null)
             .ToListAsync();
     }
@@ -517,72 +517,80 @@ public sealed class PersonService : IPersonService
             .Include(p => p.Country)
             .Include(p => p.Aliases)
             // Связи персоны: и прямые, и обратные (чтобы в редакторе были видны обе стороны).
-            .Include(p => p.Relationships).ThenInclude(r => r.RelatedPerson!)
-            .Include(p => p.ReverseRelationships).ThenInclude(r => r.Person!)
+            // Псевдонимы нужны для отображения имени анонимной связанной личности.
+            .Include(p => p.Relationships).ThenInclude(r => r.RelatedPerson!).ThenInclude(p => p.Aliases)
+            .Include(p => p.ReverseRelationships).ThenInclude(r => r.Person!).ThenInclude(p => p.Aliases)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
     // ===== Синхронизация связей «персона ↔ персона» (CRUD внутри Update) =====
 
     // Полная синхронизация исходящих связей персоны: новые добавляются (с зеркалом у
-    // связанной персоны), изменённые обновляются, отсутствующие удаляются (вместе с зеркалом).
+    // связанной персоны), изменённые обновляются (зеркало приводится в соответствие),
+    // отсутствующие удаляются (вместе с зеркалом).
     private static async Task SyncRelationshipsAsync(
         FiberSourceDbContext context, Person person, IReadOnlyList<PersonRelationshipEditInput>? inputs)
     {
         if (inputs is null) return; // null — не трогать связи; пустой список — удалить все.
 
+        // DELETE: прямые связи, отсутствующие во входных данных, и их зеркальные записи.
         foreach (var existing in person.Relationships.ToList())
         {
-            if (!inputs.Any(i => i.Id == existing.Id))
-            {
-                person.Relationships.Remove(existing);
-                context.PersonRelationships.Remove(existing);
-            }
+            if (inputs.Any(i => i.Id == existing.Id)) continue;
+
+            person.Relationships.Remove(existing);
+            context.PersonRelationships.Remove(existing);
+            await RemoveInverseAsync(context, person.Id, existing.RelatedPersonId, existing.Kind);
         }
 
+        // UPDATE: существующие связи — цель/вид/заметки; зеркало пересоздаётся при изменении.
         foreach (var input in inputs.Where(i => i.Id.HasValue))
         {
             var link = person.Relationships.FirstOrDefault(r => r.Id == input.Id!.Value);
             if (link is null) continue;
 
-            var changedTarget = link.RelatedPersonId != input.RelatedPersonId;
+            if (input.RelatedPersonId == person.Id)
+                throw new InvalidOperationException("Связь человека с самим собой невозможна");
+
+            var oldRelatedId = link.RelatedPersonId;
+            var oldKind = link.Kind;
+            bool targetChanged = oldRelatedId != input.RelatedPersonId;
+            bool kindChanged = oldKind != input.Kind;
+
+            if (!targetChanged && !kindChanged)
+            {
+                link.Notes = NullIfEmpty(input.Notes) ?? string.Empty;
+                continue;
+            }
+
+            // Старое зеркало удаляем только если оно действительно станет неактуальным.
+            var oldInverse = PersonRelationKinds.InverseOf(oldKind);
+            var newInverse = PersonRelationKinds.InverseOf(input.Kind);
+            bool oldHasMirror = oldInverse != oldKind && oldInverse != PersonRelationKind.Other;
+            bool newHasMirror = newInverse != input.Kind && newInverse != PersonRelationKind.Other;
+
+            if (oldHasMirror &&
+                (targetChanged || !newHasMirror || oldInverse != newInverse))
+            {
+                var oldMirror = await context.PersonRelationships.FirstOrDefaultAsync(r =>
+                    r.PersonId == oldRelatedId &&
+                    r.RelatedPersonId == person.Id &&
+                    r.Kind == oldInverse);
+                if (oldMirror is not null) context.PersonRelationships.Remove(oldMirror);
+            }
+
+            link.RelatedPersonId = input.RelatedPersonId;
             link.Kind = input.Kind;
             link.Notes = NullIfEmpty(input.Notes) ?? string.Empty;
 
-            // Если цель связи изменилась — переносим и зеркальную запись.
-            if (changedTarget)
+            if (newHasMirror &&
+                (targetChanged || !oldHasMirror || oldInverse != newInverse))
             {
-                var inverseKind = PersonRelationKinds.InverseOf(input.Kind);
-                var oldInverse = context.PersonRelationships.FirstOrDefault(r =>
-                    r.PersonId == link.RelatedPersonId &&
-                    r.RelatedPersonId == person.Id &&
-                    r.Kind == PersonRelationKinds.InverseOf(link.Kind));
-
-                link.RelatedPersonId = input.RelatedPersonId;
-
-                if (inverseKind != link.Kind)
-                {
-                    if (oldInverse is not null) context.PersonRelationships.Remove(oldInverse);
-
-                    var newInverseExists = await context.PersonRelationships.AnyAsync(r =>
-                        r.PersonId == input.RelatedPersonId &&
-                        r.RelatedPersonId == person.Id &&
-                        r.Kind == inverseKind);
-
-                    if (!newInverseExists && inverseKind != PersonRelationKind.Other)
-                    {
-                        context.PersonRelationships.Add(new PersonRelationship
-                        {
-                            PersonId = input.RelatedPersonId,
-                            RelatedPersonId = person.Id,
-                            Kind = inverseKind,
-                            Notes = string.Empty
-                        });
-                    }
-                }
+                await EnsureInverseAsync(context, person.Id, input.RelatedPersonId, newInverse);
             }
         }
 
+        // CREATE: новые прямые связи и их зеркала.
         foreach (var input in inputs.Where(i => !i.Id.HasValue))
         {
             if (input.RelatedPersonId == person.Id)
@@ -592,34 +600,56 @@ public sealed class PersonService : IPersonService
                 r.RelatedPersonId == input.RelatedPersonId && r.Kind == input.Kind);
             if (exists) continue;
 
-            context.PersonRelationships.Add(new PersonRelationship
+            var link = new PersonRelationship
             {
                 PersonId = person.Id,
                 RelatedPersonId = input.RelatedPersonId,
                 Kind = input.Kind,
                 Notes = NullIfEmpty(input.Notes) ?? string.Empty
-            });
+            };
+            context.PersonRelationships.Add(link);
+            person.Relationships.Add(link);
 
-            // Зеркальная связь для связанной персоны (как в RelationService.AddPersonRelationshipAsync).
             var inverseKind = PersonRelationKinds.InverseOf(input.Kind);
             if (inverseKind == input.Kind || inverseKind == PersonRelationKind.Other) continue;
 
-            var inverseExists = await context.PersonRelationships.AnyAsync(r =>
-                r.PersonId == input.RelatedPersonId &&
-                r.RelatedPersonId == person.Id &&
-                r.Kind == inverseKind);
-            if (inverseExists) continue;
-
-            context.PersonRelationships.Add(new PersonRelationship
-            {
-                PersonId = input.RelatedPersonId,
-                RelatedPersonId = person.Id,
-                Kind = inverseKind,
-                Notes = string.Empty
-            });
+            await EnsureInverseAsync(context, person.Id, input.RelatedPersonId, inverseKind);
         }
 
         await context.SaveChangesAsync();
+    }
+
+    // Добавляет зеркальную связь (related → person), если её ещё нет.
+    private static async Task EnsureInverseAsync(
+        FiberSourceDbContext context, int personId, int relatedPersonId, PersonRelationKind inverseKind)
+    {
+        bool exists = await context.PersonRelationships.AnyAsync(r =>
+            r.PersonId == relatedPersonId &&
+            r.RelatedPersonId == personId &&
+            r.Kind == inverseKind);
+        if (exists) return;
+
+        context.PersonRelationships.Add(new PersonRelationship
+        {
+            PersonId = relatedPersonId,
+            RelatedPersonId = personId,
+            Kind = inverseKind,
+            Notes = string.Empty
+        });
+    }
+
+    // Удаляет зеркальную связь (related → person) для указанного вида прямой связи.
+    private static async Task RemoveInverseAsync(
+        FiberSourceDbContext context, int personId, int relatedPersonId, PersonRelationKind kind)
+    {
+        var inverseKind = PersonRelationKinds.InverseOf(kind);
+        if (inverseKind == kind || inverseKind == PersonRelationKind.Other) return;
+
+        var mirror = await context.PersonRelationships.FirstOrDefaultAsync(r =>
+            r.PersonId == relatedPersonId &&
+            r.RelatedPersonId == personId &&
+            r.Kind == inverseKind);
+        if (mirror is not null) context.PersonRelationships.Remove(mirror);
     }
 
     public async Task DeleteAsync(int id)

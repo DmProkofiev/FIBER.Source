@@ -11,9 +11,9 @@ public record PersonSummary(
     int MediaCount = 0,
     int AliasCount = 0)
 {
-    public string StatusDisplay => Status >= IdentityStatus.Identified
-        ? "Identified"
-        : "Not identified";
+    public string StatusDisplay => Status == IdentityStatus.Identified
+        ? "Идентифицирована"
+        : "Не идентифицирована";
 
     public string AliasCountDisplay => AliasCount > 0 ? $" (+{AliasCount})" : string.Empty;
 

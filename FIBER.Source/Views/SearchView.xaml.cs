@@ -58,6 +58,7 @@ public partial class SearchView : UserControl
         {
             Owner = Window.GetWindow(this)
         };
+        window.NavigateRequested += vm.NavigateToDuplicate;
         window.ShowDialog();
     }
 

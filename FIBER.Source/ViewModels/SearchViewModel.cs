@@ -58,6 +58,20 @@ public partial class SearchViewModel : ObservableObject
     public ObservableCollection<MediaItemViewModel> PersonAudio { get; } = new();
     public ObservableCollection<RelationItemViewModel> PersonRelations { get; } = new();
 
+    // Индексы вкладок TabControl в SearchView.xaml.
+    private const int PersonTabIndex = 0;
+    private const int CompanyTabIndex = 1;
+    private const int EventTabIndex = 2;
+
+    /// <summary>Маршрут переходов по связям: объекты (тип + id), с которых ушли.</summary>
+    private readonly Stack<NavigationHistoryEntry> _navigationRoute = new();
+
+    /// <summary>Количество шагов в маршруте — управляет видимостью кнопки «Назад».</summary>
+    public int NavigationHistoryCount => _navigationRoute.Count;
+
+    /// <summary>Активная вкладка экрана поиска (лица / организации / события).</summary>
+    [ObservableProperty] private int _selectedTabIndex;
+
     public ObservableCollection<IdentityFilter> StatusFilters { get; } = new()
     {
         new(null, "Все статусы"),
@@ -133,11 +147,7 @@ public partial class SearchViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        if (Countries.Count == 0)
-        {
-            var countries = await _countryService.GetActiveAsync();
-            foreach (var c in countries) Countries.Add(c);
-        }
+        await EnsureCountriesAsync();
 
         if (SearchStrategies.Count == 0)
         {
@@ -160,8 +170,17 @@ public partial class SearchViewModel : ObservableObject
 
     [RelayCommand] private async Task SearchPersonsAsync() => await LoadPersonsAsync();
 
+    // Справочник стран нужен карточке личности (название страны по коду).
+    private async Task EnsureCountriesAsync()
+    {
+        if (Countries.Count > 0) return;
+        var countries = await _countryService.GetActiveAsync();
+        foreach (var c in countries) Countries.Add(c);
+    }
+
     private async Task LoadPersonsAsync()
     {
+        ResetNavigationRoute();
         IsPersonBusy = true;
         try
         {
@@ -183,14 +202,26 @@ public partial class SearchViewModel : ObservableObject
     private async Task SelectPersonAsync(PersonSummary summary)
     {
         if (summary == null) return;
+        ResetNavigationRoute();
+        await LoadPersonAsync(summary.Id);
+    }
+
+    private async Task LoadPersonAsync(int personId)
+    {
         try
         {
-            SelectedPerson = await _personService.GetByIdAsync(summary.Id);
-            if (SelectedPerson != null)
+            SelectedPerson = await _personService.GetByIdAsync(personId);
+            if (SelectedPerson == null)
             {
-                await LoadMediaAsync(MediaOwnerType.Person, SelectedPerson.Id, PersonImages, PersonVideos, PersonAudio);
-                await LoadPersonRelationsAsync(SelectedPerson);
+                ClearPersonSelection();
+                Notification.Show("Запись не найдена",
+                    $"Личность Id={personId} не найдена или была удалена",
+                    NotificationType.Warning);
+                return;
             }
+
+            await LoadMediaAsync(MediaOwnerType.Person, SelectedPerson.Id, PersonImages, PersonVideos, PersonAudio);
+            await LoadPersonRelationsAsync(SelectedPerson);
         }
         catch (Exception ex)
         {
@@ -247,6 +278,7 @@ public partial class SearchViewModel : ObservableObject
 
     private async Task LoadCompaniesAsync()
     {
+        ResetNavigationRoute();
         IsCompanyBusy = true;
         try
         {
@@ -267,14 +299,26 @@ public partial class SearchViewModel : ObservableObject
     private async Task SelectCompanyAsync(CompanySummary summary)
     {
         if (summary == null) return;
+        ResetNavigationRoute();
+        await LoadCompanyAsync(summary.Id);
+    }
+
+    private async Task LoadCompanyAsync(int companyId)
+    {
         try
         {
-            SelectedCompany = await _companyService.GetByIdAsync(summary.Id);
-            if (SelectedCompany != null)
+            SelectedCompany = await _companyService.GetByIdAsync(companyId);
+            if (SelectedCompany == null)
             {
-                await LoadMediaAsync(MediaOwnerType.Company, SelectedCompany.Id, CompanyImages, CompanyVideos, CompanyAudio);
-                await LoadCompanyRelationsAsync(SelectedCompany);
+                ClearCompanySelection();
+                Notification.Show("Запись не найдена",
+                    $"Организация Id={companyId} не найдена или была удалена",
+                    NotificationType.Warning);
+                return;
             }
+
+            await LoadMediaAsync(MediaOwnerType.Company, SelectedCompany.Id, CompanyImages, CompanyVideos, CompanyAudio);
+            await LoadCompanyRelationsAsync(SelectedCompany);
         }
         catch (Exception ex)
         {
@@ -312,6 +356,7 @@ public partial class SearchViewModel : ObservableObject
 
     private async Task LoadEventsAsync()
     {
+        ResetNavigationRoute();
         IsEventBusy = true;
         try
         {
@@ -332,14 +377,26 @@ public partial class SearchViewModel : ObservableObject
     private async Task SelectEventAsync(EventSummary summary)
     {
         if (summary == null) return;
+        ResetNavigationRoute();
+        await LoadEventAsync(summary.Id);
+    }
+
+    private async Task LoadEventAsync(int eventId)
+    {
         try
         {
-            SelectedEvent = await _eventService.GetByIdAsync(summary.Id);
-            if (SelectedEvent != null)
+            SelectedEvent = await _eventService.GetByIdAsync(eventId);
+            if (SelectedEvent == null)
             {
-                await LoadMediaAsync(MediaOwnerType.Event, SelectedEvent.Id, EventImages, EventVideos, EventAudio);
-                await LoadEventRelationsAsync(SelectedEvent);
+                ClearEventSelection();
+                Notification.Show("Запись не найдена",
+                    $"Событие Id={eventId} не найдено или было удалено",
+                    NotificationType.Warning);
+                return;
             }
+
+            await LoadMediaAsync(MediaOwnerType.Event, SelectedEvent.Id, EventImages, EventVideos, EventAudio);
+            await LoadEventRelationsAsync(SelectedEvent);
         }
         catch (Exception ex)
         {
@@ -375,28 +432,136 @@ public partial class SearchViewModel : ObservableObject
 
     // ===== Навигация по связям =====
 
+    /// <summary>Показывает карточку личности в режиме просмотра (переход по связи).</summary>
+    public async Task ShowPersonAsync(int personId)
+    {
+        SelectedTabIndex = PersonTabIndex;
+        await EnsureCountriesAsync();
+        await LoadPersonAsync(personId);
+    }
+
+    /// <summary>Показывает карточку организации в режиме просмотра (переход по связи).</summary>
+    public async Task ShowCompanyAsync(int companyId)
+    {
+        SelectedTabIndex = CompanyTabIndex;
+        await LoadCompanyAsync(companyId);
+    }
+
+    /// <summary>Показывает карточку события в режиме просмотра (переход по связи).</summary>
+    public async Task ShowEventAsync(int eventId)
+    {
+        SelectedTabIndex = EventTabIndex;
+        await LoadEventAsync(eventId);
+    }
+
+    /// <summary>
+    /// Переход к объекту-дубликату: текущий объект сохраняется в маршруте,
+    /// после чего открывается целевой — кнопка «Назад» вернёт к исходной карточке.
+    /// </summary>
+    public void NavigateToDuplicate(RelationTargetType targetType, int targetId)
+    {
+        PushCurrentToRoute();
+        NavigateToTarget(targetType, targetId);
+    }
+
+    /// <summary>Возвращает на предыдущий объект маршрута переходов по связям.</summary>
+    [RelayCommand(CanExecute = nameof(CanNavigateBack))]
+    private async Task NavigateBackAsync()
+    {
+        if (_navigationRoute.Count == 0) return;
+
+        var entry = _navigationRoute.Pop();
+        UpdateNavigationState();
+
+        await ShowEntryAsync(entry);
+    }
+
+    private bool CanNavigateBack() => _navigationRoute.Count > 0;
+
+    // Переход по связи: текущий объект сохраняется в маршрут, затем открывается целевой.
     [RelayCommand] private void NavigateRelation(RelationItemViewModel? item)
     {
         if (item == null || !item.TargetId.HasValue || !item.TargetType.HasValue) return;
 
-        switch (item.TargetType.Value)
+        PushCurrentToRoute();
+        NavigateToTarget(item.TargetType.Value, item.TargetId.Value);
+    }
+
+    private async Task ShowEntryAsync(NavigationHistoryEntry entry)
+    {
+        switch (entry.TargetType)
         {
             case RelationTargetType.Person:
-                NavigateToPersonRequested?.Invoke(item.TargetId.Value);
+                await ShowPersonAsync(entry.TargetId);
                 break;
             case RelationTargetType.Company:
-                NavigateToCompanyRequested?.Invoke(item.TargetId.Value);
+                await ShowCompanyAsync(entry.TargetId);
                 break;
             case RelationTargetType.Event:
-                NavigateToEventRequested?.Invoke(item.TargetId.Value);
+                await ShowEventAsync(entry.TargetId);
                 break;
         }
+    }
+
+    // Сохраняет в маршрут объект, с которого выполняется переход (если он выбран).
+    private void PushCurrentToRoute()
+    {
+        var current = CurrentEntry();
+        if (current is null) return;
+
+        _navigationRoute.Push(current);
+        UpdateNavigationState();
+    }
+
+    private NavigationHistoryEntry? CurrentEntry()
+    {
+        if (SelectedPerson != null) return new(RelationTargetType.Person, SelectedPerson.Id);
+        if (SelectedCompany != null) return new(RelationTargetType.Company, SelectedCompany.Id);
+        if (SelectedEvent != null) return new(RelationTargetType.Event, SelectedEvent.Id);
+        return null;
+    }
+
+    private void NavigateToTarget(RelationTargetType targetType, int targetId)
+    {
+        switch (targetType)
+        {
+            case RelationTargetType.Person:
+                NavigateToPersonRequested?.Invoke(targetId);
+                break;
+            case RelationTargetType.Company:
+                NavigateToCompanyRequested?.Invoke(targetId);
+                break;
+            case RelationTargetType.Event:
+                NavigateToEventRequested?.Invoke(targetId);
+                break;
+        }
+    }
+
+    // Сбрасывает маршрут при новом поиске или выборе записи из списка.
+    private void ResetNavigationRoute()
+    {
+        if (_navigationRoute.Count == 0) return;
+        _navigationRoute.Clear();
+        UpdateNavigationState();
+    }
+
+    private void UpdateNavigationState()
+    {
+        OnPropertyChanged(nameof(NavigationHistoryCount));
+        NavigateBackCommand.NotifyCanExecuteChanged();
     }
 
     // ===== Связи: только отображение в SearchView (CRUD — в режиме редактирования) =====
 
     private static string PersonDisplayName(Person? p) =>
         p?.FullName ?? p?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value ?? (p != null ? $"Аноним #{p.Id}" : "—");
+
+    // Дополнительные сведения о связи: только заполненные части, через разделитель.
+    private static string RelationDetails(params string?[] parts) =>
+        string.Join(" • ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
+
+    private static string NotesDetails(string? notes) =>
+        string.IsNullOrWhiteSpace(notes) ? string.Empty : $"Заметки: {notes.Trim()}";
 
     private async Task LoadPersonRelationsAsync(Person person)
     {
@@ -410,7 +575,8 @@ public partial class SearchViewModel : ObservableObject
                 r.KindDisplay,
                 PersonDisplayName(related),
                 RelationTargetType.Person,
-                related.Id));
+                related.Id,
+                NotesDetails(r.Notes)));
         }
 
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
@@ -421,7 +587,8 @@ public partial class SearchViewModel : ObservableObject
                 "Участие в событии",
                 evt.Title,
                 RelationTargetType.Event,
-                evt.Id));
+                evt.Id,
+                RelationDetails($"Роль: {ep.RoleDisplay}", NotesDetails(ep.Notes))));
         }
 
     }
@@ -439,7 +606,8 @@ public partial class SearchViewModel : ObservableObject
                 string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType,
                 target.Name,
                 RelationTargetType.Company,
-                target.Id));
+                target.Id,
+                NotesDetails(ci.Notes)));
         }
 
         foreach (var ci in company.IncomingInteractions)
@@ -447,10 +615,11 @@ public partial class SearchViewModel : ObservableObject
             var source = ci.SourceCompany;
             if (source is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
-                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType + " (обратная)",
+                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие (обратная)" : ci.InteractionType + " (обратная)",
                 source.Name,
                 RelationTargetType.Company,
-                source.Id));
+                source.Id,
+                NotesDetails(ci.Notes)));
         }
 
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
@@ -460,7 +629,8 @@ public partial class SearchViewModel : ObservableObject
             CompanyRelations.Add(new RelationItemViewModel($"Событие: {ep.RoleDisplay}",
                 evt.Title,
                 RelationTargetType.Event,
-                evt.Id));
+                evt.Id,
+                NotesDetails(ep.Notes)));
         }
 
     }
@@ -481,12 +651,12 @@ public partial class SearchViewModel : ObservableObject
             if (ep.Person != null)
             {
                 EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", PersonDisplayName(ep.Person),
-                    RelationTargetType.Person, ep.Person.Id));
+                    RelationTargetType.Person, ep.Person.Id, NotesDetails(ep.Notes)));
             }
             else if (ep.Company != null)
             {
                 EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", ep.Company.Name,
-                    RelationTargetType.Company, ep.Company.Id));
+                    RelationTargetType.Company, ep.Company.Id, NotesDetails(ep.Notes)));
             }
         }
 
@@ -534,3 +704,6 @@ public partial class SearchViewModel : ObservableObject
         images.Clear(); videos.Clear(); audio.Clear();
     }
 }
+
+/// <summary>Шаг маршрута переходов по связям: тип объекта и его идентификатор.</summary>
+public sealed record NavigationHistoryEntry(RelationTargetType TargetType, int TargetId);

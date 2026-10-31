@@ -2,6 +2,7 @@ using FIBER.Source.Helpers;
 using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Infrastructure.Hosting;
 using FIBER.Source.Interfaces;
+using FIBER.Source.Models.Enums;
 using FIBER.Source.Services;
 using FIBER.Source.ViewModels;
 using FIBER.Source.Views;
@@ -143,6 +144,19 @@ public partial class App : Application
                 await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
                 await context.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys=ON;");
                 await context.Database.MigrateAsync();
+
+                // Разовая очистка псевдонимов, ранее создававшихся автоматически из ФИО
+                // идентифицированной личности (LegalName через UI не добавляется).
+                var autoAliases = await context.PersonAliases
+                    .Where(a => a.Type == AliasType.LegalName &&
+                                context.People.Any(p => p.Id == a.PersonId && p.Status == IdentityStatus.Identified))
+                    .ToListAsync();
+
+                if (autoAliases.Count > 0)
+                {
+                    context.PersonAliases.RemoveRange(autoAliases);
+                    await context.SaveChangesAsync();
+                }
             }
 
             var auditLog = _host.Services.GetRequiredService<IAuditLogService>();

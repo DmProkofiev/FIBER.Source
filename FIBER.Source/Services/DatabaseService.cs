@@ -100,6 +100,16 @@ public sealed class DatabaseService : IDatabaseService
 
         if (encrypted)
         {
+            // WAL-журнал может содержать ещё не перенесённые в основной файл данные,
+            // поэтому перед копированием принудительно выполняем checkpoint.
+            await using (var conn = new SqliteConnection(BuildConnectionString(_password)))
+            {
+                await conn.OpenAsync();
+                using var checkpoint = conn.CreateCommand();
+                checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
+                await checkpoint.ExecuteNonQueryAsync();
+            }
+
             File.Copy(DatabasePath, targetFilePath, true);
         }
         else

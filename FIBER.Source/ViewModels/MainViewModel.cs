@@ -48,9 +48,14 @@ public partial class MainViewModel : ObservableObject
         _search.UpdateCompanyRequested += OnUpdateCompanyRequested;
         _search.UpdateEventRequested += OnUpdateEventRequested;
 
+        // Переходы по связям из карточек поиска — открываем карточку в режиме просмотра
+        _search.NavigateToPersonRequested += OnNavigateToPerson;
+        _search.NavigateToCompanyRequested += OnNavigateToCompany;
+        _search.NavigateToEventRequested += OnNavigateToEvent;
+
         // Запросы на редактирование из настроек (Company / Event)
-        _settings.UpdateCompanyRequested += OnUpdateCompanyRequested;
-        _settings.UpdateEventRequested += OnUpdateEventRequested;
+        _settings.UpdateCompanyRequested += OnSettingsCompanyRequested;
+        _settings.UpdateEventRequested += OnSettingsEventRequested;
 
         // Возврат после сохранения/отмены
         _updatePerson.Saved += OnUpdateFinished;
@@ -132,9 +137,20 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    // Куда вернуться после сохранения/отмены редактирования организации/события.
+    private bool _companyEditReturnsToSearch;
+    private bool _eventEditReturnsToSearch;
+
     // Открывает редактирование организации
-    private async void OnUpdateCompanyRequested(int companyId)
+    private async void OnUpdateCompanyRequested(int companyId) =>
+        await OpenCompanyAsync(companyId, returnToSearch: true);
+
+    private async void OnSettingsCompanyRequested(int companyId) =>
+        await OpenCompanyAsync(companyId, returnToSearch: false);
+
+    private async Task OpenCompanyAsync(int companyId, bool returnToSearch)
     {
+        _companyEditReturnsToSearch = returnToSearch;
         try
         {
             await _updateCompany.LoadAsync(companyId);
@@ -150,8 +166,15 @@ public partial class MainViewModel : ObservableObject
     }
 
     // Открывает редактирование события
-    private async void OnUpdateEventRequested(int eventId)
+    private async void OnUpdateEventRequested(int eventId) =>
+        await OpenEventAsync(eventId, returnToSearch: true);
+
+    private async void OnSettingsEventRequested(int eventId) =>
+        await OpenEventAsync(eventId, returnToSearch: false);
+
+    private async Task OpenEventAsync(int eventId, bool returnToSearch)
     {
+        _eventEditReturnsToSearch = returnToSearch;
         try
         {
             await _updateEvent.LoadAsync(eventId);
@@ -166,18 +189,53 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // Возврат в экран после сохранения/отмены (Person — экран поиска, Company/Event — настройки)
+    // ===== Переходы по связям: показываем целевой объект в режиме просмотра =====
+
+    private async void OnNavigateToPerson(int personId)
+    {
+        ShowSearchView();
+        await _search.ShowPersonAsync(personId);
+    }
+
+    private async void OnNavigateToCompany(int companyId)
+    {
+        ShowSearchView();
+        await _search.ShowCompanyAsync(companyId);
+    }
+
+    private async void OnNavigateToEvent(int eventId)
+    {
+        ShowSearchView();
+        await _search.ShowEventAsync(eventId);
+    }
+
+    // Открывает экран поиска без перезагрузки списков (чтобы не сбросить выбранную запись)
+    private void ShowSearchView()
+    {
+        CurrentContent = _search;
+        CurrentPanelKey = "Search";
+        _menu.CloseSubmenu();
+    }
+
+    // Возврат в экран после сохранения/отмены (Person — экран поиска, Company/Event — туда, откуда открыли)
     private void OnUpdateFinished() => ShowSearch();
 
-    private void OnCompanyUpdateFinished() => ShowSettings();
+    private void OnCompanyUpdateFinished()
+    {
+        if (_companyEditReturnsToSearch) ShowSearch();
+        else ShowSettings();
+    }
 
-    private void OnEventUpdateFinished() => ShowSettings();
+    private void OnEventUpdateFinished()
+    {
+        if (_eventEditReturnsToSearch) ShowSearch();
+        else ShowSettings();
+    }
 
     // Переход на экран поиска (после сохранения/отмены Person)
     private void ShowSearch()
     {
-        CurrentContent = _search;
-        CurrentPanelKey = "Search";
+        ShowSearchView();
         _ = _search.InitializeAsync();
     }
 

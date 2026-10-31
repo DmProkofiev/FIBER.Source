@@ -9,6 +9,7 @@ using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Joins;
+using FIBER.Source.Services.Search;
 using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;
@@ -76,8 +77,16 @@ public sealed class CompanyService : ICompanyService
         IQueryable<Company> q = context.Companies.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var t = query.Trim();
-            q = q.Where(c => c.Name.Contains(t));
+            // SQLite NOCASE не работает для кириллицы, поэтому перебираем варианты регистра
+            // через EF.Functions.Like (транслируется в SQL).
+            var term = SearchTerm.NormalizeWord(query);
+            var predicate = PredicateBuilder.False<Company>();
+            foreach (var variant in SqliteLike.CaseVariants(term))
+            {
+                var escaped = SqliteLike.Escape(variant);
+                predicate = predicate.Or(c => EF.Functions.Like(c.Name, "%" + escaped + "%"));
+            }
+            q = q.Where(predicate);
         }
         return await q.OrderBy(c => c.Name)
             .Select(c => new CompanySummary(c.Id, c.Name, c.RegistrationNumber))

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,6 +54,16 @@ public partial class DuplicateFinderViewModel : ObservableObject
     [ObservableProperty] private string _sourceName = string.Empty;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private double _threshold = DefaultThreshold;
+
+    // Фиксированный диапазон порога: 0–100 % с шагом 5 % (выбор только из списка).
+    public IReadOnlyList<ThresholdOption> ThresholdOptions { get; } =
+        Enumerable.Range(0, 21)
+            .Select(index =>
+            {
+                int percent = index * 5;
+                return new ThresholdOption(percent / 100.0, $"{percent}%");
+            })
+            .ToList();
 
     // Для режима компаний: выбранный ключ стратегии («company_exact_name» и т.п.).
     [ObservableProperty] private string _selectedCompanyStrategyKey = DuplicateFinderService.CompanyFuzzyNameKey;
@@ -132,3 +143,6 @@ public partial class DuplicateFinderViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 }
+
+// Вариант порога отсечения для ComboBox: значение 0.0–1.0 и подпись «60%».
+public sealed record ThresholdOption(double Value, string Display);

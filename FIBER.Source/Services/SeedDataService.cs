@@ -180,12 +180,7 @@ public sealed class SeedDataService : ISeedDataService
                     Mail: $"{first.ToLower()}.{last.ToLower()}{i}@mail.ru",
                     SocialMedia: Rng.NextDouble() > 0.7 ? $"vk.com/user{i}" : "",
                     Address: $"{Streets[Rng.Next(Streets.Length)]}, д. {Rng.Next(1, 200)}, кв. {Rng.Next(1, 100)}",
-                    Notes: "Тестовая личность, созданная сидингом.",
-                    Aliases: new List<PersonAliasInput>
-                    {
-                        new(null, Aliases[Rng.Next(Aliases.Length)], AliasType.Alias, false),
-                        new(null, Aliases[Rng.Next(Aliases.Length)], AliasType.Nickname, false)
-                    }));
+                    Notes: "Тестовая личность, созданная сидингом."));
                 personIds.Add(person.Id);
             }
             else
