@@ -40,7 +40,32 @@ public sealed class MetadataStrategy : IComparisonStrategy
 
         if (comparableWeight <= 0) return 0.0;
 
-        return Math.Clamp(matchedWeight / comparableWeight, 0.0, 1.0);
+        double score = matchedWeight / comparableWeight;
+
+        // Штраф за малое число сравнимых полей (меньше 2 полей).
+        // Если совпало только одно поле (например, только Город или только Телефон),
+        // score не может быть выше 0.5, чтобы избежать ложных дублей.
+        int comparableFieldCount = CountComparableFields(a, b);
+        if (comparableFieldCount < 2)
+            score = Math.Min(score, 0.5);
+
+        return Math.Clamp(score, 0.0, 1.0);
+    }
+
+    // Подсчитывает количество полей, заполненных у обеих сторон одновременно.
+    private static int CountComparableFields(Person a, Person b)
+    {
+        int count = 0;
+        if (!string.IsNullOrWhiteSpace(a.Passport) && !string.IsNullOrWhiteSpace(b.Passport)) count++;
+        if (!string.IsNullOrWhiteSpace(a.Phone) && !string.IsNullOrWhiteSpace(b.Phone)) count++;
+        if (!string.IsNullOrWhiteSpace(a.Mail) && !string.IsNullOrWhiteSpace(b.Mail)) count++;
+        if (!string.IsNullOrWhiteSpace(a.Address) && !string.IsNullOrWhiteSpace(b.Address)) count++;
+        if (!string.IsNullOrWhiteSpace(a.SocialMedia) && !string.IsNullOrWhiteSpace(b.SocialMedia)) count++;
+        if (!string.IsNullOrWhiteSpace(a.Car) && !string.IsNullOrWhiteSpace(b.Car)) count++;
+        if (!string.IsNullOrWhiteSpace(a.City) && !string.IsNullOrWhiteSpace(b.City)) count++;
+        if (!string.IsNullOrWhiteSpace(a.Job) && !string.IsNullOrWhiteSpace(b.Job)) count++;
+        if (!string.IsNullOrWhiteSpace(a.CountryCode) && !string.IsNullOrWhiteSpace(b.CountryCode)) count++;
+        return count;
     }
 
     // Trim + нижний регистр (сравнение регистронезависимо).

@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FIBER.Source.Interfaces;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -42,7 +43,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     /// <summary>Признак аудио.</summary>
     public bool IsAudio { get; }
 
-    /// <summary>Источник изображения в памяти (загружается асинхронно, не блокирует GUI).</summary>
+    /// <summary>Источник изображения в памяти (загружается по требованию, не блокирует GUI).</summary>
     public ImageSource? ImageSource
     {
         get => _imageSource;
@@ -57,6 +58,15 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _isImageLoading, value);
     }
     private bool _isImageLoading;
+
+    /// <summary>Сырые байты изображения (для отложенной декодировки).</summary>
+    private byte[]? _imageData;
+
+    /// <summary>Сервис медиа для ленивой загрузки BLOB из БД по требованию.</summary>
+    private readonly IMediaService? _mediaService;
+
+    /// <summary>Идентификатор вложения для ленивой загрузки из БД.</summary>
+    private readonly int? _mediaIdForLazyLoad;
 
     /// <summary>Плеер для видео/аудио (null до инициализации).</summary>
     public MediaPlayer? Player => _player;
@@ -120,6 +130,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Конструктор для изображения из байтов.</summary>
+    /// <remarks>Изображение не декодируется автоматически — используйте <see cref="LoadImageAsync"/></remarks>
     public MediaItemViewModel(byte[] data, string originalName)
     {
         FilePath = string.Empty;
@@ -128,15 +139,61 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         var ext = Path.GetExtension(originalName)?.ToLowerInvariant();
         IsImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
 
-        if (!IsImage) { LoadFailed = true; return; }
+        if (!IsImage)
+        {
+            LoadFailed = true;
+            return;
+        }
 
-        // Загружаем изображение асинхронно, чтобы не блокировать GUI поток
-        _ = LoadImageFromBytesAsync(data);
+        // Сохраняем байты для отложенной декодировки — не блокируем GUI при создании списка
+        _imageData = data;
     }
 
-    /// <summary>Асинхронно создаёт BitmapImage из байтов и устанавливает ImageSource.</summary>
-    private async Task LoadImageFromBytesAsync(byte[] data)
+    /// <summary>Конструктор для ленивой загрузки изображения из БД по MediaId.</summary>
+    /// <remarks>BLOB-данные не читаются из базы до вызова <see cref="LoadImageAsync"/></remarks>
+    public MediaItemViewModel(IMediaService mediaService, int mediaId, string originalName)
     {
+        FilePath = string.Empty;
+        FileName = originalName;
+
+        var ext = Path.GetExtension(originalName)?.ToLowerInvariant();
+        IsImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
+        IsVideo = ext is ".mp4" or ".avi" or ".wmv";
+        IsAudio = ext is ".mp3" or ".wav" or ".wma";
+
+        if (!IsImage)
+        {
+            LoadFailed = true;
+            return;
+        }
+
+        _mediaService = mediaService;
+        _mediaIdForLazyLoad = mediaId;
+    }
+
+    /// <summary>Ограничение параллельной декодировки изображений, чтобы не перегрузить GUI поток.</summary>
+    private static readonly SemaphoreSlim _imageLoadSemaphore = new(4);
+
+    /// <summary>Асинхронно создаёт BitmapImage из сохранённых байтов и устанавливает ImageSource.</summary>
+    /// <remarks>Вызвать по требованию (когда элемент попадает в зону видимости).</remarks>
+    public async Task LoadImageAsync()
+    {
+        if (ImageSource is not null || LoadFailed) return;
+
+        // Если байтов ещё нет, но есть сервис и ID — читаем BLOB из БД по требованию
+        if (_imageData is null && _mediaService is not null && _mediaIdForLazyLoad is int mediaId)
+        {
+            _imageData = await _mediaService.GetMediaDataAsync(mediaId);
+            if (_imageData is null)
+            {
+                LoadFailed = true;
+                return;
+            }
+        }
+
+        if (_imageData is null) return;
+
+        await _imageLoadSemaphore.WaitAsync();
         try
         {
             IsImageLoading = true;
@@ -144,7 +201,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
             BitmapImage? bitmap = null;
             await Task.Run(() =>
             {
-                using var ms = new MemoryStream(data);
+                using var ms = new MemoryStream(_imageData);
                 var bmp = new BitmapImage();
                 bmp.BeginInit();
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
@@ -154,11 +211,10 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
                 bitmap = bmp;
             });
 
-            // Устанавливаем на UI потоке (ViewModel не DependencyObject, но PropertyChanged
-            // лучше вызывать через Dispatcher, чтобы WPF привязки отработали корректно)
             await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
             {
                 ImageSource = bitmap;
+                _imageData = null; // освобождаем байты после декодирования
             });
         }
         catch
@@ -168,6 +224,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         finally
         {
             IsImageLoading = false;
+            _imageLoadSemaphore.Release();
         }
     }
 

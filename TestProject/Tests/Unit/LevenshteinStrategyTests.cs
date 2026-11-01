@@ -115,13 +115,26 @@ public class LevenshteinStrategyTests
     }
 
     [Fact]
-    public void Compare_BirthDateMissing_Both_FactorIsZeroSix()
+    public void Compare_BirthDateMissing_Both_FactorIsZeroThree()
     {
         var a = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван" };
         var b = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван" };
 
         var score = _strategy.Compare(a, b);
 
-        Assert.Equal(0.6, score);
+        // Обе даты пустые → множитель 0.3. Одинаковые имена без дат не должны быть дублями.
+        Assert.Equal(0.3, score);
+    }
+
+    [Fact]
+    public void Compare_SameNames_NoBirthDates_BelowThreshold()
+    {
+        var a = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван" };
+        var b = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван" };
+
+        var score = _strategy.Compare(a, b);
+
+        // score = 0.3 < 0.6 (порог по умолчанию) → не дубль
+        Assert.True(score < 0.6, $"Ожидался score < 0.6, получен {score}");
     }
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
@@ -14,24 +15,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;
 
-public sealed class EventService : IEventService
+public sealed class EventService : BaseService, IEventService
 {
-    private readonly IDbContextFactory<FiberSourceDbContext> _contextFactory;
-    private readonly IMediaService _mediaService;
-    private readonly IAuditLogService _auditLog;
-
     public EventService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IMediaService mediaService,
         IAuditLogService auditLog)
+        : base(contextFactory, mediaService, auditLog)
     {
-        _contextFactory = contextFactory;
-        _mediaService = mediaService;
-        _auditLog = auditLog;
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string? BuildFullName(string? last, string? first, string? second)
     {
@@ -122,8 +114,8 @@ public sealed class EventService : IEventService
             {
                 Title = input.Title.Trim(),
                 Date = input.Date,
-                Description = NullIfEmpty(input.Description),
-                Notes = NullIfEmpty(input.Notes),
+                Description = StringHelpers.NullIfEmpty(input.Description),
+                Notes = StringHelpers.NullIfEmpty(input.Notes),
                 OrganizerCompanyId = input.OrganizerCompanyId,
                 OrganizerPersonId = input.OrganizerPersonId
             };
@@ -282,8 +274,8 @@ public sealed class EventService : IEventService
 
             ev.Title = input.Title.Trim();
             ev.Date = input.Date;
-            ev.Description = NullIfEmpty(input.Description);
-            ev.Notes = NullIfEmpty(input.Notes);
+            ev.Description = StringHelpers.NullIfEmpty(input.Description);
+            ev.Notes = StringHelpers.NullIfEmpty(input.Notes);
             ev.OrganizerCompanyId = input.OrganizerCompanyId;
             ev.OrganizerPersonId = input.OrganizerPersonId;
 
@@ -401,24 +393,14 @@ public sealed class EventService : IEventService
 
     public async Task DeleteAsync(int id)
     {
-        await using (var context = await _contextFactory.CreateDbContextAsync())
-        await using (var tx = await context.Database.BeginTransactionAsync())
-        {
-            try
+        await DeleteWithMediaAsync(
+            id,
+            MediaOwnerType.Event,
+            "Event.Delete",
+            async context =>
             {
                 var ev = await context.Events.FirstOrDefaultAsync(e => e.Id == id);
                 if (ev is not null) context.Events.Remove(ev);
-                await context.SaveChangesAsync();
-                await tx.CommitAsync();
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
-        }
-
-        await _mediaService.RemoveAllLinksForOwnerAsync(MediaOwnerType.Event, id);
-        await _auditLog.LogAsync("Event.Delete", $"Id={id}");
+            });
     }
 }

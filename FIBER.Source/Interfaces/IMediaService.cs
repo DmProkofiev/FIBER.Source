@@ -33,4 +33,7 @@ public interface IMediaService
 
     /// <summary>Удаляет все связи владельца и подчищает осиротевшие MediaAttachment.</summary>
     Task RemoveAllLinksForOwnerAsync(MediaOwnerType ownerType, int ownerId);
+
+    /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).</summary>
+    Task<byte[]?> GetMediaDataAsync(int mediaId);
 }

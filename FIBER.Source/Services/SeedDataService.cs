@@ -42,71 +42,6 @@ public sealed class SeedDataService : ISeedDataService
 
     private static readonly Random Rng = new(42); // фиксированное зерно для воспроизводимости
 
-    private static readonly string[] RussianFirstNames =
-    {
-        "Александр", "Дмитрий", "Сергей", "Андрей", "Алексей", "Иван", "Максим", "Евгений",
-        "Владимир", "Олег", "Игорь", "Владислав", "Кирилл", "Артем", "Денис", "Роман",
-        "Виктор", "Николай", "Павел", "Станислав"
-    };
-
-    private static readonly string[] RussianLastNames =
-    {
-        "Иванов", "Смирнов", "Кузнецов", "Попов", "Васильев", "Петров", "Соколов", "Михайлов",
-        "Новиков", "Федоров", "Морозов", "Алексеев", "Лебедев", "Семёнов", "Егоров", "Павлов",
-        "Козлов", "Степанов", "Никитин", "Соловьёв"
-    };
-
-    private static readonly string[] RussianSecondNames =
-    {
-        "Иванович", "Дмитриевич", "Сергеевич", "Андреевич", "Алексеевич", "Максимович",
-        "Евгеньевич", "Владимирович", "Олегович", "Игоревич", "Витальевич", "Васильевич",
-        "Павлович", "Николаевич", "Александрович"
-    };
-
-    private static readonly string[] Aliases =
-    {
-        "Волк", "Тень", "Рысь", "Орёл", "Змея", "Лиса", "Барс", "Медведь", "Тигр", "Кобра",
-        "Андрей", "Дима", "Саша", "Костя", "Миша", "Леха", "Рома", "Ваня", "Серёга", "Кирюха"
-    };
-
-    private static readonly string[] Jobs =
-    {
-        "Инженер", "Менеджер", "Аналитик", "Разработчик", "Дизайнер", "Юрист", "Бухгалтер",
-        "Маркетолог", "HR-специалист", "Логист", "Водитель", "Сторож", "Курьер", "Охранник"
-    };
-
-    private static readonly string[] Cities =
-    {
-        "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань", "Нижний Новгород",
-        "Самара", "Омск", "Челябинск", "Ростов-на-Дону", "Уфа", "Красноярск", "Воронеж",
-        "Пермь", "Волгоград"
-    };
-
-    private static readonly string[] CountryCodes = { "RU", "BY", "KZ", "UA", "AM", "GE", "UZ" };
-
-    private static readonly string[] CompanyNames =
-    {
-        "ООО «ТехноСервис»", "ЗАО «ГлобалТрейд»", "ПАО «ЭнергоГрупп»", "ООО «МедИнвест»",
-        "ИП «Сибирь-Авто»", "ООО «Альянс-Строй»", "ЗАО «ФинансПартнёр»", "ООО «ЛогистикаПро»",
-        "ПАО «ТелекомСвязь»", "ООО «АгроФерма»", "ИП «Кофейный Боб»", "ЗАО «МедТехника»",
-        "ООО «СтройИнвест»", "ПАО «МеталлСервис»", "ООО «ТрансГрупп»", "ИП «РозницаПлюс»",
-        "ЗАО «ИнвестБанк»", "ООО «МедЦентр»", "ООО «АвтоДом»", "ПАО «Северная Сталь»"
-    };
-
-    private static readonly string[] EventTitles =
-    {
-        "Техническая конференция", "Открытие отделения", "Корпоративный семинар",
-        "Презентация продукта", "Круглый стол", "Выставка достижений", "Бизнес-завтрак",
-        "Тренинг для сотрудников", "Встреча партнёров", "Отчётный год", "Презентация стратегии",
-        "День открытых дверей", "Научный симпозиум", "Культурный фестиваль", "Спортивное соревнование"
-    };
-
-    private static readonly string[] Streets =
-    {
-        "ул. Ленина", "ул. Пушкина", "ул. Гагарина", "пр. Мира", "ул. Советская",
-        "ул. Кирова", "ул. Садовая", "ул. Центральная", "ул. Мира", "пр. Победы"
-    };
-
     public SeedDataService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IPersonService personService,
@@ -138,9 +73,9 @@ public sealed class SeedDataService : ISeedDataService
         {
             var regNum = $"{Rng.Next(10, 99)}{Rng.Next(100, 999)}{Rng.Next(1000, 9999)}";
             var company = await _companyService.CreateAsync(new CompanyInput(
-                Name: CompanyNames[i % CompanyNames.Length] + (i >= CompanyNames.Length ? $" #{i}" : ""),
+                Name: SeedData.CompanyNames[i % SeedData.CompanyNames.Length] + (i >= SeedData.CompanyNames.Length ? $" #{i}" : ""),
                 RegistrationNumber: regNum,
-                Address: $"{Streets[Rng.Next(Streets.Length)]}, д. {Rng.Next(1, 100)}",
+                Address: $"{SeedData.Streets[Rng.Next(SeedData.Streets.Length)]}, д. {Rng.Next(1, 100)}",
                 Phone: $"+7 ({Rng.Next(900, 999)}) {Rng.Next(100, 999)}-{Rng.Next(10, 99)}-{Rng.Next(10, 99)}",
                 Mail: $"info{i}@company{i}.ru",
                 Website: $"https://company{i}.ru",
@@ -154,9 +89,9 @@ public sealed class SeedDataService : ISeedDataService
         for (int i = 0; i < 100; i++)
         {
             bool isIdentified = Rng.NextDouble() > 0.3; // ~70% идентифицированных
-            string last = RussianLastNames[Rng.Next(RussianLastNames.Length)];
-            string first = RussianFirstNames[Rng.Next(RussianFirstNames.Length)];
-            string? second = isIdentified ? RussianSecondNames[Rng.Next(RussianSecondNames.Length)] : null;
+            string last = SeedData.RussianLastNames[Rng.Next(SeedData.RussianLastNames.Length)];
+            string first = SeedData.RussianFirstNames[Rng.Next(SeedData.RussianFirstNames.Length)];
+            string? second = isIdentified ? SeedData.RussianSecondNames[Rng.Next(SeedData.RussianSecondNames.Length)] : null;
             DateTime? birthDate = isIdentified
                 ? new DateTime(Rng.Next(1950, 2010), Rng.Next(1, 13), Rng.Next(1, 28))
                 : null;
@@ -172,36 +107,36 @@ public sealed class SeedDataService : ISeedDataService
                     Gender: (Gender)Rng.Next(0, 3),
                     BirthDate: birthDate,
                     Passport: passport!,
-                    Job: Jobs[Rng.Next(Jobs.Length)],
+                    Job: SeedData.Jobs[Rng.Next(SeedData.Jobs.Length)],
                     Phone: phone,
-                    City: Cities[Rng.Next(Cities.Length)],
-                    CountryCode: CountryCodes[Rng.Next(CountryCodes.Length)],
+                    City: SeedData.Cities[Rng.Next(SeedData.Cities.Length)],
+                    CountryCode: SeedData.CountryCodes[Rng.Next(SeedData.CountryCodes.Length)],
                     Car: Rng.NextDouble() > 0.7 ? $"Марка {Rng.Next(1, 20)}" : "",
                     Mail: $"{first.ToLower()}.{last.ToLower()}{i}@mail.ru",
                     SocialMedia: Rng.NextDouble() > 0.7 ? $"vk.com/user{i}" : "",
-                    Address: $"{Streets[Rng.Next(Streets.Length)]}, д. {Rng.Next(1, 200)}, кв. {Rng.Next(1, 100)}",
+                    Address: $"{SeedData.Streets[Rng.Next(SeedData.Streets.Length)]}, д. {Rng.Next(1, 200)}, кв. {Rng.Next(1, 100)}",
                     Notes: "Тестовая личность, созданная сидингом."));
                 personIds.Add(person.Id);
             }
             else
             {
-                var alias = Aliases[Rng.Next(Aliases.Length)] + $"#{Rng.Next(10, 99)}";
+                var alias = SeedData.Aliases[Rng.Next(SeedData.Aliases.Length)] + $"#{Rng.Next(10, 99)}";
                 var person = await _personService.CreateAnonymousAsync(new AnonymousPersonInput(
                     PrimaryAlias: alias,
                     Notes: "Тестовый аноним, созданный сидингом.",
                     Gender: (Gender)Rng.Next(0, 3),
-                    Job: Jobs[Rng.Next(Jobs.Length)],
+                    Job: SeedData.Jobs[Rng.Next(SeedData.Jobs.Length)],
                     Phone: phone,
-                    City: Cities[Rng.Next(Cities.Length)],
-                    CountryCode: CountryCodes[Rng.Next(CountryCodes.Length)],
+                    City: SeedData.Cities[Rng.Next(SeedData.Cities.Length)],
+                    CountryCode: SeedData.CountryCodes[Rng.Next(SeedData.CountryCodes.Length)],
                     Car: "",
                     Mail: $"{alias.ToLower()}@mail.ru",
                     SocialMedia: "",
                     Address: "",
                     Aliases: new List<PersonAliasInput>
                     {
-                        new(null, Aliases[Rng.Next(Aliases.Length)], AliasType.Nickname, false),
-                        new(null, Aliases[Rng.Next(Aliases.Length)], AliasType.Handle, false)
+                        new(null, SeedData.Aliases[Rng.Next(SeedData.Aliases.Length)], AliasType.Nickname, false),
+                        new(null, SeedData.Aliases[Rng.Next(SeedData.Aliases.Length)], AliasType.Handle, false)
                     }));
                 personIds.Add(person.Id);
             }
@@ -244,7 +179,7 @@ public sealed class SeedDataService : ISeedDataService
             }
 
             var evt = await _eventService.CreateAsync(new EventInput(
-                Title: EventTitles[i % EventTitles.Length] + (i >= EventTitles.Length ? $" #{i}" : ""),
+                Title: SeedData.EventTitles[i % SeedData.EventTitles.Length] + (i >= SeedData.EventTitles.Length ? $" #{i}" : ""),
                 Date: eventDate,
                 Description: "Описание тестового события.",
                 Notes: "Событие создано сидингом.",

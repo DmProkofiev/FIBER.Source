@@ -370,14 +370,8 @@ public sealed class MediaService : IMediaService
 
         if (isImage)
         {
-            // Изображение — читаем BLOB в память (нужен для BitmapImage)
-            var data = await context.MediaAttachments
-                .Where(m => m.Id == meta.Id)
-                .Select(m => m.Data)
-                .FirstOrDefaultAsync();
-
-            if (data is null) return null;
-            return new MediaItemViewModel(data, meta.OriginalFileName) { MediaId = meta.Id };
+            // Ленивая загрузка: BLOB не читаем из базы здесь — сделаем это в LoadImageAsync по требованию
+            return new MediaItemViewModel(this, meta.Id, meta.OriginalFileName) { MediaId = meta.Id };
         }
 
         // Видео/аудио — потоковое извлечение во временный файл
@@ -432,6 +426,16 @@ public sealed class MediaService : IMediaService
         await stream.CopyToAsync(fileStream);
 
         return tempPath;
+    }
+
+    /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).</summary>
+    public async Task<byte[]?> GetMediaDataAsync(int mediaId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MediaAttachments
+            .Where(m => m.Id == mediaId)
+            .Select(m => m.Data)
+            .FirstOrDefaultAsync();
     }
 
     /// <summary>Вычисляет SHA-256 hex содержимого файла.</summary>

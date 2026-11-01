@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
@@ -14,24 +15,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;
 
-public sealed class CompanyService : ICompanyService
+public sealed class CompanyService : BaseService, ICompanyService
 {
-    private readonly IDbContextFactory<FiberSourceDbContext> _contextFactory;
-    private readonly IMediaService _mediaService;
-    private readonly IAuditLogService _auditLog;
-
     public CompanyService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IMediaService mediaService,
         IAuditLogService auditLog)
+        : base(contextFactory, mediaService, auditLog)
     {
-        _contextFactory = contextFactory;
-        _mediaService = mediaService;
-        _auditLog = auditLog;
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public async Task<Company> CreateAsync(CompanyInput input)
     {
@@ -39,12 +31,12 @@ public sealed class CompanyService : ICompanyService
         var company = new Company
         {
             Name = input.Name.Trim(),
-            RegistrationNumber = NullIfEmpty(input.RegistrationNumber),
-            Address = NullIfEmpty(input.Address),
-            Phone = NullIfEmpty(input.Phone),
-            Mail = NullIfEmpty(input.Mail),
-            Website = NullIfEmpty(input.Website),
-            Notes = NullIfEmpty(input.Notes)
+            RegistrationNumber = StringHelpers.NullIfEmpty(input.RegistrationNumber),
+            Address = StringHelpers.NullIfEmpty(input.Address),
+            Phone = StringHelpers.NullIfEmpty(input.Phone),
+            Mail = StringHelpers.NullIfEmpty(input.Mail),
+            Website = StringHelpers.NullIfEmpty(input.Website),
+            Notes = StringHelpers.NullIfEmpty(input.Notes)
         };
         context.Companies.Add(company);
         await context.SaveChangesAsync();
@@ -102,12 +94,12 @@ public sealed class CompanyService : ICompanyService
             ?? throw new InvalidOperationException($"Организация Id={id} не найдена");
 
         company.Name = input.Name.Trim();
-        company.RegistrationNumber = NullIfEmpty(input.RegistrationNumber);
-        company.Address = NullIfEmpty(input.Address);
-        company.Phone = NullIfEmpty(input.Phone);
-        company.Mail = NullIfEmpty(input.Mail);
-        company.Website = NullIfEmpty(input.Website);
-        company.Notes = NullIfEmpty(input.Notes);
+        company.RegistrationNumber = StringHelpers.NullIfEmpty(input.RegistrationNumber);
+        company.Address = StringHelpers.NullIfEmpty(input.Address);
+        company.Phone = StringHelpers.NullIfEmpty(input.Phone);
+        company.Mail = StringHelpers.NullIfEmpty(input.Mail);
+        company.Website = StringHelpers.NullIfEmpty(input.Website);
+        company.Notes = StringHelpers.NullIfEmpty(input.Notes);
 
         // Взаимодействия с другими компаниями: добавление / изменение / удаление.
         await SyncInteractionsAsync(context, company, input.Interactions);
@@ -148,7 +140,7 @@ public sealed class CompanyService : ICompanyService
                 throw new InvalidOperationException($"Организация Id={targetId} не найдена");
 
             var type = (input.InteractionType ?? string.Empty).Trim();
-            var notes = NullIfEmpty(input.Notes) ?? string.Empty;
+            var notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
 
             var link = company.OutgoingInteractions.FirstOrDefault(ci => ci.TargetCompanyId == targetId);
             if (link is not null)
@@ -183,10 +175,11 @@ public sealed class CompanyService : ICompanyService
 
     public async Task DeleteAsync(int id)
     {
-        await using (var context = await _contextFactory.CreateDbContextAsync())
-        await using (var tx = await context.Database.BeginTransactionAsync())
-        {
-            try
+        await DeleteWithMediaAsync(
+            id,
+            MediaOwnerType.Company,
+            "Company.Delete",
+            async context =>
             {
                 var interactions = await context.CompanyInteractions
                     .Where(ci => ci.SourceCompanyId == id || ci.TargetCompanyId == id)
@@ -195,18 +188,6 @@ public sealed class CompanyService : ICompanyService
 
                 var company = await context.Companies.FirstOrDefaultAsync(c => c.Id == id);
                 if (company is not null) context.Companies.Remove(company);
-
-                await context.SaveChangesAsync();
-                await tx.CommitAsync();
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
-        }
-
-        await _mediaService.RemoveAllLinksForOwnerAsync(MediaOwnerType.Company, id);
-        await _auditLog.LogAsync("Company.Delete", $"Id={id}");
+            });
     }
 }

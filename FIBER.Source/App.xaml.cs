@@ -207,7 +207,6 @@ public partial class App : Application
     private void CleanupAndShutdown()
     {
         _isExiting = true;
-        _trayService?.Dispose();
         CleanupHost();
         CleanupMutex();
         Shutdown();
@@ -248,7 +247,6 @@ public partial class App : Application
     {
         if (_isExiting) return;
         _isExiting = true;
-        _trayService?.Dispose();
         CleanupHost();
         CleanupMutex();
         Shutdown();

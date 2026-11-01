@@ -690,6 +690,10 @@ public partial class SearchViewModel : ObservableObject
             if (vm.IsImage) images.Add(vm);
             else if (vm.IsVideo) videos.Add(vm);
             else if (vm.IsAudio) audio.Add(vm);
+
+            // Декодируем изображение в фоне, не блокируя GUI.
+            if (vm.IsImage)
+                _ = vm.LoadImageAsync();
         }
     }
 

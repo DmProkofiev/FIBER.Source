@@ -311,23 +311,60 @@
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">
                                                 <TabItem Header="Фото">
-                                                    <ItemsControl ItemsSource="{Binding PersonImages}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
-                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
-                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
-                                                                        Background="#222222" Tag="Person">
-                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <ItemsControl ItemsSource="{Binding PersonImages}" Margin="0,5,0,0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Columns="3"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Height="220" Width="220" Margin="5"
+                                                                            CornerRadius="8" ClipToBounds="True" Background="#222222"
+                                                                            Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                            Tag="Person">
+                                                                        <Grid>
+                                                                            <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                                                <Image.Style>
+                                                                                    <Style TargetType="Image">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Image.Style>
+                                                                            </Image>
+                                                                            <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
+                                                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </ScrollViewer>
                                                 </TabItem>
                                                 <TabItem Header="Видео">
                                                     <ItemsControl ItemsSource="{Binding PersonVideos}" Margin="0,5,0,0">
@@ -605,23 +642,60 @@
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">
                                                 <TabItem Header="Фото">
-                                                    <ItemsControl ItemsSource="{Binding CompanyImages}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
-                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
-                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
-                                                                        Background="#222222" Tag="Company">
-                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <ItemsControl ItemsSource="{Binding CompanyImages}" Margin="0,5,0,0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Columns="3"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Height="220" Width="220" Margin="5"
+                                                                            CornerRadius="8" ClipToBounds="True" Background="#222222"
+                                                                            Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                            Tag="Company">
+                                                                        <Grid>
+                                                                            <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                                                <Image.Style>
+                                                                                    <Style TargetType="Image">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Image.Style>
+                                                                            </Image>
+                                                                            <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
+                                                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </ScrollViewer>
                                                 </TabItem>
                                                 <TabItem Header="Видео">
                                                     <ItemsControl ItemsSource="{Binding CompanyVideos}" Margin="0,5,0,0">
@@ -875,23 +949,60 @@
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
                                             <TabControl Background="Transparent" BorderThickness="0">
                                                 <TabItem Header="Фото">
-                                                    <ItemsControl ItemsSource="{Binding EventImages}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel/>
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Height="250" MinWidth="250" Margin="0,0,15,15"
-                                                                        CornerRadius="8" ClipToBounds="True" HorizontalAlignment="Left"
-                                                                        Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
-                                                                        Background="#222222" Tag="Event">
-                                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                        <ItemsControl ItemsSource="{Binding EventImages}" Margin="0,5,0,0">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Columns="3"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Height="220" Width="220" Margin="5"
+                                                                            CornerRadius="8" ClipToBounds="True" Background="#222222"
+                                                                            Cursor="Hand" MouseLeftButtonDown="Image_MouseLeftButtonDown"
+                                                                            Tag="Event">
+                                                                        <Grid>
+                                                                            <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                                                <Image.Style>
+                                                                                    <Style TargetType="Image">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Image.Style>
+                                                                            </Image>
+                                                                            <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
+                                                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </ScrollViewer>
                                                 </TabItem>
                                                 <TabItem Header="Видео">
                                                     <ItemsControl ItemsSource="{Binding EventVideos}" Margin="0,5,0,0">
@@ -982,3 +1093,4 @@
     </TabControl>
     </Grid>
 </UserControl>
+

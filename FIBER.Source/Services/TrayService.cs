@@ -9,21 +9,28 @@ namespace FIBER.Source.Services;
 public class TrayService : ITrayService
 {
     private Forms.NotifyIcon? _notifyIcon;
+    private Drawing.Icon? _icon;
     private bool _isBalloonShown;
+    private bool _isDisposed;
 
     public void Initialize(Action onOpen, Action onExit)
     {
-        // Защита от дублирования: если иконка уже создана — не создаём повторно.
-        // Повторный вызов Initialize создавал бы несколько NotifyIcon в лотке.
-        if (_notifyIcon != null) return;
+        // Защита от дублирования: если иконка уже создана или сервис disposal-лен — не создаём повторно.
+        if (_notifyIcon != null || _isDisposed) return;
 
         _notifyIcon = new Forms.NotifyIcon();
 
         // Загружаем иконку из ресурсов
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "FIBERICO.ico");
-        _notifyIcon.Icon = File.Exists(iconPath)
-            ? new Drawing.Icon(iconPath)
-            : Drawing.SystemIcons.Application;
+        if (File.Exists(iconPath))
+        {
+            _icon = new Drawing.Icon(iconPath);
+            _notifyIcon.Icon = _icon;
+        }
+        else
+        {
+            _notifyIcon.Icon = Drawing.SystemIcons.Application;
+        }
 
         _notifyIcon.Text = "FIBER Source";
 
@@ -54,11 +61,21 @@ public class TrayService : ITrayService
 
     public void Dispose()
     {
+        if (_isDisposed) return;
+        _isDisposed = true;
+
         if (_notifyIcon != null)
         {
             _notifyIcon.Visible = false;
+            _notifyIcon.DoubleClick -= (_, _) => { }; // нет необходимости отписывать анонимные лямбды, но Dispose очистит
             _notifyIcon.Dispose();
             _notifyIcon = null;
+        }
+
+        if (_icon != null)
+        {
+            _icon.Dispose();
+            _icon = null;
         }
     }
 }

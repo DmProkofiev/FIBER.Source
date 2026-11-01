@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
@@ -14,29 +15,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services;
 
-public sealed class PersonService : IPersonService
+public sealed class PersonService : BaseService, IPersonService
 {
     private const int SearchResultLimit = 200;
 
-    private readonly IDbContextFactory<FiberSourceDbContext> _contextFactory;
     private readonly ISearchStrategyFactory _searchFactory;
-    private readonly IAuditLogService _auditLog;
-    private readonly IMediaService _mediaService;
 
     public PersonService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         ISearchStrategyFactory searchFactory,
         IAuditLogService auditLog,
         IMediaService mediaService)
+        : base(contextFactory, mediaService, auditLog)
     {
-        _contextFactory = contextFactory;
         _searchFactory = searchFactory;
-        _auditLog = auditLog;
-        _mediaService = mediaService;
     }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static void ValidateBirthDate(DateTime? value)
     {
@@ -85,19 +78,19 @@ public sealed class PersonService : IPersonService
             Status = IdentityStatus.Identified,
             LastName = input.LastName.Trim(),
             FirstName = input.FirstName.Trim(),
-            SecondName = NullIfEmpty(input.SecondName),
+            SecondName = StringHelpers.NullIfEmpty(input.SecondName),
             Gender = input.Gender,
             BirthDate = input.BirthDate,
-            Passport = NullIfEmpty(input.Passport),
-            Job = NullIfEmpty(input.Job),
-            Phone = NullIfEmpty(input.Phone),
-            City = NullIfEmpty(input.City),
-            CountryCode = NullIfEmpty(input.CountryCode),
-            Car = NullIfEmpty(input.Car),
-            Mail = NullIfEmpty(input.Mail),
-            SocialMedia = NullIfEmpty(input.SocialMedia),
-            Address = NullIfEmpty(input.Address),
-            Notes = NullIfEmpty(input.Notes)
+            Passport = StringHelpers.NullIfEmpty(input.Passport),
+            Job = StringHelpers.NullIfEmpty(input.Job),
+            Phone = StringHelpers.NullIfEmpty(input.Phone),
+            City = StringHelpers.NullIfEmpty(input.City),
+            CountryCode = StringHelpers.NullIfEmpty(input.CountryCode),
+            Car = StringHelpers.NullIfEmpty(input.Car),
+            Mail = StringHelpers.NullIfEmpty(input.Mail),
+            SocialMedia = StringHelpers.NullIfEmpty(input.SocialMedia),
+            Address = StringHelpers.NullIfEmpty(input.Address),
+            Notes = StringHelpers.NullIfEmpty(input.Notes)
         };
         context.People.Add(person);
         await context.SaveChangesAsync();
@@ -138,15 +131,15 @@ public sealed class PersonService : IPersonService
             Gender = input.Gender,
             BirthDate = null,
             Passport = null,
-            Job = NullIfEmpty(input.Job),
-            Phone = NullIfEmpty(input.Phone),
-            City = NullIfEmpty(input.City),
-            CountryCode = NullIfEmpty(input.CountryCode),
-            Car = NullIfEmpty(input.Car),
-            Mail = NullIfEmpty(input.Mail),
-            SocialMedia = NullIfEmpty(input.SocialMedia),
-            Address = NullIfEmpty(input.Address),
-            Notes = NullIfEmpty(input.Notes)
+            Job = StringHelpers.NullIfEmpty(input.Job),
+            Phone = StringHelpers.NullIfEmpty(input.Phone),
+            City = StringHelpers.NullIfEmpty(input.City),
+            CountryCode = StringHelpers.NullIfEmpty(input.CountryCode),
+            Car = StringHelpers.NullIfEmpty(input.Car),
+            Mail = StringHelpers.NullIfEmpty(input.Mail),
+            SocialMedia = StringHelpers.NullIfEmpty(input.SocialMedia),
+            Address = StringHelpers.NullIfEmpty(input.Address),
+            Notes = StringHelpers.NullIfEmpty(input.Notes)
         };
         context.People.Add(person);
         await context.SaveChangesAsync();
@@ -199,10 +192,10 @@ public sealed class PersonService : IPersonService
         person.Status = IdentityStatus.Identified;
         person.LastName = input.LastName.Trim();
         person.FirstName = input.FirstName.Trim();
-        person.SecondName = NullIfEmpty(input.SecondName);
+        person.SecondName = StringHelpers.NullIfEmpty(input.SecondName);
         person.Gender = input.Gender;
         person.BirthDate = input.BirthDate;
-        person.Passport = NullIfEmpty(input.Passport);
+        person.Passport = StringHelpers.NullIfEmpty(input.Passport);
 
         foreach (var alias in person.Aliases) alias.IsPrimary = false;
 
@@ -230,19 +223,19 @@ public sealed class PersonService : IPersonService
 
         person.LastName = input.LastName.Trim();
         person.FirstName = input.FirstName.Trim();
-        person.SecondName = NullIfEmpty(input.SecondName);
+        person.SecondName = StringHelpers.NullIfEmpty(input.SecondName);
         person.Gender = input.Gender;
         person.BirthDate = input.BirthDate;
-        person.Passport = NullIfEmpty(input.Passport);
-        person.Job = NullIfEmpty(input.Job);
-        person.Phone = NullIfEmpty(input.Phone);
-        person.City = NullIfEmpty(input.City);
-        person.CountryCode = NullIfEmpty(input.CountryCode);
-        person.Car = NullIfEmpty(input.Car);
-        person.Mail = NullIfEmpty(input.Mail);
-        person.SocialMedia = NullIfEmpty(input.SocialMedia);
-        person.Address = NullIfEmpty(input.Address);
-        person.Notes = NullIfEmpty(input.Notes);
+        person.Passport = StringHelpers.NullIfEmpty(input.Passport);
+        person.Job = StringHelpers.NullIfEmpty(input.Job);
+        person.Phone = StringHelpers.NullIfEmpty(input.Phone);
+        person.City = StringHelpers.NullIfEmpty(input.City);
+        person.CountryCode = StringHelpers.NullIfEmpty(input.CountryCode);
+        person.Car = StringHelpers.NullIfEmpty(input.Car);
+        person.Mail = StringHelpers.NullIfEmpty(input.Mail);
+        person.SocialMedia = StringHelpers.NullIfEmpty(input.SocialMedia);
+        person.Address = StringHelpers.NullIfEmpty(input.Address);
+        person.Notes = StringHelpers.NullIfEmpty(input.Notes);
 
         // Псевдонимы идентифицированной личности не создаются автоматически:
         // ФИО хранится в LastName/FirstName/SecondName, а Aliases — только явно добавленные имена.
@@ -288,15 +281,15 @@ public sealed class PersonService : IPersonService
         person.Gender = input.Gender;
         person.BirthDate = null;
         person.Passport = null;
-        person.Job = NullIfEmpty(input.Job);
-        person.Phone = NullIfEmpty(input.Phone);
-        person.City = NullIfEmpty(input.City);
-        person.CountryCode = NullIfEmpty(input.CountryCode);
-        person.Car = NullIfEmpty(input.Car);
-        person.Mail = NullIfEmpty(input.Mail);
-        person.SocialMedia = NullIfEmpty(input.SocialMedia);
-        person.Address = NullIfEmpty(input.Address);
-        person.Notes = NullIfEmpty(input.Notes);
+        person.Job = StringHelpers.NullIfEmpty(input.Job);
+        person.Phone = StringHelpers.NullIfEmpty(input.Phone);
+        person.City = StringHelpers.NullIfEmpty(input.City);
+        person.CountryCode = StringHelpers.NullIfEmpty(input.CountryCode);
+        person.Car = StringHelpers.NullIfEmpty(input.Car);
+        person.Mail = StringHelpers.NullIfEmpty(input.Mail);
+        person.SocialMedia = StringHelpers.NullIfEmpty(input.SocialMedia);
+        person.Address = StringHelpers.NullIfEmpty(input.Address);
+        person.Notes = StringHelpers.NullIfEmpty(input.Notes);
 
         var currentPrimary = person.Aliases.FirstOrDefault(a => a.IsPrimary);
         var primary = new PersonAliasInput(
@@ -559,7 +552,7 @@ public sealed class PersonService : IPersonService
 
             if (!targetChanged && !kindChanged)
             {
-                link.Notes = NullIfEmpty(input.Notes) ?? string.Empty;
+                link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
                 continue;
             }
 
@@ -581,7 +574,7 @@ public sealed class PersonService : IPersonService
 
             link.RelatedPersonId = input.RelatedPersonId;
             link.Kind = input.Kind;
-            link.Notes = NullIfEmpty(input.Notes) ?? string.Empty;
+            link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
 
             if (newHasMirror &&
                 (targetChanged || !oldHasMirror || oldInverse != newInverse))
@@ -605,7 +598,7 @@ public sealed class PersonService : IPersonService
                 PersonId = person.Id,
                 RelatedPersonId = input.RelatedPersonId,
                 Kind = input.Kind,
-                Notes = NullIfEmpty(input.Notes) ?? string.Empty
+                Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
             };
             context.PersonRelationships.Add(link);
             person.Relationships.Add(link);
@@ -654,22 +647,14 @@ public sealed class PersonService : IPersonService
 
     public async Task DeleteAsync(int id)
     {
-        await using var context = await _contextFactory.CreateDbContextAsync();
-        await using var tx = await context.Database.BeginTransactionAsync();
-        try
-        {
-            var person = await context.People.FirstOrDefaultAsync(p => p.Id == id);
-            if (person is not null) context.People.Remove(person);
-
-            await context.SaveChangesAsync();
-            await tx.CommitAsync();
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
-        await _mediaService.RemoveAllLinksForOwnerAsync(MediaOwnerType.Person, id);
-        await _auditLog.LogAsync("Person.Delete", $"Id={id}");
+        await DeleteWithMediaAsync(
+            id,
+            MediaOwnerType.Person,
+            "Person.Delete",
+            async context =>
+            {
+                var person = await context.People.FirstOrDefaultAsync(p => p.Id == id);
+                if (person is not null) context.People.Remove(person);
+            });
     }
 }

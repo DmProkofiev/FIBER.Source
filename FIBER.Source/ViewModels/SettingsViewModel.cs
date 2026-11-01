@@ -71,6 +71,8 @@ public partial class SettingsViewModel : ObservableObject
 
     /// <summary>Всего медиафайлов.</summary>
     [ObservableProperty] private int _mediaTotal;
+    /// <summary>Идёт ли загрузка данных настроек.</summary>
+    [ObservableProperty] private bool _isBusy;
     /// <summary>Версия приложения.</summary>
     [ObservableProperty] private string _appVersion = "FIBER Source 1.0.0";
     /// <summary>Путь к файлу БД.</summary>
@@ -87,7 +89,10 @@ public partial class SettingsViewModel : ObservableObject
     /// <summary>Загружает данные.</summary>
     public async Task LoadDataAsync()
     {
-        DbPath = _databaseService.DatabasePath;
+        IsBusy = true;
+        try
+        {
+            DbPath = _databaseService.DatabasePath;
 
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -172,9 +177,21 @@ public partial class SettingsViewModel : ObservableObject
                 MediaOwnerType.Event => eventsDict.GetValueOrDefault(item.OwnerId, "Удалён"),
                 _ => "Неизвестно"
             };
-            AllMedia.Add(new SettingsMediaItemViewModel(item.Media, item.OwnerType, item.OwnerId, ownerName));
+            var vm = new SettingsMediaItemViewModel(item.Media, item.OwnerType, item.OwnerId, ownerName);
+            AllMedia.Add(vm);
+
+            // Декодируем изображение в фоне, чтобы не блокировать GUI.
+            // Виртуализация ListBox создаст контейнер только когда элемент попадет в зону видимости,
+            // но bitmap всё равно нужно декодировать — делаем это асинхронно.
+            if (vm.Media.IsImage)
+                _ = vm.Media.LoadImageAsync();
         }
         MediaTotal = AllMedia.Count;
+    }
+    finally
+    {
+        IsBusy = false;
+    }
     }
 
     /// <summary>Заменяет содержимое коллекции.</summary>

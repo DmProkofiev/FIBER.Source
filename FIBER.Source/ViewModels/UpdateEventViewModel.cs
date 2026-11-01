@@ -138,6 +138,9 @@ public partial class UpdateEventViewModel : ObservableValidator
             if (media.IsImage) ExistingImages.Add(media);
             else if (media.IsVideo) ExistingVideos.Add(media);
             else if (media.IsAudio) ExistingAudio.Add(media);
+
+            if (media.IsImage)
+                _ = media.LoadImageAsync();
         }
     }
 

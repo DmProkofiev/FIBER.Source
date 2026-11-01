@@ -75,8 +75,9 @@ public class MetadataStrategyTests
         var a = new Person { Phone = "8-900-111-22-33" };
         var b = new Person { Phone = "8 (900) 111 22 33" };
 
-        // Оба дают 89001112233 → совпадают, вес 3.0, только это поле сравнимо
-        Assert.Equal(1.0, _strategy.Compare(a, b));
+        // Оба дают 89001112233 → совпадают, вес 3.0, только ОДНО поле сравнимо.
+        // Штраф за малое число полей: score ограничен 0.5.
+        Assert.Equal(0.5, _strategy.Compare(a, b));
     }
 
     [Fact]
@@ -85,7 +86,8 @@ public class MetadataStrategyTests
         var a = new Person { Mail = "User@Example.COM" };
         var b = new Person { Mail = "user@example.com" };
 
-        Assert.Equal(1.0, _strategy.Compare(a, b));
+        // Только ОДНО поле Mail сравнимо. Штраф за малое число полей: score ограничен 0.5.
+        Assert.Equal(0.5, _strategy.Compare(a, b));
     }
 
     [Fact]

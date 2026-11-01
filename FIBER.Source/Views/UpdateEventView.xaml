@@ -162,17 +162,56 @@
                               Foreground="White" Background="#22FFFFFF" Padding="5">
                         <TabControl Background="Transparent" BorderThickness="0">
                             <TabItem Header="Фото">
-                                <ItemsControl ItemsSource="{Binding ExistingImages}" Margin="0,5,0,0">
-                                    <ItemsControl.ItemsPanel>
+                                <ListBox ItemsSource="{Binding ExistingImages}" Margin="0,5,0,0"
+                                         Background="Transparent" BorderThickness="0"
+                                         VirtualizingStackPanel.IsVirtualizing="True"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <WrapPanel />
+                                            <WrapPanel IsItemsHost="True"/>
                                         </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Width="100" Height="100" Margin="5">
                                                 <Border CornerRadius="4" ClipToBounds="True" Background="#DDD">
-                                                    <Image Source="{Binding ImageSource}" Stretch="Uniform" />
+                                                    <Grid>
+                                                        <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                            <Image.Style>
+                                                                <Style TargetType="Image">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Image.Style>
+                                                        </Image>
+                                                        <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Grid>
                                                 </Border>
                                                 <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
@@ -181,8 +220,8 @@
                                                         Template="{StaticResource CloseButtonTemplate}" />
                                             </Grid>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </TabItem>
                             <TabItem Header="Видео">
                                 <ItemsControl ItemsSource="{Binding ExistingVideos}" Margin="0,5,0,0">
@@ -246,7 +285,7 @@
                                             <Grid Width="90" Height="90" Margin="5">
                                                 <Border CornerRadius="4" ClipToBounds="True" Background="#DDDDDD" ToolTip="{Binding FileName}">
                                                     <Grid>
-                                                        <Image Source="{Binding ImageSource}" Stretch="UniformToFill">
+                                                        <Image Source="{Binding ImageSource}" Stretch="Uniform">
                                                             <Image.Style>
                                                                 <Style TargetType="Image">
                                                                     <Setter Property="Visibility" Value="Visible"/>
@@ -305,3 +344,4 @@
         </Grid>
     </Border>
 </UserControl>
+

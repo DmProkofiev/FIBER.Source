@@ -40,10 +40,12 @@ public sealed class LevenshteinStrategy : IComparisonStrategy
                 .ToLowerInvariant();
 
     // Множитель по дате рождения (ТЗ §5.4.2).
+    // При отсутствии обеих дат рождения множитель снижен с 0.6 до 0.3,
+    // чтобы одинаковые имена без дат рождения не считались дублями по умолчанию.
     private static double BirthDateFactor(DateTime? a, DateTime? b)
     {
-        if (!a.HasValue && !b.HasValue) return 0.6;
-        if (!a.HasValue || !b.HasValue) return 0.7;
+        if (!a.HasValue && !b.HasValue) return 0.3;
+        if (!a.HasValue || !b.HasValue) return 0.5;
 
         int days = Math.Abs((a.Value.Date - b.Value.Date).Days);
         if (days == 0) return 1.0;
