@@ -7,7 +7,8 @@ namespace FIBER.Source.Services.Comparison;
 
 // Взвешенное сравнение по метаданным (ТЗ §5.4.3).
 // Поле участвует только если у обеих сторон непустое значение;
-// score = Σ(вес × совпадение) / Σ(вес). Без штрафов за малое число полей.
+// score = Σ(вес × совпадение) / Σ(вес). Штраф за малое число сравнимых полей (< 2):
+// если совпало только одно поле, score ограничен 0.5, чтобы не плодить ложные дубликаты.
 public sealed class MetadataStrategy : IComparisonStrategy
 {
     public string Name => "Сравнение по метаданным";
@@ -18,12 +19,14 @@ public sealed class MetadataStrategy : IComparisonStrategy
 
         double comparableWeight = 0.0;
         double matchedWeight = 0.0;
+        int comparableFieldCount = 0;
 
         void Add(double weight, Func<string?, string?> normalize, string? x, string? y)
         {
             if (string.IsNullOrWhiteSpace(x) || string.IsNullOrWhiteSpace(y)) return;
 
             comparableWeight += weight;
+            comparableFieldCount++;
             if (string.Equals(normalize(x), normalize(y), StringComparison.OrdinalIgnoreCase))
                 matchedWeight += weight;
         }
@@ -42,30 +45,13 @@ public sealed class MetadataStrategy : IComparisonStrategy
 
         double score = matchedWeight / comparableWeight;
 
-        // Штраф за малое число сравнимых полей (меньше 2 полей).
+        // Штраф за малое число сравнимых полей (меньше 2).
         // Если совпало только одно поле (например, только Город или только Телефон),
         // score не может быть выше 0.5, чтобы избежать ложных дублей.
-        int comparableFieldCount = CountComparableFields(a, b);
         if (comparableFieldCount < 2)
             score = Math.Min(score, 0.5);
 
         return Math.Clamp(score, 0.0, 1.0);
-    }
-
-    // Подсчитывает количество полей, заполненных у обеих сторон одновременно.
-    private static int CountComparableFields(Person a, Person b)
-    {
-        int count = 0;
-        if (!string.IsNullOrWhiteSpace(a.Passport) && !string.IsNullOrWhiteSpace(b.Passport)) count++;
-        if (!string.IsNullOrWhiteSpace(a.Phone) && !string.IsNullOrWhiteSpace(b.Phone)) count++;
-        if (!string.IsNullOrWhiteSpace(a.Mail) && !string.IsNullOrWhiteSpace(b.Mail)) count++;
-        if (!string.IsNullOrWhiteSpace(a.Address) && !string.IsNullOrWhiteSpace(b.Address)) count++;
-        if (!string.IsNullOrWhiteSpace(a.SocialMedia) && !string.IsNullOrWhiteSpace(b.SocialMedia)) count++;
-        if (!string.IsNullOrWhiteSpace(a.Car) && !string.IsNullOrWhiteSpace(b.Car)) count++;
-        if (!string.IsNullOrWhiteSpace(a.City) && !string.IsNullOrWhiteSpace(b.City)) count++;
-        if (!string.IsNullOrWhiteSpace(a.Job) && !string.IsNullOrWhiteSpace(b.Job)) count++;
-        if (!string.IsNullOrWhiteSpace(a.CountryCode) && !string.IsNullOrWhiteSpace(b.CountryCode)) count++;
-        return count;
     }
 
     // Trim + нижний регистр (сравнение регистронезависимо).

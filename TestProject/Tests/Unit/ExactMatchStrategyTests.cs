@@ -163,4 +163,14 @@ public class ExactMatchStrategyTests
 
         Assert.Equal(0.0, _strategy.Compare(a, b));
     }
+
+    [Fact]
+    public void Compare_SameName_NoSecondNameOnBoth_ReturnsOne()
+    {
+        var a = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван", BirthDate = new DateTime(1990, 1, 1) };
+        var b = new Person { Status = IdentityStatus.Identified, LastName = "Иванов", FirstName = "Иван", BirthDate = new DateTime(1990, 1, 1) };
+
+        // Отчество опционально: у обеих персон оно не задано — совпадение корректно.
+        Assert.Equal(1.0, _strategy.Compare(a, b));
+    }
 }

@@ -79,14 +79,26 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="12"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="12"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="ФИО:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Фамилия:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
-                                 Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding LastName, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Дата рождения:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
-                        <StackPanel Grid.Row="2" Grid.Column="1">
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Имя:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
+                                 Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Отчество:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
+                                 Text="{Binding SecondName, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Дата рождения:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <StackPanel Grid.Row="6" Grid.Column="1">
                             <DatePicker SelectedDate="{Binding BirthDate, UpdateSourceTrigger=PropertyChanged}"
                                         Style="{StaticResource ModernDatePickerStyle}"/>
                             <TextBlock Text="Сведения отсутствуют"
@@ -105,8 +117,8 @@
                             </TextBlock>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Паспорт:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
-                        <TextBox Grid.Row="4" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Паспорт:" Style="{StaticResource FormLabelStyle}" Margin="0,0,15,0"/>
+                        <TextBox Grid.Row="8" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
                                  Text="{Binding Passport, UpdateSourceTrigger=PropertyChanged}"/>
                     </Grid>
 
@@ -362,12 +374,11 @@
                             <TabItem Header="Фото">
                                 <ListBox ItemsSource="{Binding ExistingImages}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
-                                         VirtualizingStackPanel.IsVirtualizing="True"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <WrapPanel IsItemsHost="True"/>
+                                            <UniformGrid Columns="3"/>
                                         </ItemsPanelTemplate>
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>

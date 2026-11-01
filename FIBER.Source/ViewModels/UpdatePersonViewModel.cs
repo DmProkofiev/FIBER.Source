@@ -64,8 +64,15 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
-    [Required(ErrorMessage = "ФИО обязательно")]
-    private string _fullName = string.Empty;
+    [Required(ErrorMessage = "Фамилия обязательна")]
+    private string _lastName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [Required(ErrorMessage = "Имя обязательно")]
+    private string _firstName = string.Empty;
+
+    [ObservableProperty] private string _secondName = string.Empty;
 
     [ObservableProperty] private Gender _selectedGender = Gender.Unknown;
 
@@ -148,7 +155,9 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
         if (IsIdentified)
         {
-            FullName = person.FullName ?? string.Empty;
+            LastName = person.LastName ?? string.Empty;
+            FirstName = person.FirstName ?? string.Empty;
+            SecondName = person.SecondName ?? string.Empty;
             BirthDate = person.BirthDate;
             Passport = person.Passport ?? string.Empty;
         }
@@ -240,7 +249,13 @@ public partial class UpdatePersonViewModel : ObservableValidator
     {
         if (IsIdentified) return;
         IsInPromoteMode = true;
-        FullName = PrimaryAlias;
+
+        // Псевдоним анонима подставляем в поля ФИО для удобства редактирования.
+        PersonService.SplitFullName(PrimaryAlias.Trim(),
+            out string promLastName, out string promFirstName, out string? promSecondName);
+        LastName = promLastName;
+        FirstName = promFirstName;
+        SecondName = promSecondName ?? string.Empty;
     }
 
     public async Task HandleFilesDropAsync(string[] files)
@@ -290,14 +305,11 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
             if (IsInPromoteMode)
             {
-                if (string.IsNullOrWhiteSpace(FullName))
+                if (string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(FirstName))
                 {
-                    Notification.Show("Ошибка", "Укажите ФИО для идентификации", NotificationType.Warning);
+                    Notification.Show("Ошибка", "Укажите фамилию и имя для идентификации", NotificationType.Warning);
                     return;
                 }
-
-                PersonService.SplitFullName(FullName.Trim(),
-                    out string promLastName, out string promFirstName, out string? promSecondName);
 
                 // Прежний основной псевдоним анонима сохраняем как обычный псевдоним
                 // (новый основной автоматически не создаётся — ФИО хранится в полях персоны).
@@ -308,15 +320,15 @@ public partial class UpdatePersonViewModel : ObservableValidator
                 }
 
                 await _personService.PromoteAsync(PersonId, new PromotePersonInput(
-                    LastName: promLastName,
-                    FirstName: promFirstName,
-                    SecondName: promSecondName,
+                    LastName: LastName.Trim(),
+                    FirstName: FirstName.Trim(),
+                    SecondName: string.IsNullOrWhiteSpace(SecondName) ? null : SecondName.Trim(),
                     Gender: SelectedGender,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim()));
 
                 var personInput = new PersonInput(
-                    LastName: promLastName, FirstName: promFirstName, SecondName: promSecondName,
+                    LastName: LastName.Trim(), FirstName: FirstName.Trim(), SecondName: string.IsNullOrWhiteSpace(SecondName) ? null : SecondName.Trim(),
                     Gender: SelectedGender, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
@@ -329,17 +341,14 @@ public partial class UpdatePersonViewModel : ObservableValidator
             }
             else if (IsIdentified)
             {
-                if (string.IsNullOrWhiteSpace(FullName))
+                if (string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(FirstName))
                 {
-                    Notification.Show("Ошибка", "ФИО обязательно", NotificationType.Warning);
+                    Notification.Show("Ошибка", "Фамилия и имя обязательны", NotificationType.Warning);
                     return;
                 }
 
-                PersonService.SplitFullName(FullName.Trim(),
-                    out string lastName, out string firstName, out string? secondName);
-
                 var input = new PersonInput(
-                    LastName: lastName, FirstName: firstName, SecondName: secondName,
+                    LastName: LastName.Trim(), FirstName: FirstName.Trim(), SecondName: string.IsNullOrWhiteSpace(SecondName) ? null : SecondName.Trim(),
                     Gender: SelectedGender, BirthDate: BirthDate, Passport: Passport.Trim(),
                     Job: Job.Trim(), Phone: Phone.Trim(), City: City.Trim(),
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
