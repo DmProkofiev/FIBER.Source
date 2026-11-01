@@ -496,3 +496,6 @@ AGENTS.md
 **/Data/*.sqlite
 **/Data/MediaInformation/
 **/PeopleRegister.db
+
+# ConsoleApp — локальный инструмент миграции, не в репозиторий
+ConsoleApp/
