@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -41,8 +42,21 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     /// <summary>Признак аудио.</summary>
     public bool IsAudio { get; }
 
-    /// <summary>Источник изображения в памяти.</summary>
-    public ImageSource? ImageSource { get; }
+    /// <summary>Источник изображения в памяти (загружается асинхронно, не блокирует GUI).</summary>
+    public ImageSource? ImageSource
+    {
+        get => _imageSource;
+        private set => SetProperty(ref _imageSource, value);
+    }
+    private ImageSource? _imageSource;
+
+    /// <summary>Идёт ли сейчас загрузка изображения (для индикатора в UI).</summary>
+    public bool IsImageLoading
+    {
+        get => _isImageLoading;
+        private set => SetProperty(ref _isImageLoading, value);
+    }
+    private bool _isImageLoading;
 
     /// <summary>Плеер для видео/аудио (null до инициализации).</summary>
     public MediaPlayer? Player => _player;
@@ -116,18 +130,45 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         if (!IsImage) { LoadFailed = true; return; }
 
+        // Загружаем изображение асинхронно, чтобы не блокировать GUI поток
+        _ = LoadImageFromBytesAsync(data);
+    }
+
+    /// <summary>Асинхронно создаёт BitmapImage из байтов и устанавливает ImageSource.</summary>
+    private async Task LoadImageFromBytesAsync(byte[] data)
+    {
         try
         {
-            using var ms = new MemoryStream(data);
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.StreamSource = ms;
-            bitmap.EndInit();
-            bitmap.Freeze();
-            ImageSource = bitmap;
+            IsImageLoading = true;
+
+            BitmapImage? bitmap = null;
+            await Task.Run(() =>
+            {
+                using var ms = new MemoryStream(data);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+                bmp.Freeze();
+                bitmap = bmp;
+            });
+
+            // Устанавливаем на UI потоке (ViewModel не DependencyObject, но PropertyChanged
+            // лучше вызывать через Dispatcher, чтобы WPF привязки отработали корректно)
+            await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+            {
+                ImageSource = bitmap;
+            });
         }
-        catch { LoadFailed = true; }
+        catch
+        {
+            LoadFailed = true;
+        }
+        finally
+        {
+            IsImageLoading = false;
+        }
     }
 
     /// <summary>Создаёт MediaPlayer с отложенной разблокировкой звука.</summary>
