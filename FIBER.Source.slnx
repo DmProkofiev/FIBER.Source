@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="ConsoleApp/ConsoleApp.csproj" Id="a96698be-bfcc-42e1-a097-9db74103eb45" />
   <Project Path="FIBER.Source/FIBER.Source.csproj" />
+  <Project Path="TestProject/TestProject.csproj" Id="4c95dedf-ce8b-4f66-ba83-3205da7cda13" />
 </Solution>

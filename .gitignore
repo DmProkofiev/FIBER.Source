@@ -488,3 +488,11 @@ $RECYCLE.BIN/
 
 # AI agent instructions
 AGENTS.md
+
+# Local data and media — must not enter git
+**/Data/*.db
+**/Data/*.db-shm
+**/Data/*.db-wal
+**/Data/*.sqlite
+**/Data/MediaInformation/
+**/PeopleRegister.db
