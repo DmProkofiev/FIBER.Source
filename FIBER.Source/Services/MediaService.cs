@@ -48,8 +48,9 @@ public sealed class MediaService : IMediaService
     /// <summary>Временный каталог %Temp%\FIBER\</summary>
     private readonly string _tempDir;
 
-    /// <summary>Кэш списка «все медиа» — загружается один раз, инвалидируется при изменении ссылок.</summary>
-    private IReadOnlyList<MediaForOwner>? _allMediaCache;
+    /// <summary>Кэш списка «все медиа» — хранятся только легкие метаданные (без VM и BLOB),
+    /// чтобы SettingsViewModel могла свободно Dispose свои VM-объекты, не ломая общий кэш.</summary>
+    private IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>? _allMediaCache;
     /// <summary>Защита кэша от параллельного многократного заполнения.</summary>
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
@@ -265,7 +266,7 @@ public sealed class MediaService : IMediaService
         var result = new List<MediaItemViewModel>(metaList.Count);
         foreach (var meta in metaList)
         {
-            var vm = await CreateVmFromMediaMetaAsync(context, meta);
+            var vm = await CreateVmFromMediaMetaAsync(meta);
             if (vm is not null) result.Add(vm);
         }
         return result;
@@ -273,6 +274,23 @@ public sealed class MediaService : IMediaService
 
     /// <summary>Возвращает все медиа со всех владельцев.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
+    {
+        // Кэш хранит только метаданные — VM создаём заново при каждом запросе,
+        // чтобы SettingsViewModel могла Dispose свои объекты, не ломая общий кэш.
+        var metaList = await GetAllMediaMetaAsync();
+
+        var result = new List<MediaForOwner>(metaList.Count);
+        foreach (var (meta, ownerType, ownerId) in metaList)
+        {
+            var vm = await CreateVmFromMediaMetaAsync(meta);
+            if (vm is not null)
+                result.Add(new MediaForOwner(vm, ownerType, ownerId));
+        }
+        return result;
+    }
+
+    /// <summary>Возвращает кэшированные метаданные «все медиа» (без VM, без BLOB).</summary>
+    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> GetAllMediaMetaAsync()
     {
         // Возвращаем кэш, если он уже заполнен — не ходим в БД повторно.
         if (_allMediaCache is not null)
@@ -285,9 +303,8 @@ public sealed class MediaService : IMediaService
             if (_allMediaCache is not null)
                 return _allMediaCache;
 
-            var result = await LoadAllMediaFromDbAsync();
-            _allMediaCache = result;
-            return result;
+            _allMediaCache = await LoadAllMediaMetaFromDbAsync();
+            return _allMediaCache;
         }
         finally
         {
@@ -295,8 +312,8 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Загружает все медиа из БД (без кэша). Вызывается из <see cref="GetAllMediaAsync"/>.</summary>
-    private async Task<IReadOnlyList<MediaForOwner>> LoadAllMediaFromDbAsync()
+    /// <summary>Загружает метаданные всех медиа из БД (без кэша, без VM).</summary>
+    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> LoadAllMediaMetaFromDbAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -313,12 +330,10 @@ public sealed class MediaService : IMediaService
             })
             .ToListAsync();
 
-        var result = new List<MediaForOwner>(metaList.Count);
+        var result = new List<(MediaMeta, MediaOwnerType, int)>(metaList.Count);
         foreach (var item in metaList)
         {
-            var vm = await CreateVmFromMediaMetaAsync(context, item.Meta);
-            if (vm is not null)
-                result.Add(new MediaForOwner(vm, item.OwnerType, item.OwnerId));
+            result.Add((item.Meta, item.OwnerType, item.OwnerId));
         }
         return result;
     }
@@ -436,8 +451,7 @@ public sealed class MediaService : IMediaService
     }
 
     /// <summary>Создаёт VM медиа из метаданных: изображения в память, видео/аудио в Temp-файл.</summary>
-    private async Task<MediaItemViewModel?> CreateVmFromMediaMetaAsync(
-        FiberSourceDbContext context, MediaMeta meta)
+    private async Task<MediaItemViewModel?> CreateVmFromMediaMetaAsync(MediaMeta meta)
     {
         var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
         var isImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
