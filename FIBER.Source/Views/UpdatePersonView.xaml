@@ -366,9 +366,8 @@
                                        Foreground="#AAAAAA" FontSize="11" FontStyle="Italic" Margin="2,6,0,0"/>
                         </StackPanel>
                     </Expander>
-
                     <Button Content="Добавить" Command="{Binding AddExistingMediaCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}" Width="160" Height="36" Margin="0,0,0,20"/>
+                            Style="{StaticResource PrimaryButtonStyle}" Width="160" Height="36"/>
 
                     <Expander Header="Существующие медиа" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
