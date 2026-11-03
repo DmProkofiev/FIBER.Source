@@ -14,35 +14,56 @@ namespace FIBER.Source.Services.MediaSelection;
 public sealed class MediaSelectionDialogService : IMediaSelectionDialogService
 {
     /// <summary>Показывает диалог выбора медиа и возвращает Id выбранных.</summary>
+    //public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia)
+    //{
+    //    var dispatcher = Application.Current?.Dispatcher;
+    //    if (dispatcher is null)
+    //        return Task.FromException<IReadOnlyList<int>>(new InvalidOperationException("Application.Current is not available"));
+
+    //    var tcs = new TaskCompletionSource<IReadOnlyList<int>>();
+
+    //    dispatcher.Invoke(() =>
+    //    {
+    //        try
+    //        {
+    //            var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia);
+    //            var owner = Application.Current?.MainWindow;
+    //            if (owner is not null && owner.IsVisible && !ReferenceEquals(owner, dialog))
+    //                dialog.Owner = owner!;
+
+    //            bool? result = dialog.ShowDialog();
+    //            if (result == true)
+    //                tcs.SetResult(dialog.SelectedMediaIds);
+    //            else
+    //                tcs.SetResult(Array.Empty<int>());
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            tcs.SetException(ex);
+    //        }
+    //    });
+
+    //    return tcs.Task;
+    //}
+
     public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia)
     {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null)
-            return Task.FromException<IReadOnlyList<int>>(new InvalidOperationException("Application.Current is not available"));
-
         var tcs = new TaskCompletionSource<IReadOnlyList<int>>();
-
-        dispatcher.Invoke(() =>
+        var dispatcher = Application.Current?.Dispatcher;
+        dispatcher!.BeginInvoke(() =>
         {
             try
             {
-                var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia);
-                var owner = Application.Current?.MainWindow;
-                if (owner is not null && owner.IsVisible && !ReferenceEquals(owner, dialog))
-                    dialog.Owner = owner!;
-
-                bool? result = dialog.ShowDialog();
-                if (result == true)
-                    tcs.SetResult(dialog.SelectedMediaIds);
-                else
-                    tcs.SetResult(Array.Empty<int>());
+                var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia)
+                {
+                    Owner = Application.Current.MainWindow
+                };
+                tcs.SetResult(dialog.ShowDialog() == true
+                    ? dialog.SelectedMediaIds
+                    : Array.Empty<int>());
             }
-            catch (Exception ex)
-            {
-                tcs.SetException(ex);
-            }
+            catch (Exception ex) { tcs.SetException(ex); }
         });
-
         return tcs.Task;
     }
 }
