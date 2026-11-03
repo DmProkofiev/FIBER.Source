@@ -162,6 +162,10 @@ public partial class App : Application
             var auditLog = _host.Services.GetRequiredService<IAuditLogService>();
             await auditLog.LogAsync("Auth.Startup", $"Version={typeof(App).Assembly.GetName().Version}");
 
+            // Предзагружаем все медиа в кэш при старте (один раз), чтобы при нажатии «Добавить» не было зависания.
+            var mediaService = _host.Services.GetRequiredService<IMediaService>();
+            await mediaService.PreloadAllMediaAsync();
+
             var mainWindow = new MainWindow
             {
                 DataContext = _host.Services.GetRequiredService<MainViewModel>()

@@ -48,9 +48,9 @@ public sealed class MediaService : IMediaService
     /// <summary>Временный каталог %Temp%\FIBER\</summary>
     private readonly string _tempDir;
 
-    /// <summary>Кэш списка «все медиа» — хранятся только легкие метаданные (без VM и BLOB),
-    /// чтобы SettingsViewModel могла свободно Dispose свои VM-объекты, не ломая общий кэш.</summary>
-    private IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>? _allMediaCache;
+    /// <summary>Кэш списка «все медиа» — готовые VM, загружаются один раз при запуске.
+    /// Все UpdateView и Settings используют один общий кэш, не создавая VM повторно.</summary>
+    private IReadOnlyList<MediaForOwner>? _allMediaVmCache;
     /// <summary>Защита кэша от параллельного многократного заполнения.</summary>
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
@@ -272,39 +272,18 @@ public sealed class MediaService : IMediaService
         return result;
     }
 
-    /// <summary>Возвращает все медиа со всех владельцев.</summary>
-    public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
+    /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз).
+    /// Создаёт готовые VM (извлекает видео/аудио во Temp-файлы) — делается один раз при старте,
+    /// чтобы при нажатии «Добавить» не было зависания.</summary>
+    public async Task PreloadAllMediaAsync()
     {
-        // Кэш хранит только метаданные — VM создаём заново при каждом запросе,
-        // чтобы SettingsViewModel могла Dispose свои объекты, не ломая общий кэш.
-        var metaList = await GetAllMediaMetaAsync();
-
-        var result = new List<MediaForOwner>(metaList.Count);
-        foreach (var (meta, ownerType, ownerId) in metaList)
-        {
-            var vm = await CreateVmFromMediaMetaAsync(meta);
-            if (vm is not null)
-                result.Add(new MediaForOwner(vm, ownerType, ownerId));
-        }
-        return result;
-    }
-
-    /// <summary>Возвращает кэшированные метаданные «все медиа» (без VM, без BLOB).</summary>
-    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> GetAllMediaMetaAsync()
-    {
-        // Возвращаем кэш, если он уже заполнен — не ходим в БД повторно.
-        if (_allMediaCache is not null)
-            return _allMediaCache;
-
         await _cacheLock.WaitAsync();
         try
         {
-            // Проверяем ещё раз после ожидания блокировки (double-checked locking).
-            if (_allMediaCache is not null)
-                return _allMediaCache;
+            if (_allMediaVmCache is not null)
+                return;
 
-            _allMediaCache = await LoadAllMediaMetaFromDbAsync();
-            return _allMediaCache;
+            _allMediaVmCache = await LoadAllMediaFromDbAsync();
         }
         finally
         {
@@ -312,8 +291,29 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Загружает метаданные всех медиа из БД (без кэша, без VM).</summary>
-    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> LoadAllMediaMetaFromDbAsync()
+    /// <summary>Возвращает все медиа со всех владельцев (из кэша, если уже загружен при старте).</summary>
+    public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
+    {
+        if (_allMediaVmCache is not null)
+            return _allMediaVmCache;
+
+        await _cacheLock.WaitAsync();
+        try
+        {
+            if (_allMediaVmCache is not null)
+                return _allMediaVmCache;
+
+            _allMediaVmCache = await LoadAllMediaFromDbAsync();
+            return _allMediaVmCache;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    /// <summary>Загружает все медиа из БД и создаёт готовые VM (извлекает видео/аудио во Temp).</summary>
+    private async Task<IReadOnlyList<MediaForOwner>> LoadAllMediaFromDbAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -330,10 +330,12 @@ public sealed class MediaService : IMediaService
             })
             .ToListAsync();
 
-        var result = new List<(MediaMeta, MediaOwnerType, int)>(metaList.Count);
+        var result = new List<MediaForOwner>(metaList.Count);
         foreach (var item in metaList)
         {
-            result.Add((item.Meta, item.OwnerType, item.OwnerId));
+            var vm = await CreateVmFromMediaMetaAsync(item.Meta);
+            if (vm is not null)
+                result.Add(new MediaForOwner(vm, item.OwnerType, item.OwnerId));
         }
         return result;
     }
@@ -341,7 +343,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Инвалидирует кэш списка «все медиа». Вызывается после любого изменения ссылок.</summary>
     public void InvalidateAllMediaCache()
     {
-        _allMediaCache = null;
+        _allMediaVmCache = null;
     }
 
     /// <summary>Удаляет связь; если ссылок не осталось, удаляет BLOB и запись.</summary>

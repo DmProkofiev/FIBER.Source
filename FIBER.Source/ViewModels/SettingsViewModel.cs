@@ -137,11 +137,9 @@ public partial class SettingsViewModel : ObservableObject
 
         Replace(Logs, await _auditLogService.GetRecentLogsAsync(100));
 
-        foreach (var item in AllMedia) item.Dispose();
         AllMedia.Clear();
 
         var allMedia = await _mediaService.GetAllMediaAsync();
-
         var personIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Person).Select(m => m.OwnerId).Distinct().ToList();
         var companyIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Company).Select(m => m.OwnerId).Distinct().ToList();
         var eventIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Event).Select(m => m.OwnerId).Distinct().ToList();

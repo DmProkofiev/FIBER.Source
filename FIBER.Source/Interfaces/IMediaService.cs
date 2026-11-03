@@ -42,4 +42,7 @@ public interface IMediaService
 
     /// <summary>Инвалидировать кэш списка «все медиа» (вызывать после изменения ссылок).</summary>
     void InvalidateAllMediaCache();
+
+    /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз), чтобы при нажатии «Добавить» не было зависания.</summary>
+    Task PreloadAllMediaAsync();
 }
