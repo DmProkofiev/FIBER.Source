@@ -130,13 +130,20 @@
                         </Grid>
                     </Border>
 
-                    <Button Content="Создать"
-                            Command="{Binding CreateCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            HorizontalAlignment="Center"
-                            Width="220" Height="46"
-                            FontSize="18"
-                            Margin="0,25,0,10"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,25,0,10">
+                        <Button Content="Создать"
+                                Command="{Binding CreateCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Width="200" Height="46"
+                                FontSize="18"
+                                Margin="0,0,10,0"/>
+                        <Button Content="Хранилище Медиа"
+                                Command="{Binding AddExistingMediaCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Width="200" Height="46"
+                                FontSize="16"
+                                Margin="10,0,0,0"/>
+                    </StackPanel>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

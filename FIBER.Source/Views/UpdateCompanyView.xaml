@@ -180,8 +180,8 @@
                     </Expander>
 
                     <!-- ================= БЛОК СУЩЕСТВУЮЩИХ МЕДИА ================= -->
-                    <Button Content="Добавить" Command="{Binding AddExistingMediaCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}" Width="160" Height="36" Margin="0,0,0,20"/>
+                    <Button Content="Хранилище Медиа" Command="{Binding AddExistingMediaCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}" Width="200" Height="40" Margin="0,0,0,20"/>
 
                     <Expander Header="Существующие медиа" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"

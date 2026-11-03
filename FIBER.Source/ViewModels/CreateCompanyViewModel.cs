@@ -4,6 +4,7 @@ using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Services.MediaManagement;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
@@ -17,15 +18,20 @@ public partial class CreateCompanyViewModel : ObservableValidator
 {
     private readonly ICompanyService _companyService;
     private readonly IMediaService _mediaService;
+    private readonly IMediaManagementService _mediaManagement;
 
     // Внедряет сервисы
-    public CreateCompanyViewModel(ICompanyService companyService, IMediaService mediaService)
+    public CreateCompanyViewModel(ICompanyService companyService, IMediaService mediaService, IMediaManagementService mediaManagement)
     {
         _companyService = companyService;
         _mediaService = mediaService;
+        _mediaManagement = mediaManagement;
     }
 
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
+
+    /// <summary>Id только что созданной организации (для привязки существующих медиа).</summary>
+    public int? CreatedOwnerId { get; private set; }
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -64,6 +70,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private async Task CreateAsync()
     {
+        CreatedOwnerId = null;
         ValidateAllProperties();
         if (HasErrors) return;
 
@@ -82,6 +89,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
                 TempFiles.Clear();
             }
 
+            CreatedOwnerId = company.Id;
             Notification.Show("Успех",
                 $"Создана организация\nId = {company.Id}\nНазвание = {company.Name}",
                 NotificationType.Success);
@@ -94,6 +102,18 @@ public partial class CreateCompanyViewModel : ObservableValidator
                 NotificationType.Error);
         }
         finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task AddExistingMediaAsync()
+    {
+        if (CreatedOwnerId is null)
+        {
+            Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
+            return;
+        }
+        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Company, CreatedOwnerId.Value);
+        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
     }
 
     // Проверяет, можно ли запускать создание

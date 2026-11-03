@@ -5,6 +5,7 @@ using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Services.MediaManagement;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
@@ -19,23 +20,29 @@ public partial class CreateEventViewModel : ObservableValidator
     private readonly ICompanyService _companyService;
     private readonly IPersonService _personService;
     private readonly IMediaService _mediaService;
+    private readonly IMediaManagementService _mediaManagement;
 
     public CreateEventViewModel(
         IEventService eventService,
         ICompanyService companyService,
         IPersonService personService,
-        IMediaService mediaService)
+        IMediaService mediaService,
+        IMediaManagementService mediaManagement)
     {
         _eventService = eventService;
         _companyService = companyService;
         _personService = personService;
         _mediaService = mediaService;
+        _mediaManagement = mediaManagement;
     }
 
     public ObservableCollection<CompanySummary> Companies { get; } = new();
     public ObservableCollection<PersonSummary> Persons { get; } = new();
     public ObservableCollection<EventParticipantEditVM> PendingParticipants { get; } = new();
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
+
+    /// <summary>Id только что созданного события (для привязки существующих медиа).</summary>
+    public int? CreatedOwnerId { get; private set; }
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -116,6 +123,7 @@ public partial class CreateEventViewModel : ObservableValidator
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private async Task CreateAsync()
     {
+        CreatedOwnerId = null;
         ValidateAllProperties();
         if (HasErrors) return;
 
@@ -139,6 +147,7 @@ public partial class CreateEventViewModel : ObservableValidator
                 TempFiles.Clear();
             }
 
+            CreatedOwnerId = ev.Id;
             Notification.Show("Успех",
                 $"Создано событие\nId = {ev.Id}\nНазвание = {ev.Title}",
                 NotificationType.Success);
@@ -149,6 +158,18 @@ public partial class CreateEventViewModel : ObservableValidator
             Notification.Show("Ошибка", $"Ошибка создания: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task AddExistingMediaAsync()
+    {
+        if (CreatedOwnerId is null)
+        {
+            Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
+            return;
+        }
+        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Event, CreatedOwnerId.Value);
+        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
     }
 
     private bool CanCreate() => !IsBusy;

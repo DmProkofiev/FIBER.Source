@@ -6,11 +6,12 @@ using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Helpers;
+using FIBER.Source.Services;
+using FIBER.Source.Services.MediaManagement;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using FIBER.Source.Services;
 
 namespace FIBER.Source.ViewModels;
 
@@ -19,19 +20,25 @@ public partial class CreatePersonViewModel : ObservableValidator
     private readonly IPersonService _personService;
     private readonly ICountryService _countryService;
     private readonly IMediaService _mediaService;
+    private readonly IMediaManagementService _mediaManagement;
 
     public CreatePersonViewModel(
         IPersonService personService,
         ICountryService countryService,
-        IMediaService mediaService)
+        IMediaService mediaService,
+        IMediaManagementService mediaManagement)
     {
         _personService = personService;
         _countryService = countryService;
         _mediaService = mediaService;
+        _mediaManagement = mediaManagement;
     }
 
     public ObservableCollection<Country> Countries { get; } = new();
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
+
+    /// <summary>Id только что созданной личности (для привязки существующих медиа).</summary>
+    public int? CreatedOwnerId { get; private set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdentifiedMode))]
@@ -93,6 +100,7 @@ public partial class CreatePersonViewModel : ObservableValidator
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private async Task CreateAsync()
     {
+        CreatedOwnerId = null;
         IsBusy = true;
         try
         {
@@ -167,6 +175,7 @@ public partial class CreatePersonViewModel : ObservableValidator
                 TempFiles.Clear();
             }
 
+            CreatedOwnerId = personId;
             ClearForm();
         }
         catch (Exception ex)
@@ -177,6 +186,18 @@ public partial class CreatePersonViewModel : ObservableValidator
     }
 
     private bool CanCreate() => !IsBusy;
+
+    [RelayCommand]
+    private async Task AddExistingMediaAsync()
+    {
+        if (CreatedOwnerId is null)
+        {
+            Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
+            return;
+        }
+        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Person, CreatedOwnerId.Value);
+        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
+    }
 
     public void ClearForm()
     {
