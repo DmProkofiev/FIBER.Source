@@ -48,10 +48,13 @@ public sealed class MediaService : IMediaService
     /// <summary>Временный каталог %Temp%\FIBER\</summary>
     private readonly string _tempDir;
 
-    /// <summary>Кэш списка «все медиа» — готовые VM, загружаются один раз при запуске.
-    /// Все UpdateView и Settings используют один общий кэш, не создавая VM повторно.</summary>
-    private IReadOnlyList<MediaForOwner>? _allMediaVmCache;
-    /// <summary>Защита кэша от параллельного многократного заполнения.</summary>
+    /// <summary>Кэш метаданных «все медиа» — лёгкие объекты без VM и BLOB.
+    /// Загружаются один раз при запуске через <see cref="PreloadAllMediaAsync"/>.</summary>
+    private IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>? _allMediaMetaCache;
+    /// <summary>Кэш путей к Temp-файлам видео/аудио (mediaId → tempPath).
+    /// Заполняется при старте, чтобы не извлекать BLOB повторно.</summary>
+    private Dictionary<int, string>? _tempFileCache;
+    /// <summary>Защита кэшей от параллельного многократного заполнения.</summary>
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     /// <summary>Инициализирует зависимости и создаёт временный каталог.</summary>
@@ -273,17 +276,39 @@ public sealed class MediaService : IMediaService
     }
 
     /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз).
-    /// Создаёт готовые VM (извлекает видео/аудио во Temp-файлы) — делается один раз при старте,
+    /// Загружает метаданные и извлекает видео/аудио во Temp-файлы,
     /// чтобы при нажатии «Добавить» не было зависания.</summary>
     public async Task PreloadAllMediaAsync()
     {
         await _cacheLock.WaitAsync();
         try
         {
-            if (_allMediaVmCache is not null)
+            if (_allMediaMetaCache is not null)
                 return;
 
-            _allMediaVmCache = await LoadAllMediaFromDbAsync();
+            var metaList = await LoadAllMediaMetaFromDbAsync();
+            _allMediaMetaCache = metaList;
+
+            // Извлекаем видео/аудио во Temp-файлы при старте (один раз),
+            // чтобы при открытии окна выбора медиа не было задержек.
+            _tempFileCache = new Dictionary<int, string>(metaList.Count);
+            foreach (var (meta, ownerType, ownerId) in metaList)
+            {
+                var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
+                var isImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
+                if (isImage) continue;
+
+                try
+                {
+                    var tempPath = await StreamDataToTempAsync(meta.Id, ext);
+                    if (tempPath is not null)
+                        _tempFileCache[meta.Id] = tempPath;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Не удалось извлечь медиа Id={Id} во Temp при старте", meta.Id);
+                }
+            }
         }
         finally
         {
@@ -291,20 +316,36 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Возвращает все медиа со всех владельцев (из кэша, если уже загружен при старте).</summary>
+    /// <summary>Возвращает все медиа со всех владельцев.
+    /// VM создаются заново из кэшированных метаданных — не ломают общий кэш при Dispose.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
     {
-        if (_allMediaVmCache is not null)
-            return _allMediaVmCache;
+        var metaList = await GetAllMediaMetaAsync();
+
+        var result = new List<MediaForOwner>(metaList.Count);
+        foreach (var (meta, ownerType, ownerId) in metaList)
+        {
+            var vm = await CreateVmFromMediaMetaAsync(meta);
+            if (vm is not null)
+                result.Add(new MediaForOwner(vm, ownerType, ownerId));
+        }
+        return result;
+    }
+
+    /// <summary>Возвращает кэшированные метаданные «все медиа» (без VM, без BLOB).</summary>
+    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> GetAllMediaMetaAsync()
+    {
+        if (_allMediaMetaCache is not null)
+            return _allMediaMetaCache;
 
         await _cacheLock.WaitAsync();
         try
         {
-            if (_allMediaVmCache is not null)
-                return _allMediaVmCache;
+            if (_allMediaMetaCache is not null)
+                return _allMediaMetaCache;
 
-            _allMediaVmCache = await LoadAllMediaFromDbAsync();
-            return _allMediaVmCache;
+            _allMediaMetaCache = await LoadAllMediaMetaFromDbAsync();
+            return _allMediaMetaCache;
         }
         finally
         {
@@ -312,8 +353,8 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Загружает все медиа из БД и создаёт готовые VM (извлекает видео/аудио во Temp).</summary>
-    private async Task<IReadOnlyList<MediaForOwner>> LoadAllMediaFromDbAsync()
+    /// <summary>Загружает метаданные всех медиа из БД (без кэша, без VM).</summary>
+    private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> LoadAllMediaMetaFromDbAsync()
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
@@ -330,20 +371,19 @@ public sealed class MediaService : IMediaService
             })
             .ToListAsync();
 
-        var result = new List<MediaForOwner>(metaList.Count);
+        var result = new List<(MediaMeta, MediaOwnerType, int)>(metaList.Count);
         foreach (var item in metaList)
         {
-            var vm = await CreateVmFromMediaMetaAsync(item.Meta);
-            if (vm is not null)
-                result.Add(new MediaForOwner(vm, item.OwnerType, item.OwnerId));
+            result.Add((item.Meta, item.OwnerType, item.OwnerId));
         }
         return result;
     }
 
-    /// <summary>Инвалидирует кэш списка «все медиа». Вызывается после любого изменения ссылок.</summary>
+    /// <summary>Инвалидирует кэши списка «все медиа». Вызывается после любого изменения ссылок.</summary>
     public void InvalidateAllMediaCache()
     {
-        _allMediaVmCache = null;
+        _allMediaMetaCache = null;
+        _tempFileCache = null;
     }
 
     /// <summary>Удаляет связь; если ссылок не осталось, удаляет BLOB и запись.</summary>
@@ -452,7 +492,7 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Создаёт VM медиа из метаданных: изображения в память, видео/аудио в Temp-файл.</summary>
+    /// <summary>Создаёт VM медиа из метаданных: изображения в память, видео/аудио из кэшированного Temp-файла.</summary>
     private async Task<MediaItemViewModel?> CreateVmFromMediaMetaAsync(MediaMeta meta)
     {
         var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
@@ -464,24 +504,34 @@ public sealed class MediaService : IMediaService
             return new MediaItemViewModel(this, meta.Id, meta.OriginalFileName) { MediaId = meta.Id };
         }
 
-        // Видео/аудио — потоковое извлечение во временный файл
-        try
+        // Видео/аудио — используем кэшированный Temp-файл (извлечён при старте через PreloadAllMediaAsync)
+        string? tempPath = null;
+        if (_tempFileCache is not null && _tempFileCache.TryGetValue(meta.Id, out var cachedPath))
         {
-            var tempPath = await StreamDataToTempAsync(meta.Id, ext);
-            if (tempPath is null) return null;
-
-            return new MediaItemViewModel(tempPath, meta.OriginalFileName)
+            tempPath = cachedPath;
+        }
+        else
+        {
+            // Фолбэк: извлекаем во Temp по требованию (если кэш не заполнен)
+            try
             {
-                MediaId = meta.Id,
-                DeleteOnDispose = true
-            };
+                tempPath = await StreamDataToTempAsync(meta.Id, ext);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Не удалось извлечь медиа Id={Id} во временный файл", meta.Id);
+                await _auditLog.LogAsync("Media.ExtractFailed", $"MediaId={meta.Id}");
+                return null;
+            }
         }
-        catch (Exception ex)
+
+        if (tempPath is null) return null;
+
+        return new MediaItemViewModel(tempPath, meta.OriginalFileName)
         {
-            _logger.LogWarning(ex, "Не удалось извлечь медиа Id={Id} во временный файл", meta.Id);
-            await _auditLog.LogAsync("Media.ExtractFailed", $"MediaId={meta.Id}");
-            return null;
-        }
+            MediaId = meta.Id,
+            DeleteOnDispose = true
+        };
     }
 
     /// <summary>Потоково копирует BLOB в Temp-файл без загрузки всего массива в память.</summary>
