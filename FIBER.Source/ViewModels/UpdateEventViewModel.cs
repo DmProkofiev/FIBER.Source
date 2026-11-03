@@ -5,13 +5,13 @@ using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Services.MediaManagement;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
-using FIBER.Source.Views;
 
 namespace FIBER.Source.ViewModels;
 
@@ -23,6 +23,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     private readonly ICompanyService _companyService;
     private readonly IPersonService _personService;
     private readonly IMediaService _mediaService;
+    private readonly IMediaManagementService _mediaManagement;
 
     public event Action? Saved;
     public event Action? Cancelled;
@@ -31,12 +32,14 @@ public partial class UpdateEventViewModel : ObservableValidator
         IEventService eventService,
         ICompanyService companyService,
         IPersonService personService,
-        IMediaService mediaService)
+        IMediaService mediaService,
+        IMediaManagementService mediaManagement)
     {
         _eventService = eventService;
         _companyService = companyService;
         _personService = personService;
         _mediaService = mediaService;
+        _mediaManagement = mediaManagement;
     }
 
     // ----- Коллекции для UI -----
@@ -137,27 +140,26 @@ public partial class UpdateEventViewModel : ObservableValidator
         await LoadExistingMediaAsync(eventId);
     }
 
+    private OwnerMedia? _ownerMedia;
+
     // Загрузка медиа владельца в коллекции UI (изображения лениво подгружаются в память).
     private async Task LoadExistingMediaAsync(int ownerId)
     {
-        var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Event, ownerId);
-        ClearExistingMedia();
-        foreach (var media in mediaList)
-        {
-            if (media.IsImage) ExistingImages.Add(media);
-            else if (media.IsVideo) ExistingVideos.Add(media);
-            else if (media.IsAudio) ExistingAudio.Add(media);
+        _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
+        _ownerMedia = await _mediaManagement.LoadOwnerMediaAsync(MediaOwnerType.Event, ownerId);
 
-            if (media.IsImage)
-                _ = media.LoadImageAsync();
-        }
+        ExistingImages.Clear();
+        ExistingVideos.Clear();
+        ExistingAudio.Clear();
+        foreach (var m in _ownerMedia.Images) ExistingImages.Add(m);
+        foreach (var m in _ownerMedia.Videos) ExistingVideos.Add(m);
+        foreach (var m in _ownerMedia.Audios) ExistingAudio.Add(m);
     }
 
     private void ClearExistingMedia()
     {
-        foreach (var m in ExistingImages) m.Dispose();
-        foreach (var m in ExistingVideos) m.Dispose();
-        foreach (var m in ExistingAudio) m.Dispose();
+        _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
+        _ownerMedia = null;
         ExistingImages.Clear(); ExistingVideos.Clear(); ExistingAudio.Clear();
     }
 
@@ -165,36 +167,22 @@ public partial class UpdateEventViewModel : ObservableValidator
 
     public async Task HandleFilesDropAsync(string[] files)
     {
-        var newFiles = await _mediaService.SaveToTempAsync(files);
-        foreach (var file in newFiles) TempFiles.Add(file);
+        await _mediaManagement.HandleFilesDropAsync(TempFiles, files);
     }
 
     [RelayCommand]
     private void RemoveTempFile(MediaItemViewModel item)
     {
-        if (item == null) return;
-        TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item });
+        _mediaManagement.RemoveTempFile(TempFiles, item);
     }
 
     [RelayCommand]
     private async Task DeleteExistingMediaAsync(MediaItemViewModel media)
     {
-        if (media == null || media.MediaId is null) return;
-        if (!Notification.Confirm("Подтверждение", $"Удалить файл {media.FileName}?")) return;
-
-        try
-        {
-            await _mediaService.RemoveLinkAsync(media.MediaId.Value, MediaOwnerType.Event, EventId);
-            ExistingImages.Remove(media);
-            ExistingVideos.Remove(media);
-            ExistingAudio.Remove(media);
-            media.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
-        }
+        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Event, EventId, media);
+        ExistingImages.Remove(media);
+        ExistingVideos.Remove(media);
+        ExistingAudio.Remove(media);
     }
 
     // ----- Участники -----
@@ -247,28 +235,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMediaAsync()
     {
-        var allMedia = await _mediaService.GetAllMediaAsync();
-        var items = new List<MediaItemViewModel>();
-        foreach (var m in allMedia)
-        {
-            if (m.Media is null) continue;
-            items.Add(m.Media);
-        }
-
-        if (items.Count == 0)
-        {
-            Notification.Show("Медиа", "В базе нет медиафайлов", NotificationType.Info);
-            return;
-        }
-
-        var dialog = new MediaSelectionWindow("Добавить медиафайл", items);
-        if (dialog.ShowDialog() != true) return;
-
-        foreach (var mediaId in dialog.SelectedMediaIds)
-        {
-            await _mediaService.AddLinkAsync(mediaId, MediaOwnerType.Event, EventId);
-        }
-
+        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Event, EventId);
         await LoadExistingMediaAsync(EventId);
         Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
     }

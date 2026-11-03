@@ -4,6 +4,8 @@ using FIBER.Source.Infrastructure.Hosting;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services;
+using FIBER.Source.Services.MediaManagement;
+using FIBER.Source.Services.MediaSelection;
 using FIBER.Source.ViewModels;
 using FIBER.Source.Views;
 using Microsoft.Data.Sqlite;
@@ -130,6 +132,9 @@ public partial class App : Application
 
         builder.Services.AddSingleton<ITrayService, TrayService>();
 
+        builder.Services.AddSingleton<IMediaSelectionDialogService, MediaSelectionDialogService>();
+        builder.Services.AddSingleton<IMediaManagementService, MediaManagementService>();
+
         builder.Services.AddHostedService<StorageMaintenanceService>();
 
         try
@@ -162,9 +167,10 @@ public partial class App : Application
             var auditLog = _host.Services.GetRequiredService<IAuditLogService>();
             await auditLog.LogAsync("Auth.Startup", $"Version={typeof(App).Assembly.GetName().Version}");
 
-            // Предзагружаем все медиа в кэш при старте (один раз), чтобы при нажатии «Добавить» не было зависания.
+            // Предзагружаем все медиа в кэш при старте (один раз, в фоне),
+            // чтобы при нажатии «Добавить» не было зависания.
             var mediaService = _host.Services.GetRequiredService<IMediaService>();
-            await mediaService.PreloadAllMediaAsync();
+            _ = mediaService.PreloadAllMediaAsync();
 
             var mainWindow = new MainWindow
             {

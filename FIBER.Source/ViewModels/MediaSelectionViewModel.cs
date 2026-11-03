@@ -49,12 +49,16 @@ public partial class MediaSelectionItem : ObservableObject
 
     /// <summary>Загружает изображение в фоновом потоке (декодирование не блокирует GUI).</summary>
     public Task LoadImageAsync() => _media.LoadImageAsync();
+
+    /// <summary>Освобождает ресурсы исходного медиа-элемента.</summary>
+    public void Dispose() => _media.Dispose();
 }
 
 /// <summary>VM диалога выбора медиафайлов: разделение по типам, мультивыбор, подтверждение.</summary>
-public partial class MediaSelectionViewModel : ObservableObject
+public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 {
     private readonly Action<bool> _close;
+    private bool _disposed;
 
     public string Title { get; }
 
@@ -143,5 +147,20 @@ public partial class MediaSelectionViewModel : ObservableObject
     private void Cancel()
     {
         _close(false);
+    }
+
+    /// <summary>Освобождает все медиа-ресурсы (MediaPlayer, Temp-файлы) при закрытии окна.</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        foreach (var item in PhotoItems.Concat<MediaSelectionItem>(VideoItems).Concat(AudioItems))
+        {
+            item.Dispose();
+        }
+        PhotoItems.Clear();
+        VideoItems.Clear();
+        AudioItems.Clear();
     }
 }

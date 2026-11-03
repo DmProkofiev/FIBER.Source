@@ -30,6 +30,7 @@ public partial class MediaSelectionWindow : Window
         {
             SelectedMediaIds = _vm.GetSelectedMediaIds();
         }
+        _vm.Dispose();
         DialogResult = result;
     }
 

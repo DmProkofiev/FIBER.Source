@@ -508,9 +508,17 @@ public sealed class MediaService : IMediaService
         string? tempPath = null;
         if (_tempFileCache is not null && _tempFileCache.TryGetValue(meta.Id, out var cachedPath))
         {
-            tempPath = cachedPath;
+            if (File.Exists(cachedPath))
+            {
+                tempPath = cachedPath;
+            }
+            else
+            {
+                _tempFileCache.Remove(meta.Id); // файл был удалён (например, через Dispose)
+            }
         }
-        else
+
+        if (tempPath is null)
         {
             // Фолбэк: извлекаем во Temp по требованию (если кэш не заполнен)
             try
