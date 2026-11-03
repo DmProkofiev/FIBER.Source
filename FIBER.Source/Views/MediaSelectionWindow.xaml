@@ -97,11 +97,14 @@
                                                                         <Style TargetType="TextBlock">
                                                                             <Setter Property="Visibility" Value="Collapsed"/>
                                                                             <Style.Triggers>
-                                                                                <DataTrigger Binding="{Binding IsImage}" Value="True"/>
-                                                                                <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}"/>
-                                                                                <DataTrigger Binding="{Binding IsImageLoading}" Value="True">
+                                                                                <MultiTrigger>
+                                                                                    <MultiTrigger.Conditions>
+                                                                                        <Condition Binding="{Binding IsImage}" Value="True"/>
+                                                                                        <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
+                                                                                        <Condition Binding="{Binding IsImageLoading}" Value="True"/>
+                                                                                    </MultiTrigger.Conditions>
                                                                                     <Setter Property="Visibility" Value="Visible"/>
-                                                                                </DataTrigger>
+                                                                                </MultiTrigger>
                                                                             </Style.Triggers>
                                                                         </Style>
                                                                     </TextBlock.Style>

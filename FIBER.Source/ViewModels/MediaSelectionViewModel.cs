@@ -91,20 +91,18 @@ public partial class MediaSelectionViewModel : ObservableObject
 
         _close = close;
 
-        // Декодирование изображений запускается в фоне с дросселированием —
-        // не блокирует GUI и не создаёт всплеск нагрузки при открытии окна.
+        // Декодирование изображений в фоне с ограничением параллелизма (SemaphoreSlim(4) в MediaItemViewModel).
+        // Запускаем все изображения параллельно — отображаются сразу по мере готовности.
         _ = LoadImagesInBackgroundAsync();
     }
 
-    /// <summary>Декодирует изображения в фоне с ограничением параллелизма (SemaphoreSlim(4) в MediaItemViewModel).</summary>
+    /// <summary>Декодирует все изображения в фоне параллельно — не блокирует GUI.</summary>
     private async Task LoadImagesInBackgroundAsync()
     {
-        foreach (var item in PhotoItems.Where(i => i.IsImage))
-        {
-            await item.LoadImageAsync();
-            // Небольшая пауза между декодированиями — не перегружает поток интерфейса.
-            await Task.Delay(15);
-        }
+        var imageItems = PhotoItems.Where(i => i.IsImage).ToList();
+        if (imageItems.Count == 0) return;
+
+        await Task.WhenAll(imageItems.Select(item => item.LoadImageAsync()));
     }
 
     /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
