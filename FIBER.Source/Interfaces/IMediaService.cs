@@ -39,4 +39,7 @@ public interface IMediaService
 
     /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).</summary>
     Task<byte[]?> GetMediaDataAsync(int mediaId);
+
+    /// <summary>Инвалидировать кэш списка «все медиа» (вызывать после изменения ссылок).</summary>
+    void InvalidateAllMediaCache();
 }

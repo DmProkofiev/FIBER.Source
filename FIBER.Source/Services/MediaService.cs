@@ -48,6 +48,11 @@ public sealed class MediaService : IMediaService
     /// <summary>Временный каталог %Temp%\FIBER\</summary>
     private readonly string _tempDir;
 
+    /// <summary>Кэш списка «все медиа» — загружается один раз, инвалидируется при изменении ссылок.</summary>
+    private IReadOnlyList<MediaForOwner>? _allMediaCache;
+    /// <summary>Защита кэша от параллельного многократного заполнения.</summary>
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
+
     /// <summary>Инициализирует зависимости и создаёт временный каталог.</summary>
     public MediaService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
@@ -196,6 +201,7 @@ public sealed class MediaService : IMediaService
 
             await _auditLog.LogAsync("Media.Commit",
                 $"Owner={ownerType}:{ownerId}, Files={tempFiles.Count}, Links={addedLinks}");
+            InvalidateAllMediaCache();
         }
         catch (Exception ex)
         {
@@ -231,6 +237,7 @@ public sealed class MediaService : IMediaService
 
             await tx.CommitAsync();
             await _auditLog.LogAsync("Media.AddLink", $"MediaId={mediaId}, Owner={ownerType}:{ownerId}");
+            InvalidateAllMediaCache();
         }
         catch (Exception ex)
         {
@@ -267,6 +274,30 @@ public sealed class MediaService : IMediaService
     /// <summary>Возвращает все медиа со всех владельцев.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
     {
+        // Возвращаем кэш, если он уже заполнен — не ходим в БД повторно.
+        if (_allMediaCache is not null)
+            return _allMediaCache;
+
+        await _cacheLock.WaitAsync();
+        try
+        {
+            // Проверяем ещё раз после ожидания блокировки (double-checked locking).
+            if (_allMediaCache is not null)
+                return _allMediaCache;
+
+            var result = await LoadAllMediaFromDbAsync();
+            _allMediaCache = result;
+            return result;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    /// <summary>Загружает все медиа из БД (без кэша). Вызывается из <see cref="GetAllMediaAsync"/>.</summary>
+    private async Task<IReadOnlyList<MediaForOwner>> LoadAllMediaFromDbAsync()
+    {
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var metaList = await context.MediaAttachmentLinks
@@ -290,6 +321,12 @@ public sealed class MediaService : IMediaService
                 result.Add(new MediaForOwner(vm, item.OwnerType, item.OwnerId));
         }
         return result;
+    }
+
+    /// <summary>Инвалидирует кэш списка «все медиа». Вызывается после любого изменения ссылок.</summary>
+    public void InvalidateAllMediaCache()
+    {
+        _allMediaCache = null;
     }
 
     /// <summary>Удаляет связь; если ссылок не осталось, удаляет BLOB и запись.</summary>
@@ -331,6 +368,7 @@ public sealed class MediaService : IMediaService
             await tx.CommitAsync();
             await _auditLog.LogAsync("Media.RemoveLink",
                 $"MediaId={mediaId}, Owner={ownerType}:{ownerId}, Orphaned={!hasOtherLinks}");
+            InvalidateAllMediaCache();
         }
         catch (Exception ex)
         {
@@ -387,6 +425,7 @@ public sealed class MediaService : IMediaService
             await tx.CommitAsync();
             await _auditLog.LogAsync("Media.RemoveAllForOwner",
                 $"Owner={ownerType}:{ownerId}, Links={removedLinks}, Orphans={removedOrphans}");
+            InvalidateAllMediaCache();
         }
         catch (Exception ex)
         {

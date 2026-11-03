@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -45,6 +46,9 @@ public partial class MediaSelectionItem : ObservableObject
         _media = media;
         IsSelected = false;
     }
+
+    /// <summary>Загружает изображение в фоновом потоке (декодирование не блокирует GUI).</summary>
+    public Task LoadImageAsync() => _media.LoadImageAsync();
 }
 
 /// <summary>VM диалога выбора медиафайлов: разделение по типам, мультивыбор, подтверждение.</summary>
@@ -74,8 +78,6 @@ public partial class MediaSelectionViewModel : ObservableObject
             if (m.IsImage)
             {
                 PhotoItems.Add(item);
-                // Декодирование изображения в фоновом потоке, не блокирует GUI.
-                _ = m.LoadImageAsync();
             }
             else if (m.IsVideo)
             {
@@ -88,6 +90,21 @@ public partial class MediaSelectionViewModel : ObservableObject
         }
 
         _close = close;
+
+        // Декодирование изображений запускается в фоне с дросселированием —
+        // не блокирует GUI и не создаёт всплеск нагрузки при открытии окна.
+        _ = LoadImagesInBackgroundAsync();
+    }
+
+    /// <summary>Декодирует изображения в фоне с ограничением параллелизма (SemaphoreSlim(4) в MediaItemViewModel).</summary>
+    private async Task LoadImagesInBackgroundAsync()
+    {
+        foreach (var item in PhotoItems.Where(i => i.IsImage))
+        {
+            await item.LoadImageAsync();
+            // Небольшая пауза между декодированиями — не перегружает поток интерфейса.
+            await Task.Delay(15);
+        }
     }
 
     /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
