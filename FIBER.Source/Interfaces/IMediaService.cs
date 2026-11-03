@@ -22,6 +22,9 @@ public interface IMediaService
     /// <summary>Удаляет временные файлы из Temp.</summary>
     void DeleteTempFiles(IEnumerable<MediaItemViewModel> tempFiles);
 
+    /// <summary>Добавляет существующий медиафайл к владельцу (без дублирования ссылки).</summary>
+    Task AddLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId);
+
     /// <summary>Возвращает медиа владельца: изображения из памяти, видео/аудио через Temp-файл.</summary>
     Task<List<MediaItemViewModel>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId);
 

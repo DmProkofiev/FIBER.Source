@@ -7,11 +7,13 @@ using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using FIBER.Source.Services;
+using FIBER.Source.Views;
 
 namespace FIBER.Source.ViewModels;
 
@@ -175,7 +177,14 @@ public partial class UpdatePersonViewModel : ObservableValidator
         foreach (var r in person.ReverseRelationships)
             Relationships.Add(PersonRelationshipEditVM.FromReverse(r));
 
-        var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Person, personId);
+        await LoadExistingMediaAsync(personId);
+    }
+
+    // Загрузка медиа владельца в коллекции UI (изображения лениво подгружаются в память).
+    private async Task LoadExistingMediaAsync(int ownerId)
+    {
+        var mediaList = await _mediaService.GetMediaForOwnerAsync(MediaOwnerType.Person, ownerId);
+        ClearExistingMedia();
         foreach (var media in mediaList)
         {
             if (media.IsImage) ExistingImages.Add(media);
@@ -290,6 +299,35 @@ public partial class UpdatePersonViewModel : ObservableValidator
         {
             Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
+    }
+
+    [RelayCommand]
+    private async Task AddExistingMediaAsync()
+    {
+        var allMedia = await _mediaService.GetAllMediaAsync();
+        var items = new List<MediaItemViewModel>();
+        foreach (var m in allMedia)
+        {
+            if (m.Media is null) continue;
+            items.Add(m.Media);
+        }
+
+        if (items.Count == 0)
+        {
+            Notification.Show("Медиа", "В базе нет медиафайлов", NotificationType.Info);
+            return;
+        }
+
+        var dialog = new MediaSelectionWindow("Добавить медиафайл", items);
+        if (dialog.ShowDialog() != true) return;
+
+        foreach (var mediaId in dialog.SelectedMediaIds)
+        {
+            await _mediaService.AddLinkAsync(mediaId, MediaOwnerType.Person, PersonId);
+        }
+
+        await LoadExistingMediaAsync(PersonId);
+        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
     }
 
     [RelayCommand]

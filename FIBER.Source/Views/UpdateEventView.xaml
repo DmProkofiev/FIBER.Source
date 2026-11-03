@@ -157,6 +157,9 @@
                         </StackPanel>
                     </Expander>
 
+                    <Button Content="Добавить" Command="{Binding AddExistingMediaCommand}"
+                            Style="{StaticResource PrimaryButtonStyle}" Width="160" Height="36" Margin="0,0,0,20"/>
+
                     <Expander Header="Существующие медиа" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="5">
@@ -164,12 +167,11 @@
                             <TabItem Header="Фото">
                                 <ListBox ItemsSource="{Binding ExistingImages}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
-                                         VirtualizingStackPanel.IsVirtualizing="True"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <WrapPanel IsItemsHost="True"/>
+                                            <UniformGrid Columns="3"/>
                                         </ItemsPanelTemplate>
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>

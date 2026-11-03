@@ -1,0 +1,146 @@
+<Window x:Class="FIBER.Source.Views.MediaSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        Width="720"
+        Height="560"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Icon="/Resources/FIBERLogo.png">
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}"/>
+    </Window.InputBindings>
+    <Grid>
+        <Border Background="#E8171717" CornerRadius="15"
+                BorderBrush="#55FFFFFF" BorderThickness="1">
+            <Grid Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="{Binding Title}"
+                           FontFamily="Times New Roman" FontSize="22" FontWeight="Bold"
+                           Foreground="White" Margin="0,0,0,15"
+                           TextTrimming="CharacterEllipsis"/>
+
+                <Border Grid.Row="1" Background="#22FFFFFF" CornerRadius="8" Padding="8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Медиафайлы" Foreground="White"
+                                       FontFamily="Times New Roman" FontSize="14" FontWeight="Bold"
+                                       VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Все" Command="{Binding SelectAllCommand}"
+                                    Height="26" Padding="10,2" Margin="0,0,6,0"
+                                    Background="#3498DB" Foreground="White" FontFamily="Times New Roman"
+                                    FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                            <Button Grid.Column="2" Content="Ничего" Command="{Binding DeselectAllCommand}"
+                                    Height="26" Padding="10,2"
+                                    Background="#7F7F7F" Foreground="White" FontFamily="Times New Roman"
+                                    FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding MediaItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="3"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#11FFFFFF" CornerRadius="8" Padding="6"
+                                                Width="200" Height="200" Margin="4">
+                                            <Grid>
+                                                <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                    <Image.Style>
+                                                        <Style TargetType="Image">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsImageLoading}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding LoadFailed}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Image.Style>
+                                                </Image>
+                                                <TextBlock Text="Загрузка…" Foreground="#AAAAAA" FontSize="11"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsImage}" Value="True"/>
+                                                                        <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
+                                                                    </MultiTrigger.Conditions>
+                                                                </MultiTrigger>
+                                                                <DataTrigger Binding="{Binding IsImage}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Right"
+                                                          VerticalAlignment="Top" Margin="6,6,6,0" Width="20" Height="20"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <TextBlock Grid.Row="1" Text="Нет медиафайлов" Foreground="#888888"
+                                   FontFamily="Times New Roman" FontSize="13"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasMedia}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                    <Button Content="Добавить" Command="{Binding AddCommand}"
+                            Width="160" Height="38" Margin="0,0,10,0"
+                            Style="{StaticResource PrimaryButtonStyle}"/>
+                    <Button Content="Отмена" Command="{Binding CancelCommand}"
+                            Width="110" Height="38"
+                            Background="#7F7F7F" Foreground="White"
+                            FontFamily="Times New Roman" FontWeight="Bold" FontSize="14"
+                            BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

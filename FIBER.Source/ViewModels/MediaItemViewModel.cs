@@ -211,11 +211,19 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
                 bitmap = bmp;
             });
 
-            await Dispatcher.CurrentDispatcher.InvokeAsync(() =>
+            if (System.Windows.Application.Current?.Dispatcher is { } uiDispatcher)
+            {
+                await uiDispatcher.InvokeAsync(() =>
+                {
+                    ImageSource = bitmap;
+                    _imageData = null; // освобождаем байты после декодирования
+                });
+            }
+            else
             {
                 ImageSource = bitmap;
-                _imageData = null; // освобождаем байты после декодирования
-            });
+                _imageData = null;
+            }
         }
         catch
         {

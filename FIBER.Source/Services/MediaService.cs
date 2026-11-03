@@ -205,6 +205,41 @@ public sealed class MediaService : IMediaService
         }
     }
 
+    /// <summary>Добавляет существующий медиафайл к владельцу; при существующей связи ничего не делает.</summary>
+    public async Task AddLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var tx = await context.Database.BeginTransactionAsync();
+
+        try
+        {
+            var linkExists = await context.MediaAttachmentLinks
+                .AnyAsync(l => l.MediaAttachmentId == mediaId
+                                && l.OwnerType == ownerType
+                                && l.OwnerId == ownerId);
+
+            if (!linkExists)
+            {
+                context.MediaAttachmentLinks.Add(new MediaAttachmentLink
+                {
+                    MediaAttachmentId = mediaId,
+                    OwnerType = ownerType,
+                    OwnerId = ownerId
+                });
+                await context.SaveChangesAsync();
+            }
+
+            await tx.CommitAsync();
+            await _auditLog.LogAsync("Media.AddLink", $"MediaId={mediaId}, Owner={ownerType}:{ownerId}");
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogError(ex, "Ошибка добавления связи {MediaId}", mediaId);
+            throw;
+        }
+    }
+
     /// <summary>Возвращает медиа владельца.</summary>
     public async Task<List<MediaItemViewModel>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId)
     {
