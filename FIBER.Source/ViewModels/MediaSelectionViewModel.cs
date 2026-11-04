@@ -18,11 +18,17 @@ public partial class MediaSelectionItem : ObservableObject
 
     public int MediaId => _media.MediaId ?? 0;
     public string DisplayName => _media.FileName;
-    public string TypeLabel => "Фото";
-    public ImageSource? ImageSource => _media.ImageSource;
+    public string TypeLabel => _media.IsImage ? "Фото" : (_media.IsVideo ? "Видео" : "Аудио");
     public bool IsImage => _media.IsImage;
+    public bool IsVideo => _media.IsVideo;
+    public bool IsAudio => _media.IsAudio;
     public bool IsImageLoading => _media.IsImageLoading;
+
+    /// <summary>Признак неудачной загрузки (пробрасывает PropertyChanged из исходного VM).</summary>
     public bool LoadFailed => _media.LoadFailed;
+
+    /// <summary>Источник изображения (пробрасывает PropertyChanged из исходного VM).</summary>
+    public ImageSource? ImageSource => _media.ImageSource;
 
     [ObservableProperty]
     private bool _isSelected;
@@ -31,6 +37,18 @@ public partial class MediaSelectionItem : ObservableObject
     {
         _media = media;
         IsSelected = false;
+
+        // Пробрасываем PropertyChanged от исходного MediaItemViewModel,
+        // чтобы UI обновлялся при изменении ImageSource, IsImageLoading и т.п.
+        _media.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MediaItemViewModel.ImageSource)
+                || e.PropertyName == nameof(MediaItemViewModel.IsImageLoading)
+                || e.PropertyName == nameof(MediaItemViewModel.LoadFailed))
+            {
+                OnPropertyChanged(e.PropertyName);
+            }
+        };
     }
 
     /// <summary>Загружает изображение в фоновом потоке (декодирование не блокирует GUI).</summary>
@@ -40,7 +58,7 @@ public partial class MediaSelectionItem : ObservableObject
     public void Dispose() => _media.Dispose();
 }
 
-/// <summary>VM диалога выбора медиафайлов: список изображений, мультивыбор, подтверждение.</summary>
+/// <summary>VM диалога выбора медиафайлов: список изображений/видео/аудио, мультивыбор, подтверждение.</summary>
 public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 {
     private readonly Action<bool> _close;
@@ -49,9 +67,13 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
     public string Title { get; }
 
     public ObservableCollection<MediaSelectionItem> PhotoItems { get; } = new();
+    public ObservableCollection<MediaSelectionItem> VideoItems { get; } = new();
+    public ObservableCollection<MediaSelectionItem> AudioItems { get; } = new();
 
-    public bool HasMedia => PhotoItems.Count > 0;
+    public bool HasMedia => PhotoItems.Count > 0 || VideoItems.Count > 0 || AudioItems.Count > 0;
     public bool HasPhotos => PhotoItems.Count > 0;
+    public bool HasVideos => VideoItems.Count > 0;
+    public bool HasAudio => AudioItems.Count > 0;
 
     public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close)
     {
@@ -60,9 +82,10 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         foreach (var m in media)
         {
             if (m is null) continue;
-            if (!m.IsImage) continue;
             var item = new MediaSelectionItem(m);
-            PhotoItems.Add(item);
+            if (m.IsImage) PhotoItems.Add(item);
+            else if (m.IsVideo) VideoItems.Add(item);
+            else if (m.IsAudio) AudioItems.Add(item);
         }
 
         _close = close;
@@ -82,18 +105,25 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 
     /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
     public IReadOnlyList<int> GetSelectedMediaIds() =>
-        PhotoItems.Where(m => m.IsSelected && m.MediaId > 0).Select(m => m.MediaId).ToList();
+        PhotoItems.Concat(VideoItems).Concat(AudioItems)
+            .Where(m => m.IsSelected && m.MediaId > 0)
+            .Select(m => m.MediaId)
+            .ToList();
 
     [RelayCommand]
     private void SelectAll()
     {
         foreach (var m in PhotoItems) m.IsSelected = true;
+        foreach (var m in VideoItems) m.IsSelected = true;
+        foreach (var m in AudioItems) m.IsSelected = true;
     }
 
     [RelayCommand]
     private void DeselectAll()
     {
         foreach (var m in PhotoItems) m.IsSelected = false;
+        foreach (var m in VideoItems) m.IsSelected = false;
+        foreach (var m in AudioItems) m.IsSelected = false;
     }
 
     [RelayCommand]
@@ -119,10 +149,12 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        foreach (var item in PhotoItems)
+        foreach (var item in PhotoItems.Concat(VideoItems).Concat(AudioItems))
         {
             item.Dispose();
         }
         PhotoItems.Clear();
+        VideoItems.Clear();
+        AudioItems.Clear();
     }
 }

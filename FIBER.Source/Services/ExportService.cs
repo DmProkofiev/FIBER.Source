@@ -84,7 +84,7 @@ public sealed class ExportService : IExportService
 
         var dataPath = Path.Combine(targetFolder, format == ExportFormat.Word ? DataFileNameWord : DataFileNameTxt);
         if (format == ExportFormat.Word)
-            BuildPersonWord(dataPath, person, participations, organizedEvents, relationships);
+            await Task.Run(() => BuildPersonWord(dataPath, person, participations, organizedEvents, relationships));
         else
             await BuildPersonTxtAsync(dataPath, person, participations, organizedEvents, relationships);
 
@@ -112,7 +112,7 @@ public sealed class ExportService : IExportService
 
         var dataPath = Path.Combine(targetFolder, format == ExportFormat.Word ? DataFileNameWord : DataFileNameTxt);
         if (format == ExportFormat.Word)
-            BuildCompanyWord(dataPath, company, organizedEvents, participations, interactions);
+            await Task.Run(() => BuildCompanyWord(dataPath, company, organizedEvents, participations, interactions));
         else
             await BuildCompanyTxtAsync(dataPath, company, organizedEvents, participations, interactions);
 
@@ -138,7 +138,7 @@ public sealed class ExportService : IExportService
 
         var dataPath = Path.Combine(targetFolder, format == ExportFormat.Word ? DataFileNameWord : DataFileNameTxt);
         if (format == ExportFormat.Word)
-            BuildEventWord(dataPath, ev);
+            await Task.Run(() => BuildEventWord(dataPath, ev));
         else
             await BuildEventTxtAsync(dataPath, ev);
 

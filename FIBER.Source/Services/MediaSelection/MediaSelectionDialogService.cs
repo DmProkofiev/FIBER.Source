@@ -49,14 +49,23 @@ public sealed class MediaSelectionDialogService : IMediaSelectionDialogService
     public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia)
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<int>>();
-        var dispatcher = Application.Current?.Dispatcher;
-        dispatcher!.BeginInvoke(() =>
+        var app = Application.Current;
+        var dispatcher = app?.Dispatcher;
+        if (dispatcher is null)
+        {
+            tcs.SetException(new InvalidOperationException("Application.Current.Dispatcher is not available"));
+            return tcs.Task;
+        }
+
+        var owner = app!.MainWindow;
+
+        dispatcher.BeginInvoke(() =>
         {
             try
             {
                 var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia)
                 {
-                    Owner = Application.Current.MainWindow
+                    Owner = owner
                 };
                 tcs.SetResult(dialog.ShowDialog() == true
                     ? dialog.SelectedMediaIds

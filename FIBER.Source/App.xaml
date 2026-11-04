@@ -9,6 +9,7 @@
 
         <!-- ====== Конвертеры ====== -->
         <converters:PositiveCountToVisibilityConverter x:Key="PositiveCountToVisibilityConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
         <!-- ====== Медиа-стили ====== -->
         <Style x:Key="MediaButtonStyle" TargetType="Button">

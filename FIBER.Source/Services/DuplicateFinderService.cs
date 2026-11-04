@@ -59,21 +59,25 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
         // ТЗ §5.4.2: для анонимов с коротким (< 5 символов) основным псевдонимом порог 0.75.
         double effectiveMinScore = EffectiveMinScore(source, minScore);
 
-        var candidates = new List<DuplicateCandidate>(all.Count);
-        foreach (var candidate in all)
+        // CPU-bound Levenshtein-цикл выносим с UI-потока на пул потоков.
+        var candidates = await Task.Run(() =>
         {
-            if (ct.IsCancellationRequested) break;
+            var result = new List<DuplicateCandidate>(all.Count);
+            foreach (var candidate in all)
+            {
+                if (ct.IsCancellationRequested) break;
 
-            double score;
-            try { score = strategy.Compare(source, candidate); }
-            catch { score = 0; }
+                double score;
+                try { score = strategy.Compare(source, candidate); }
+                catch { score = 0; }
 
-            if (score > 0 && score >= effectiveMinScore)
-                candidates.Add(new DuplicateCandidate(candidate, score));
-        }
+                if (score > 0 && score >= effectiveMinScore)
+                    result.Add(new DuplicateCandidate(candidate, score));
+            }
+            return result.OrderByDescending(c => c.Score).ToList();
+        }, ct);
 
-        var ordered = candidates.OrderByDescending(c => c.Score).ToList();
-        return new DuplicateFinderResult(source, ordered);
+        return new DuplicateFinderResult(source, candidates);
     }
 
     // Минимальный порог отсечения: для анонимов с коротким (< 5 символов) псевдонимом — 0.75.
@@ -97,21 +101,25 @@ public sealed class DuplicateFinderService : IDuplicateFinderService
 
         var all = await _companyService.GetAllExceptAsync(sourceCompanyId);
 
-        var candidates = new List<CompanyDuplicateCandidate>(all.Count);
-        foreach (var candidate in all)
+        // CPU-bound сравнение компаний выносим с UI-потока на пул потоков.
+        var candidates = await Task.Run(() =>
         {
-            if (ct.IsCancellationRequested) break;
+            var result = new List<CompanyDuplicateCandidate>(all.Count);
+            foreach (var candidate in all)
+            {
+                if (ct.IsCancellationRequested) break;
 
-            double score;
-            try { score = CompareCompanies(source, candidate, strategyKey); }
-            catch { score = 0; }
+                double score;
+                try { score = CompareCompanies(source, candidate, strategyKey); }
+                catch { score = 0; }
 
-            if (score > 0 && score >= minScore)
-                candidates.Add(new CompanyDuplicateCandidate(candidate, score));
-        }
+                if (score > 0 && score >= minScore)
+                    result.Add(new CompanyDuplicateCandidate(candidate, score));
+            }
+            return result.OrderByDescending(c => c.Score).ToList();
+        }, ct);
 
-        var ordered = candidates.OrderByDescending(c => c.Score).ToList();
-        return new CompanyDuplicateFinderResult(source, ordered);
+        return new CompanyDuplicateFinderResult(source, candidates);
     }
 
     // Оценка похожести двух организаций по выбранной стратегии.

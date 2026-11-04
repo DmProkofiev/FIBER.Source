@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
-             xmlns:helpers="clr-namespace:FIBER.Source.Models.Helpers">
+             xmlns:helpers="clr-namespace:FIBER.Source.Models.Helpers"
+             xmlns:local="clr-namespace:FIBER.Source.Views">
 
     <Border Background="#D8171717" CornerRadius="15" Margin="20" ClipToBounds="True">
         <Grid>
@@ -366,8 +367,7 @@
                                        Foreground="#AAAAAA" FontSize="11" FontStyle="Italic" Margin="2,6,0,0"/>
                         </StackPanel>
                     </Expander>
-                    <Button Content="Хранилище Медиа" Command="{Binding AddExistingMediaCommand}"
-                            Style="{StaticResource PrimaryButtonStyle}" Width="200" Height="40" Margin="0,10,0,10"/>
+                    <local:MediaStorageButton Command="{Binding AddExistingMediaCommand}"/>
 
                     <Expander Header="Существующие медиа" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"

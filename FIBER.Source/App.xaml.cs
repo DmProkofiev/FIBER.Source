@@ -262,12 +262,18 @@ public partial class App : Application
         Shutdown();
     }
 
-    private void CleanupHost()
+    private async Task CleanupHostAsync()
     {
         if (_host is null) return;
-        try { _host.StopAsync().GetAwaiter().GetResult(); } catch { }
+        try { await _host.StopAsync(); } catch { }
         try { _host.Dispose(); } catch { }
         _host = null;
+    }
+
+    private void CleanupHost()
+    {
+        // OnExit не支持 async — запускаем остановку хоста на пуле потоков, не блокируя UI-поток.
+        _ = Task.Run(async () => await CleanupHostAsync());
     }
 
     private void CleanupMutex()

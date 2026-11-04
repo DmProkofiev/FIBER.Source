@@ -78,7 +78,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     public bool DeleteOnDispose { get; set; }
 
     /// <summary>Признак неудачной загрузки.</summary>
-    public bool LoadFailed { get; internal set; }
+    [ObservableProperty] private bool _loadFailed;
 
     /// <summary>Признак воспроизведения.</summary>
     [ObservableProperty] private bool _isPlaying;

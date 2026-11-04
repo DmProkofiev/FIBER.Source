@@ -30,7 +30,7 @@
                            Foreground="White" Margin="0,0,0,15"
                            TextTrimming="CharacterEllipsis"/>
 
-                <!-- Список медиа -->
+                <!-- Список медиа с вкладками по типам -->
                 <Border Grid.Row="1" Background="#22FFFFFF" CornerRadius="8" Padding="8">
                     <Grid>
                         <Grid.RowDefinitions>
@@ -58,107 +58,214 @@
                                     FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         </Grid>
 
-                        <!-- Плитки медиа -->
-                        <ScrollViewer Grid.Row="1"
-                                      VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled">
-                            <ItemsControl ItemsSource="{Binding PhotoItems}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Columns="3"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#11FFFFFF" CornerRadius="8" Padding="6"
-                                                Width="200" Height="220" Margin="4">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="*"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <!-- Превью -->
-                                                <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
-                                                        ClipToBounds="True">
+                        <!-- Вкладки по типам медиа -->
+                        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+                            <TabItem Header="Фото"
+                                     Visibility="{Binding HasPhotos, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding PhotoItems}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="3"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#11FFFFFF" CornerRadius="8" Padding="6"
+                                                        Width="200" Height="220" Margin="4">
                                                     <Grid>
-                                                        <Image Source="{Binding ImageSource}" Stretch="UniformToFill">
-                                                            <Image.Style>
-                                                                <Style TargetType="Image">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <!-- Показываем картинку, если это изображение и загрузка прошла -->
-                                                                        <MultiDataTrigger>
-                                                                            <MultiDataTrigger.Conditions>
-                                                                                <Condition Binding="{Binding IsImage}" Value="True"/>
-                                                                                <Condition Binding="{Binding LoadFailed}" Value="False"/>
-                                                                            </MultiDataTrigger.Conditions>
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </MultiDataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Image.Style>
-                                                        </Image>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
 
-                                                        <!-- «Загрузка…» — только пока идёт декодирование и картинки ещё нет -->
-                                                        <TextBlock Text="Загрузка…" Foreground="#AAAAAA" FontSize="10"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <MultiDataTrigger>
-                                                                            <MultiDataTrigger.Conditions>
-                                                                                <Condition Binding="{Binding IsImage}" Value="True"/>
-                                                                                <Condition Binding="{Binding IsImageLoading}" Value="True"/>
-                                                                                <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
-                                                                            </MultiDataTrigger.Conditions>
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </MultiDataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                                        <!-- Превью -->
+                                                        <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
+                                                                ClipToBounds="True">
+                                                            <Grid>
+                                                                <Image Source="{Binding ImageSource}" Stretch="UniformToFill">
+                                                                    <Image.Style>
+                                                                        <Style TargetType="Image">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <MultiDataTrigger>
+                                                                                    <MultiDataTrigger.Conditions>
+                                                                                        <Condition Binding="{Binding IsImage}" Value="True"/>
+                                                                                        <Condition Binding="{Binding LoadFailed}" Value="False"/>
+                                                                                    </MultiDataTrigger.Conditions>
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </MultiDataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Image.Style>
+                                                                </Image>
 
-                                                        <!-- «Ошибка загрузки» -->
-                                                        <TextBlock Text="Ошибка загрузки" Foreground="#FF6666" FontSize="10"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding LoadFailed}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                                                <!-- «Загрузка…» -->
+                                                                <TextBlock Text="Загрузка…" Foreground="#AAAAAA" FontSize="10"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <MultiDataTrigger>
+                                                                                    <MultiDataTrigger.Conditions>
+                                                                                        <Condition Binding="{Binding IsImage}" Value="True"/>
+                                                                                        <Condition Binding="{Binding IsImageLoading}" Value="True"/>
+                                                                                        <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
+                                                                                    </MultiDataTrigger.Conditions>
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </MultiDataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+
+                                                                <!-- «Ошибка загрузки» -->
+                                                                <TextBlock Text="Ошибка загрузки" Foreground="#FF6666" FontSize="10"
+                                                                           HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding LoadFailed}" Value="True">
+                                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </Grid>
+                                                        </Border>
+
+                                                        <!-- Имя + чекбокс -->
+                                                        <Grid Grid.Row="1" Margin="0,6,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
+                                                                       Foreground="White" FontFamily="Times New Roman"
+                                                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                       TextWrapping="Wrap" TextAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                            <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
+                                                                      Width="20" Height="20"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="6,0,0,0"/>
+                                                        </Grid>
                                                     </Grid>
                                                 </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
 
-                                                <!-- Имя + чекбокс -->
-                                                <Grid Grid.Row="1" Margin="0,6,0,0">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
-                                                               Foreground="White" FontFamily="Times New Roman"
-                                                               FontSize="12" TextTrimming="CharacterEllipsis"
-                                                               TextWrapping="Wrap" TextAlignment="Center"
-                                                               VerticalAlignment="Center"/>
-                                                    <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
-                                                              Width="20" Height="20"
-                                                              VerticalAlignment="Center"
-                                                              Margin="6,0,0,0"/>
-                                                </Grid>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
+                            <TabItem Header="Видео"
+                                     Visibility="{Binding HasVideos, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding VideoItems}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="3"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#11FFFFFF" CornerRadius="8" Padding="6"
+                                                        Width="200" Height="220" Margin="4">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <!-- Видео иконка -->
+                                                        <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
+                                                                ClipToBounds="True">
+                                                            <TextBlock Text="🎥" FontSize="48"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Foreground="#CCCCCC"/>
+                                                        </Border>
+
+                                                        <!-- Имя + чекбокс -->
+                                                        <Grid Grid.Row="1" Margin="0,6,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
+                                                                       Foreground="White" FontFamily="Times New Roman"
+                                                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                       TextWrapping="Wrap" TextAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                            <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
+                                                                      Width="20" Height="20"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="6,0,0,0"/>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
+
+                            <TabItem Header="Аудио"
+                                     Visibility="{Binding HasAudio, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding AudioItems}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <UniformGrid Columns="3"/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#11FFFFFF" CornerRadius="8" Padding="6"
+                                                        Width="200" Height="220" Margin="4">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <!-- Аудио иконка -->
+                                                        <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
+                                                                ClipToBounds="True">
+                                                            <TextBlock Text="🎵" FontSize="48"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Foreground="#CCCCCC"/>
+                                                        </Border>
+
+                                                        <!-- Имя + чекбокс -->
+                                                        <Grid Grid.Row="1" Margin="0,6,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding DisplayName}"
+                                                                       Foreground="White" FontFamily="Times New Roman"
+                                                                       FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                       TextWrapping="Wrap" TextAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                            <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
+                                                                      Width="20" Height="20"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="6,0,0,0"/>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
 
                         <!-- Пустое состояние -->
                         <TextBlock Grid.Row="1" Text="Нет медиафайлов" Foreground="#888888"

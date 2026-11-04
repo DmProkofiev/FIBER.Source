@@ -1,6 +1,7 @@
 ﻿<UserControl x:Class="FIBER.Source.Views.CreatePersonView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:FIBER.Source.Views">
 
     <Border Background="#D8171717" CornerRadius="15" Margin="20" ClipToBounds="True">
         <Grid>
@@ -250,12 +251,7 @@
                                 Width="200" Height="46"
                                 FontSize="18"
                                 Margin="0,0,10,0"/>
-                        <Button Content="Хранилище Медиа"
-                                Command="{Binding AddExistingMediaCommand}"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Width="200" Height="46"
-                                FontSize="16"
-                                Margin="10,0,0,0"/>
+                        <local:MediaStorageButton Command="{Binding AddExistingMediaCommand}"/>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
