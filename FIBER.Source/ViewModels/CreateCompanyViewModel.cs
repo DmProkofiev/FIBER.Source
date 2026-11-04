@@ -107,14 +107,18 @@ public partial class CreateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMediaAsync()
     {
-        if (CreatedOwnerId is null)
+        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        if (selected.Count == 0) return;
+
+        foreach (var media in selected)
         {
-            Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
-            return;
+            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
+                TempFiles.Add(media);
         }
-        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Company, CreatedOwnerId.Value);
-        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
+
+        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
+    
 
     // Проверяет, можно ли запускать создание
     private bool CanCreate() => !IsBusy;

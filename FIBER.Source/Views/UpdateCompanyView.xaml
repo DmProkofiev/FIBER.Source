@@ -180,14 +180,14 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= БЛОК СУЩЕСТВУЮЩИХ МЕДИА ================= -->
-                    <local:MediaStorageButton Command="{Binding AddExistingMediaCommand}"/>
+                    
 
-                    <Expander Header="Существующие медиа" IsExpanded="True" Margin="0,20,0,0"
+                    <Expander Header="МедиаДанные" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="5">
-                        <TabControl Background="Transparent" BorderThickness="0">
-                            <TabItem Header="Фото">
+                        
+                        <TabControl Style="{StaticResource MediaTabControlStyle}">
+                            <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}">
                                 <ListBox ItemsSource="{Binding ExistingImages}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -199,93 +199,205 @@
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Width="100" Height="100" Margin="5">
-                                                <Border CornerRadius="4" ClipToBounds="True" Background="#DDD">
-                                                    <Grid>
-                                                        <Image Source="{Binding ImageSource}" Stretch="Uniform">
-                                                            <Image.Style>
-                                                                <Style TargetType="Image">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsImage}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Image.Style>
-                                                        </Image>
-                                                        <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsImage}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
+                                            <Border Style="{StaticResource MediaImageCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Превью изображения -->
+                                                    <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <Image Source="{Binding ImageSource}" Stretch="Uniform">
+                                                                <Image.Style>
+                                                                    <Style TargetType="Image">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </MultiDataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Image.Style>
+                                                            </Image>
+
+                                                            <!-- Загрузка -->
+                                                            <TextBlock Text="Загрузка…" Foreground="#AAA" FontSize="10"
+                                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <MultiDataTrigger>
+                                                                                <MultiDataTrigger.Conditions>
+                                                                                    <Condition Binding="{Binding IsImage}" Value="True"/>
+                                                                                    <Condition Binding="{Binding IsImageLoading}" Value="True"/>
+                                                                                    <Condition Binding="{Binding ImageSource}" Value="{x:Null}"/>
+                                                                                </MultiDataTrigger.Conditions>
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </MultiDataTrigger>
+                                                                            <DataTrigger Binding="{Binding ImageSource}" Value="{x:Null}">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsImageLoading}" Value="False">
+                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя + кнопка удаления -->
+                                                    <Grid Grid.Row="1" Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Button Content="×" Grid.Column="1" Width="22" Height="22"
+                                                                Background="#CCFF0000" Foreground="White" BorderThickness="0"
+                                                                Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                Template="{StaticResource CloseButtonTemplate}" />
                                                     </Grid>
-                                                </Border>
-                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
-                                                        Background="#CCFF0000" Foreground="White" BorderThickness="0"
-                                                        Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"
-                                                        Template="{StaticResource CloseButtonTemplate}" />
-                                            </Grid>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </TabItem>
-                            <TabItem Header="Видео">
-                                <ItemsControl ItemsSource="{Binding ExistingVideos}" Margin="0,5,0,0">
-                                    <ItemsControl.ItemTemplate>
+
+                            <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
+                                <ListBox ItemsSource="{Binding ExistingVideos}" Margin="0,5,0,0"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Width="150" Height="50" Margin="5">
-                                                <Border Background="#2C3E50" CornerRadius="4" Padding="5">
-                                                    <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                </Border>
-                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
-                                                        Background="#CCFF0000" Foreground="White" BorderThickness="0"
-                                                        Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </Grid>
+                                            <Border Style="{StaticResource MediaVideoCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Плеер видео -->
+                                                    <Border Grid.Row="0" Background="#000000" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="Uniform"
+                                                                          Margin="0"/>
+                                                            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                                                        Margin="6" Orientation="Horizontal">
+                                                                <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
+                                                                        Click="MediaPlay_Click"/>
+                                                                <Button Content="Пауза" Style="{StaticResource MediaPauseButtonStyle}"
+                                                                        Click="MediaPause_Click"/>
+                                                                <Button Content="Стоп" Style="{StaticResource MediaStopButtonStyle}"
+                                                                        Click="MediaStop_Click"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя + кнопка удаления -->
+                                                    <Grid Grid.Row="1" Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="1" Content="×" Width="22" Height="22"
+                                                                Background="#CCFF0000" Foreground="White" BorderThickness="0"
+                                                                Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </TabItem>
-                            <TabItem Header="Аудио">
-                                <ItemsControl ItemsSource="{Binding ExistingAudio}" Margin="0,5,0,0">
-                                    <ItemsControl.ItemTemplate>
+
+                            <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
+                                <ListBox ItemsSource="{Binding ExistingAudio}" Margin="0,5,0,0"
+                                         Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Width="150" Height="50" Margin="5">
-                                                <Border Background="#27AE60" CornerRadius="4" Padding="5">
-                                                    <TextBlock Text="{Binding FileName}" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                </Border>
-                                                <Button Content="×" Width="22" Height="22" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-5,-5,0"
-                                                        Background="#CCFF0000" Foreground="White" BorderThickness="0"
-                                                        Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </Grid>
+                                            <Border Style="{StaticResource MediaAudioCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Плеер аудио -->
+                                                    <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="None"
+                                                                          Margin="0"/>
+                                                            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                                                        Margin="6" Orientation="Horizontal">
+                                                                <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
+                                                                        Click="MediaPlay_Click"/>
+                                                                <Button Content="Пауза" Style="{StaticResource MediaPauseButtonStyle}"
+                                                                        Click="MediaPause_Click"/>
+                                                                <Button Content="Стоп" Style="{StaticResource MediaStopButtonStyle}"
+                                                                        Click="MediaStop_Click"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя + кнопка удаления -->
+                                                    <Grid Grid.Row="1" Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="12" TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="1" Content="×" Width="22" Height="22"
+                                                                Background="#CCFF0000" Foreground="White" BorderThickness="0"
+                                                                Command="{Binding DataContext.DeleteExistingMediaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </TabItem>
                         </TabControl>
                     </Expander>
 
-                    <!-- ================= ЗОНА DRAG & DROP ================= -->
+                    <local:MediaStorageButton Command="{Binding AddExistingMediaCommand}"/>
                     <Border Margin="0,20,0,0" Height="110" CornerRadius="8"
                             BorderBrush="#55000000" BorderThickness="2"
                             Background="#33FFFFFF"

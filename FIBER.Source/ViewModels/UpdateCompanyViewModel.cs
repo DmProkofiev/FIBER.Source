@@ -183,9 +183,16 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMediaAsync()
     {
-        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Company, CompanyId);
-        await LoadExistingMediaAsync(CompanyId);
-        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
+        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        if (selected.Count == 0) return;
+
+        foreach (var media in selected)
+        {
+            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
+                TempFiles.Add(media);
+        }
+
+        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     [RelayCommand]

@@ -26,8 +26,11 @@ public interface IMediaManagementService
     /// <summary>Очищает коллекции существующих медиа с утилизацией ресурсов.</summary>
     void ClearMedia(OwnerMedia media);
 
-    /// <summary>Добавляет существующий медиафайл к владельцу через диалог выбора.</summary>
-    Task AddExistingMediaAsync(MediaOwnerType ownerType, int ownerId);
+    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
+    /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
+    /// а не прямую привязку к владельцу в БД.
+    /// Пустой список — диалог отменён или ничего не выбрано.</summary>
+    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync();
 
     /// <summary>Удаляет существующий медиафайл у владельца.</summary>
     Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media);

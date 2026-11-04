@@ -18,6 +18,7 @@ public partial class MediaSelectionItem : ObservableObject
 
     public int MediaId => _media.MediaId ?? 0;
     public string DisplayName => _media.FileName;
+    public string FilePath => _media.FilePath;
     public string TypeLabel => _media.IsImage ? "Фото" : (_media.IsVideo ? "Видео" : "Аудио");
     public bool IsImage => _media.IsImage;
     public bool IsVideo => _media.IsVideo;
@@ -40,22 +41,28 @@ public partial class MediaSelectionItem : ObservableObject
 
         // Пробрасываем PropertyChanged от исходного MediaItemViewModel,
         // чтобы UI обновлялся при изменении ImageSource, IsImageLoading и т.п.
-        _media.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MediaItemViewModel.ImageSource)
-                || e.PropertyName == nameof(MediaItemViewModel.IsImageLoading)
-                || e.PropertyName == nameof(MediaItemViewModel.LoadFailed))
-            {
-                OnPropertyChanged(e.PropertyName);
-            }
-        };
+        _media.PropertyChanged += Media_PropertyChanged;
     }
 
     /// <summary>Загружает изображение в фоновом потоке (декодирование не блокирует GUI).</summary>
     public Task LoadImageAsync() => _media.LoadImageAsync();
 
-    /// <summary>Освобождает ресурсы исходного медиа-элемента.</summary>
-    public void Dispose() => _media.Dispose();
+    /// <summary>Освобождает ресурсы. Не утилизирует исходный MediaItemViewModel,
+    /// так как он принадлежит кэшу MediaService и используется повторно.</summary>
+    public void Dispose()
+    {
+        _media.PropertyChanged -= Media_PropertyChanged;
+    }
+
+    private void Media_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MediaItemViewModel.ImageSource)
+            || e.PropertyName == nameof(MediaItemViewModel.IsImageLoading)
+            || e.PropertyName == nameof(MediaItemViewModel.LoadFailed))
+        {
+            OnPropertyChanged(e.PropertyName);
+        }
+    }
 }
 
 /// <summary>VM диалога выбора медиафайлов: список изображений/видео/аудио, мультивыбор, подтверждение.</summary>
@@ -94,13 +101,30 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         _ = LoadImagesInBackgroundAsync();
     }
 
-    /// <summary>Декодирует все изображения в фоне параллельно.</summary>
+    /// <summary>Ограничение параллельной декодировки изображений (не более 3 одновременных),
+    /// чтобы не создавать конфликтов при чтении BLOB из SQLCipher БД.</summary>
+    private static readonly SemaphoreSlim _imageLoadSemaphore = new(3, 3);
+
+    /// <summary>Декодирует все изображения в фоне с ограничением параллелизма.</summary>
     private async Task LoadImagesInBackgroundAsync()
     {
         var imageItems = PhotoItems.Where(i => i.IsImage).ToList();
         if (imageItems.Count == 0) return;
 
-        await Task.WhenAll(imageItems.Select(item => item.LoadImageAsync()));
+        // Ограничиваем параллельность: не более 3 изображений загружаются одновременно.
+        var tasks = imageItems.Select(async item =>
+        {
+            await _imageLoadSemaphore.WaitAsync();
+            try
+            {
+                await item.LoadImageAsync();
+            }
+            finally
+            {
+                _imageLoadSemaphore.Release();
+            }
+        });
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
@@ -143,7 +167,8 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         _close(false);
     }
 
-    /// <summary>Освобождает все медиа-ресурсы при закрытии окна.</summary>
+    /// <summary>Очищает коллекции при закрытии окна. Не утилизирует MediaItemViewModel,
+    /// так как они принадлежат кэшу MediaService.</summary>
     public void Dispose()
     {
         if (_disposed) return;

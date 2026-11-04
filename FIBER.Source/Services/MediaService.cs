@@ -57,8 +57,14 @@ public sealed class MediaService : IMediaService
     /// Заполняется при старте и лениво — при первом обращении к медиа.</summary>
     private Dictionary<int, string>? _tempFileCache;
 
+    /// <summary>Кэш VM медиа-элементов, чтобы не пересоздавать при повторном открытии диалога выбора медиа.</summary>
+    private readonly Dictionary<int, MediaItemViewModel> _mediaItemCache = new();
+
     /// <summary>Защита кэшей от параллельного многократного заполнения.</summary>
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+
+    /// <summary>Ограничение параллельного чтения BLOB из SQLCipher (одно соединение к зашифрованной БД).</summary>
+    private readonly SemaphoreSlim _blobLoadSemaphore = new(2, 2);
 
     /// <summary>Инициализирует зависимости и создаёт временный каталог.</summary>
     public MediaService(
@@ -257,7 +263,7 @@ public sealed class MediaService : IMediaService
         }
     }
 
-    /// <summary>Возвращает медиа владельца.</summary>
+    /// <summary>Возвращает медиа владельца. VM берутся из общего кэша — не создаются заново.</summary>
     public async Task<List<MediaItemViewModel>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId)
     {
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -274,14 +280,14 @@ public sealed class MediaService : IMediaService
         var result = new List<MediaItemViewModel>(metaList.Count);
         foreach (var meta in metaList)
         {
-            var vm = await CreateVmFromMediaMetaAsync(meta);
+            var vm = await GetOrCreateVmFromMetaAsync(meta);
             if (vm is not null) result.Add(vm);
         }
         return result;
     }
 
     /// <summary>Возвращает все медиа со всех владельцев.
-    /// VM создаются заново из кэшированных метаданных — не ломают общий кэш при Dispose.</summary>
+    /// VM берутся из кэша, если уже были созданы ранее — не пересоздаются при повторном открытии диалога.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
     {
         var metaList = await GetAllMediaMetaAsync();
@@ -289,14 +295,15 @@ public sealed class MediaService : IMediaService
         var result = new List<MediaForOwner>(metaList.Count);
         foreach (var (meta, ownerType, ownerId) in metaList)
         {
-            var vm = await CreateVmFromMediaMetaAsync(meta);
+            var vm = await GetOrCreateVmFromMetaAsync(meta);
             if (vm is not null)
                 result.Add(new MediaForOwner(vm, ownerType, ownerId));
         }
         return result;
     }
 
-    /// <summary>Возвращает только изображения со всех владельцев — видео/аудио не извлекаются в Temp.</summary>
+    /// <summary>Возвращает только изображения со всех владельцев — видео/аудио не извлекаются в Temp.
+    /// VM берутся из кэша, если уже были созданы ранее.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllImagesAsync()
     {
         var metaList = await GetAllMediaMetaAsync();
@@ -307,10 +314,42 @@ public sealed class MediaService : IMediaService
             if (!IsImageExtension(Path.GetExtension(meta.OriginalFileName)))
                 continue;
 
-            var vm = new MediaItemViewModel(this, meta.Id, meta.OriginalFileName) { MediaId = meta.Id };
-            result.Add(new MediaForOwner(vm, ownerType, ownerId));
+            var vm = await GetOrCreateVmFromMetaAsync(meta);
+            if (vm is not null)
+                result.Add(new MediaForOwner(vm, ownerType, ownerId));
         }
         return result;
+    }
+
+    /// <summary>Возвращает VM из кэша или создаёт новый и кэширует его.</summary>
+    private async Task<MediaItemViewModel?> GetOrCreateVmFromMetaAsync(MediaMeta meta)
+    {
+        await _cacheLock.WaitAsync();
+        try
+        {
+            if (_mediaItemCache.TryGetValue(meta.Id, out var cachedVm))
+                return cachedVm;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+
+        var vm = await CreateVmFromMediaMetaAsync(meta);
+        if (vm is not null)
+        {
+            await _cacheLock.WaitAsync();
+            try
+            {
+                if (!_mediaItemCache.ContainsKey(meta.Id))
+                    _mediaItemCache[meta.Id] = vm;
+            }
+            finally
+            {
+                _cacheLock.Release();
+            }
+        }
+        return vm;
     }
 
     /// <summary>Возвращает кэшированные метаданные «все медиа» (без VM, без BLOB).</summary>
@@ -366,11 +405,16 @@ public sealed class MediaService : IMediaService
     {
         _allMediaMetaCache = null;
         _tempFileCache = null;
+        lock (_mediaItemCache)
+        {
+            _mediaItemCache.Clear();
+        }
     }
 
     /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз).
-    /// Метаданные — под локом; извлечение видео/аудио — вне лока и на пуле потоков,
-    /// чтобы UI не замерзал даже при большом объёме.</summary>
+    /// Создаёт и кэширует MediaItemViewModel для всех медиа, чтобы все экраны
+    /// (Search, Update, Settings, Create) использовали одни и те же объекты.
+    /// Метаданные — под локом; извлечение видео/аудио — вне лока и на пуле потоков.</summary>
     public async Task PreloadAllMediaAsync()
     {
         IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)> metaList;
@@ -389,6 +433,7 @@ public sealed class MediaService : IMediaService
             _cacheLock.Release();
         }
 
+        // Извлекаем видео/аудио во Temp-файлы (вне лока, на пуле потоков)
         foreach (var (meta, _, _) in metaList)
         {
             var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
@@ -416,6 +461,36 @@ public sealed class MediaService : IMediaService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Не удалось извлечь медиа Id={Id} во Temp при старте", meta.Id);
+            }
+        }
+
+        // Создаём и кэшируем VM для ВСЕХ медиа — БЕЗ удержания _cacheLock,
+        // чтобы избежать deadlock (CreateVmFromMediaMetaAsync сам использует _cacheLock).
+        foreach (var (meta, _, _) in metaList)
+        {
+            await _cacheLock.WaitAsync();
+            try
+            {
+                if (_mediaItemCache.ContainsKey(meta.Id)) continue;
+            }
+            finally
+            {
+                _cacheLock.Release();
+            }
+
+            var vm = await CreateVmFromMediaMetaAsync(meta);
+            if (vm is not null)
+            {
+                await _cacheLock.WaitAsync();
+                try
+                {
+                    if (!_mediaItemCache.ContainsKey(meta.Id))
+                        _mediaItemCache[meta.Id] = vm;
+                }
+                finally
+                {
+                    _cacheLock.Release();
+                }
             }
         }
     }
@@ -639,17 +714,27 @@ public sealed class MediaService : IMediaService
     }
 
     /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).
-    /// SQLite-провайдер читает BLOB синхронно внутри, поэтому вся операция выносится на пул потоков.</summary>
+    /// SQLite-провайдер читает BLOB синхронно внутри, поэтому вся операция выносится на пул потоков.
+    /// Чтение защищено семафором — к SQLCipher можно обращаться не более 2 параллельных потоков,
+    /// иначе возникают конфликты при работе с зашифрованным файлом БД.</summary>
     public async Task<byte[]?> GetMediaDataAsync(int mediaId)
     {
-        return await Task.Run(async () =>
+        await _blobLoadSemaphore.WaitAsync();
+        try
         {
-            await using var context = await _contextFactory.CreateDbContextAsync();
-            return await context.MediaAttachments
-                .Where(m => m.Id == mediaId)
-                .Select(m => m.Data)
-                .FirstOrDefaultAsync();
-        });
+            return await Task.Run(async () =>
+            {
+                await using var context = await _contextFactory.CreateDbContextAsync();
+                return await context.MediaAttachments
+                    .Where(m => m.Id == mediaId)
+                    .Select(m => m.Data)
+                    .FirstOrDefaultAsync();
+            });
+        }
+        finally
+        {
+            _blobLoadSemaphore.Release();
+        }
     }
 
     /// <summary>Вычисляет SHA-256 hex содержимого файла.</summary>

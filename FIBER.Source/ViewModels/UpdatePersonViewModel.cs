@@ -292,9 +292,17 @@ public partial class UpdatePersonViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMediaAsync()
     {
-        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Person, PersonId);
-        await LoadExistingMediaAsync(PersonId);
-        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
+        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        if (selected.Count == 0) return;
+
+        foreach (var media in selected)
+        {
+            // Не добавляем дубликаты в TempFiles
+            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
+                TempFiles.Add(media);
+        }
+
+        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     [RelayCommand]

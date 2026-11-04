@@ -309,8 +309,8 @@
 <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
-                                            <TabControl Background="Transparent" BorderThickness="0">
-                                                <TabItem Header="Фото">
+                                            <TabControl Style="{StaticResource MediaTabControlStyle}">
+                                                <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}">
                                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                         <ItemsControl ItemsSource="{Binding PersonImages}" Margin="0,5,0,0">
                                                             <ItemsControl.ItemsPanel>
@@ -366,78 +366,93 @@
                                                         </ItemsControl>
                                                     </ScrollViewer>
                                                 </TabItem>
-                                                <TabItem Header="Видео">
-                                                    <ItemsControl ItemsSource="{Binding PersonVideos}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="*"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
-                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
-                                                                        </Border>
-                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding PersonVideos}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaVideoCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Плеер видео -->
+                                                    <Border Grid.Row="0" Background="#000000" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="Uniform"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
-                                                <TabItem Header="Аудио">
-                                                    <ItemsControl ItemsSource="{Binding PersonAudio}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <StackPanel Grid.Row="0">
-                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
-                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
-                                                                        </StackPanel>
-                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                            <Button Content="Воспроизвести" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding PersonAudio}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaAudioCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Контейнер аудиоплеера -->
+                                                    <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="None"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
                                             </TabControl>
                                         </StackPanel>
@@ -640,8 +655,8 @@
 <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
-                                            <TabControl Background="Transparent" BorderThickness="0">
-                                                <TabItem Header="Фото">
+                                            <TabControl Style="{StaticResource MediaTabControlStyle}">
+                                                <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}">
                                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                         <ItemsControl ItemsSource="{Binding CompanyImages}" Margin="0,5,0,0">
                                                             <ItemsControl.ItemsPanel>
@@ -697,78 +712,93 @@
                                                         </ItemsControl>
                                                     </ScrollViewer>
                                                 </TabItem>
-                                                <TabItem Header="Видео">
-                                                    <ItemsControl ItemsSource="{Binding CompanyVideos}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="*"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
-                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
-                                                                        </Border>
-                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding CompanyVideos}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaVideoCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Плеер видео -->
+                                                    <Border Grid.Row="0" Background="#000000" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="Uniform"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
-                                                <TabItem Header="Аудио">
-                                                    <ItemsControl ItemsSource="{Binding CompanyAudio}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <StackPanel Grid.Row="0">
-                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
-                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
-                                                                        </StackPanel>
-                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding CompanyAudio}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaAudioCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Контейнер аудиоплеера -->
+                                                    <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="None"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
                                             </TabControl>
                                         </StackPanel>
@@ -947,8 +977,8 @@
 <Border Style="{StaticResource FieldCardStyle}" Margin="0,15,0,0">
                                         <StackPanel>
                                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10"/>
-                                            <TabControl Background="Transparent" BorderThickness="0">
-                                                <TabItem Header="Фото">
+                                            <TabControl Style="{StaticResource MediaTabControlStyle}">
+                                                <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}">
                                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                                         <ItemsControl ItemsSource="{Binding EventImages}" Margin="0,5,0,0">
                                                             <ItemsControl.ItemsPanel>
@@ -1004,78 +1034,93 @@
                                                         </ItemsControl>
                                                     </ScrollViewer>
                                                 </TabItem>
-                                                <TabItem Header="Видео">
-                                                    <ItemsControl ItemsSource="{Binding EventVideos}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="450" Margin="0,0,0,15" CornerRadius="8" Background="#2C3E50" Padding="5">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="*"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <Border Grid.Row="0" Background="Black" CornerRadius="4" ClipToBounds="True">
-                                                                            <helpers:VideoSurface Player="{Binding Player}"/>
-                                                                        </Border>
-                                                                        <Grid Grid.Row="1" Margin="5,10,5,0">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,5">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#27AE60" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding EventVideos}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaVideoCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Плеер видео -->
+                                                    <Border Grid.Row="0" Background="#000000" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="Uniform"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
-                                                <TabItem Header="Аудио">
-                                                    <ItemsControl ItemsSource="{Binding EventAudio}" Margin="0,5,0,0">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Width="Auto" HorizontalAlignment="Stretch" Height="200" Margin="0,0,0,15" CornerRadius="8" Background="#27AE60" Padding="15">
-                                                                    <Grid>
-                                                                        <Grid.RowDefinitions>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                            <RowDefinition Height="Auto"/>
-                                                                        </Grid.RowDefinitions>
-                                                                        <StackPanel Grid.Row="0">
-                                                                            <TextBlock Text="АУДИОФАЙЛ" FontWeight="Bold" Foreground="White" FontSize="12"/>
-                                                                            <TextBlock Text="{Binding FileName}" Foreground="White" TextTrimming="CharacterEllipsis" FontSize="16" Margin="0,4,0,0"/>
-                                                                        </StackPanel>
-                                                                        <Grid Grid.Row="1" Margin="0,15,0,10">
-                                                                            <Grid.ColumnDefinitions>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                                <ColumnDefinition Width="*"/>
-                                                                                <ColumnDefinition Width="Auto"/>
-                                                                            </Grid.ColumnDefinitions>
-                                                                            <TextBlock Grid.Column="0" Text="{Binding CurrentTime}" Foreground="White" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                                            <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Position, Mode=TwoWay}" VerticalAlignment="Center"
-                                                                                    Thumb.DragStarted="Slider_DragStarted" Thumb.DragCompleted="Slider_DragCompleted"/>
-                                                                            <TextBlock Grid.Column="2" Text="{Binding TotalTime}" Foreground="White" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                                                        </Grid>
-                                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                            <Button Content="Играть" Command="{Binding PlayCommand}" Background="#2ECC71" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Пауза" Command="{Binding PauseCommand}" Background="#F39C12" Foreground="White" Margin="0,0,8,0" Padding="12,4" FontWeight="Bold"/>
-                                                                            <Button Content="Стоп" Command="{Binding StopCommand}" Background="#E74C3C" Foreground="White" Padding="12,4" FontWeight="Bold"/>
-                                                                        </StackPanel>
-                                                                    </Grid>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
+                                                <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
+                                                    <ListBox ItemsSource="{Binding EventAudio}" Margin="0,5,0,0"
+                                     Background="Transparent" BorderThickness="0"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource MediaAudioCardStyle}">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="*"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- Контейнер аудиоплеера -->
+                                                    <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <MediaElement Source="{Binding FilePath}"
+                                                                          LoadedBehavior="Manual"
+                                                                          Stretch="None"
+                                                                          Margin="0"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- Имя файла -->
+                                                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding FileName}"
+                                                                   Foreground="White" FontFamily="Times New Roman"
+                                                                   FontSize="13" FontWeight="Bold"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                                 </TabItem>
                                             </TabControl>
                                         </StackPanel>

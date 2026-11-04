@@ -43,19 +43,20 @@ public sealed class MediaManagementService : IMediaManagementService
         return media;
     }
 
-    /// <summary>Очищает коллекции существующих медиа с утилизацией ресурсов.</summary>
+    /// <summary>Очищает коллекции существующих медиа.
+    /// Не утилизирует VM — они belong к общему кэшу MediaService и используются повторно.</summary>
     public void ClearMedia(OwnerMedia media)
     {
-        foreach (var m in media.Images) m.Dispose();
-        foreach (var m in media.Videos) m.Dispose();
-        foreach (var m in media.Audios) m.Dispose();
         media.Images.Clear();
         media.Videos.Clear();
         media.Audios.Clear();
     }
 
-    /// <summary>Добавляет существующий медиафайл к владельцу через диалог выбора.</summary>
-    public async Task AddExistingMediaAsync(MediaOwnerType ownerType, int ownerId)
+    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
+    /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
+    /// а не прямую привязку к владельцу в БД.
+    /// Пустой список — диалог отменён или ничего не выбрано.</summary>
+    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync()
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
         var items = allMedia.Where(m => m.Media is not null).Select(m => m.Media!).ToList();
@@ -63,16 +64,14 @@ public sealed class MediaManagementService : IMediaManagementService
         if (items.Count == 0)
         {
             Notification.Show("Медиа", "В базе нет медиафайлов", FIBER.Source.Helpers.NotificationType.Info);
-            return;
+            return Array.Empty<MediaItemViewModel>();
         }
 
         var selectedIds = await _dialogService.ShowSelectMediaAsync(items);
-        if (selectedIds.Count == 0) return;
+        if (selectedIds.Count == 0) return Array.Empty<MediaItemViewModel>();
 
-        foreach (var mediaId in selectedIds)
-        {
-            await _mediaService.AddLinkAsync(mediaId, ownerType, ownerId);
-        }
+        // Возвращаем выбранные медиа-элементы для добавления во TempFiles ViewModel
+        return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
     }
 
     /// <summary>Удаляет существующий медиафайл у владельца.</summary>

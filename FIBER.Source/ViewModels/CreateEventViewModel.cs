@@ -168,8 +168,7 @@ public partial class CreateEventViewModel : ObservableValidator
             Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
             return;
         }
-        await _mediaManagement.AddExistingMediaAsync(MediaOwnerType.Event, CreatedOwnerId.Value);
-        Notification.Show("Успех", "Медиафайлы добавлены", NotificationType.Success);
+       
     }
 
     private bool CanCreate() => !IsBusy;

@@ -161,12 +161,8 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         IsVideo = ext is ".mp4" or ".avi" or ".wmv";
         IsAudio = ext is ".mp3" or ".wav" or ".wma";
 
-        if (!IsImage)
-        {
-            LoadFailed = true;
-            return;
-        }
-
+        // Изображения — ленивая загрузка BLOB. Видео/аудио — файл уже в Temp (передан через другой конструктор).
+        // Не помечаем как неудачные — загрузка произойдёт по требованию.
         _mediaService = mediaService;
         _mediaIdForLazyLoad = mediaId;
     }
@@ -178,7 +174,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     /// <remarks>Вызвать по требованию (когда элемент попадает в зону видимости).</remarks>
     public async Task LoadImageAsync()
     {
-        if (ImageSource is not null || LoadFailed) return;
+        if (ImageSource is not null) return;
 
         // Если байтов ещё нет, но есть сервис и ID — читаем BLOB из БД по требованию
         if (_imageData is null && _mediaService is not null && _mediaIdForLazyLoad is int mediaId)
@@ -357,13 +353,23 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     private static string FormatTime(TimeSpan t) =>
         t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
 
-    /// <summary>Освобождает ресурсы; удаляет временный файл при необходимости.</summary>
+    /// <summary>Освобождает ресурсы; удаляет временный файл при необходимости.
+    /// Кэшированные VM (DeleteOnDispose = false) не утилизируются полностью,
+    /// так как они belong к общему кэшу MediaService и используются повторно.</summary>
     public void Dispose()
     {
+        if (!DeleteOnDispose)
+        {
+            // Кэшированный VM — только останавливаем таймер обновления позиции,
+            // MediaPlayer и temp-файл остаются для повторного использования.
+            _timer?.Stop();
+            return;
+        }
+
         _timer?.Stop();
         _player?.Close();
 
-        if (DeleteOnDispose && !string.IsNullOrEmpty(FilePath))
+        if (!string.IsNullOrEmpty(FilePath))
         {
             try { if (File.Exists(FilePath)) File.Delete(FilePath); }
             catch { }
