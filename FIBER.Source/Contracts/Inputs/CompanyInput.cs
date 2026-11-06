@@ -12,5 +12,7 @@ namespace FIBER.Source.Contracts.Inputs
         string Mail,
         string Website,
         string Notes,
-        IReadOnlyList<CompanyInteractionEditInput>? Interactions = null);
+        IReadOnlyList<CompanyInteractionEditInput>? Interactions = null,
+        IReadOnlyList<CompanyPersonEditInput>? CompanyPeople = null,
+        IReadOnlyList<EventParticipantEditInput>? EventParticipations = null);
 }

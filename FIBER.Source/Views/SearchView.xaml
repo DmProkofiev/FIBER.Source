@@ -806,7 +806,20 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearCompanySelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
+                            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button Content="Отменить" Command="{Binding ClearCompanySelectionCommand}"
+                                    Height="30" Padding="14,4"
+                                    FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+                                    Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+                                    Cursor="Hand"/>
+                                <Button Content="Назад" Command="{Binding NavigateBackCommand}"
+                                    Height="30" Padding="14,4"
+                                    FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+                                    Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+                                    Cursor="Hand"
+                                    Margin="8,0,0,0"
+                                    Visibility="{Binding NavigationHistoryCount, Converter={StaticResource PositiveCountToVisibilityConverter}}"/>
+                            </StackPanel>
                         </Grid>
                     </Grid>
                 </Border>
@@ -1128,7 +1141,20 @@
                                 </StackPanel>
                             </ScrollViewer>
 
-                            <Button Grid.Row="4" Content="Снять выбор" Command="{Binding ClearEventSelectionCommand}" HorizontalAlignment="Left" Height="30" Padding="14,4" FontFamily="Times New Roman" FontSize="13" FontWeight="Bold" Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1" Cursor="Hand"/>
+                            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Left">
+                                <Button Content="Отменить" Command="{Binding ClearEventSelectionCommand}"
+                                    Height="30" Padding="14,4"
+                                    FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+                                    Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+                                    Cursor="Hand"/>
+                                <Button Content="Назад" Command="{Binding NavigateBackCommand}"
+                                    Height="30" Padding="14,4"
+                                    FontFamily="Times New Roman" FontSize="13" FontWeight="Bold"
+                                    Background="#33FFFFFF" BorderBrush="#55000000" BorderThickness="1"
+                                    Cursor="Hand"
+                                    Margin="8,0,0,0"
+                                    Visibility="{Binding NavigationHistoryCount, Converter={StaticResource PositiveCountToVisibilityConverter}}"/>
+                            </StackPanel>
                         </Grid>
                     </Grid>
                 </Border>

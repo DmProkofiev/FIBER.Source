@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using FIBER.Source.Contracts.Inputs;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Helpers;
+using FIBER.Source.Models.Joins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +17,7 @@ public partial class EventParticipantEditVM : ObservableObject
 
     public int? PersonId { get; set; }
     public int? CompanyId { get; set; }
+    public int? EventId { get; set; }
 
     [ObservableProperty] private string _displayName = string.Empty;
 
@@ -30,9 +32,9 @@ public partial class EventParticipantEditVM : ObservableObject
             .Select(r => new EventParticipantRoleOption(r, EventParticipantRoles.DisplayName(r)))
             .ToList();
 
-    public EventParticipantInput ToInput() => new(PersonId, CompanyId, Role, Notes);
+    public EventParticipantInput ToInput() => new(PersonId, CompanyId, EventId, Role, Notes);
 
-    public EventParticipantEditInput ToEditInput() => new(Id, PersonId, CompanyId, Role, Notes);
+    public EventParticipantEditInput ToEditInput() => new(Id, PersonId, CompanyId, EventId, Role, Notes);
 
     public static EventParticipantEditVM ForPerson(int personId, string displayName) => new()
     {
@@ -44,5 +46,18 @@ public partial class EventParticipantEditVM : ObservableObject
     {
         CompanyId = companyId,
         DisplayName = displayName
+    };
+
+    public static EventParticipantEditVM FromModel(EventParticipant ep) => new()
+    {
+        Id = ep.Id,
+        PersonId = ep.PersonId,
+        CompanyId = ep.CompanyId,
+        EventId = ep.EventId,
+        DisplayName = ep.Person != null
+            ? (ep.Person.FullName ?? ep.Person.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value ?? $"Аноним #{ep.PersonId}")
+            : (ep.Company?.Name ?? $"Организация #{ep.CompanyId}"),
+        Role = ep.Role,
+        Notes = ep.Notes
     };
 }

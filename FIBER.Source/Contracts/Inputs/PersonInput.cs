@@ -22,4 +22,6 @@ public record PersonInput(
     string Notes,
     IdentityStatus? Status = null,
     IReadOnlyList<PersonAliasInput>? Aliases = null,
-    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null);
+    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null,
+    IReadOnlyList<CompanyPersonEditInput>? CompanyPeople = null,
+    IReadOnlyList<EventParticipantEditInput>? EventParticipations = null);

@@ -11,4 +11,5 @@ public record EventInput(
     int? OrganizerCompanyId,
     int? OrganizerPersonId,
     IReadOnlyList<EventParticipantInput> Participants,
-    IReadOnlyList<EventParticipantEditInput>? ParticipantLinks = null);
+    IReadOnlyList<EventParticipantEditInput>? ParticipantLinks = null,
+    IReadOnlyList<EventEventEditInput>? EventEvents = null);

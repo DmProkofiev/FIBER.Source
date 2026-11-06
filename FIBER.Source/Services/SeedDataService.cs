@@ -173,9 +173,9 @@ public sealed class SeedDataService : ISeedDataService
             {
                 bool usePerson = Rng.NextDouble() > 0.3;
                 if (usePerson && personIds.Count > 0)
-                    participants.Add(new EventParticipantInput(personIds[Rng.Next(personIds.Count)], null, (EventParticipantRole)Rng.Next(0, 11), "Участник из сидинга."));
+                    participants.Add(new EventParticipantInput(personIds[Rng.Next(personIds.Count)], null, null, (EventParticipantRole)Rng.Next(0, 11), "Участник из сидинга."));
                 else if (companyIds.Count > 0)
-                    participants.Add(new EventParticipantInput(null, companyIds[Rng.Next(companyIds.Count)], (EventParticipantRole)Rng.Next(0, 11), "Организация из сидинга."));
+                    participants.Add(new EventParticipantInput(null, companyIds[Rng.Next(companyIds.Count)], null, (EventParticipantRole)Rng.Next(0, 11), "Организация из сидинга."));
             }
 
             var evt = await _eventService.CreateAsync(new EventInput(

@@ -111,6 +111,24 @@ public sealed class PersonService : BaseService, IPersonService
             await context.SaveChangesAsync();
         }
 
+        // Связи с другими персонами при создании.
+        if (input.Relationships is { Count: > 0 })
+        {
+            await SyncRelationshipsAsync(context, person, input.Relationships);
+        }
+
+        // Связи с организациями при создании.
+        if (input.CompanyPeople is { Count: > 0 })
+        {
+            await SyncCompanyPeopleAsync(context, person, input.CompanyPeople);
+        }
+
+        // Связи с событиями при создании.
+        if (input.EventParticipations is { Count: > 0 })
+        {
+            await SyncEventParticipationsAsync(context, person, input.EventParticipations);
+        }
+
         await _auditLog.LogAsync("Person.CreateIdentified", $"Id={person.Id}");
         return person;
     }
@@ -169,6 +187,25 @@ public sealed class PersonService : BaseService, IPersonService
         }
 
         await context.SaveChangesAsync();
+
+        // Связи с другими персонами при создании.
+        if (input.Relationships is { Count: > 0 })
+        {
+            await SyncRelationshipsAsync(context, person, input.Relationships);
+        }
+
+        // Связи с организациями при создании.
+        if (input.CompanyPeople is { Count: > 0 })
+        {
+            await SyncCompanyPeopleAsync(context, person, input.CompanyPeople);
+        }
+
+        // Связи с событиями при создании.
+        if (input.EventParticipations is { Count: > 0 })
+        {
+            await SyncEventParticipationsAsync(context, person, input.EventParticipations);
+        }
+
         await _auditLog.LogAsync("Person.CreateAnonymous", $"Id={person.Id}");
         return person;
     }
@@ -210,6 +247,8 @@ public sealed class PersonService : BaseService, IPersonService
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            // Связи персоны с организациями (для редактирования в Update-экране).
+            .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new InvalidOperationException($"Личность Id={id} не найдена");
 
@@ -256,6 +295,12 @@ public sealed class PersonService : BaseService, IPersonService
         // Связи с другими персонами: добавление / изменение / удаление.
         await SyncRelationshipsAsync(context, person, input.Relationships);
 
+        // Связи с организациями: добавление / изменение / удаление.
+        await SyncCompanyPeopleAsync(context, person, input.CompanyPeople);
+
+        // Связи с событиями: добавление / изменение / удаление.
+        await SyncEventParticipationsAsync(context, person, input.EventParticipations);
+
         await context.SaveChangesAsync();
         await _auditLog.LogAsync("Person.Update", $"Id={person.Id}");
     }
@@ -269,6 +314,8 @@ public sealed class PersonService : BaseService, IPersonService
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            // Связи персоны с организациями (для редактирования в Update-экране).
+            .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new InvalidOperationException($"Личность Id={id} не найдена");
 
@@ -306,6 +353,12 @@ public sealed class PersonService : BaseService, IPersonService
 
         // Связи с другими персонами: добавление / изменение / удаление.
         await SyncRelationshipsAsync(context, person, input.Relationships);
+
+        // Связи с организациями: добавление / изменение / удаление.
+        await SyncCompanyPeopleAsync(context, person, input.CompanyPeople);
+
+        // Связи с событиями: добавление / изменение / удаление.
+        await SyncEventParticipationsAsync(context, person, input.EventParticipations);
 
         await context.SaveChangesAsync();
         await _auditLog.LogAsync("Person.UpdateAnonymous", $"Id={person.Id}");
@@ -513,6 +566,8 @@ public sealed class PersonService : BaseService, IPersonService
             // Псевдонимы нужны для отображения имени анонимной связанной личности.
             .Include(p => p.Relationships).ThenInclude(r => r.RelatedPerson!).ThenInclude(p => p.Aliases)
             .Include(p => p.ReverseRelationships).ThenInclude(r => r.Person!).ThenInclude(p => p.Aliases)
+            // Связи персоны с организациями (для отображения и редактирования в Update-экране).
+            .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
@@ -612,6 +667,106 @@ public sealed class PersonService : BaseService, IPersonService
         await context.SaveChangesAsync();
     }
 
+    // ===== Синхронизация связей «персона ↔ организация» (CRUD внутри Update) =====
+
+    // Полная синхронизация связей персоны с организациями: новые добавляются,
+    // изменённые обновляются, отсутствующие удаляются.
+    private static async Task SyncCompanyPeopleAsync(
+        FiberSourceDbContext context, Person person, IReadOnlyList<CompanyPersonEditInput>? inputs)
+    {
+        if (inputs is null) return;
+
+        // DELETE: связи, отсутствующие во входных данных.
+        foreach (var existing in person.CompanyPeople?.ToList() ?? new List<CompanyPerson>())
+        {
+            if (inputs.Any(i => i.Id == existing.Id)) continue;
+
+            context.CompanyPeople.Remove(existing);
+        }
+
+        // UPDATE + CREATE.
+        // Для новых связей (Id == null) PersonId не задан — используем person.Id из контекста.
+        foreach (var input in inputs.Where(i => i.CompanyId > 0))
+        {
+            var inputPersonId = input.Id.HasValue ? input.PersonId : person.Id;
+            if (inputPersonId != person.Id)
+                throw new InvalidOperationException("Невозможно связать персону с организацией от имени другого лица");
+
+            if (!await context.Companies.AnyAsync(c => c.Id == input.CompanyId))
+                throw new InvalidOperationException($"Организация Id={input.CompanyId} не найдена");
+
+            var link = person.CompanyPeople?.FirstOrDefault(cp => cp.Id == input.Id);
+            if (link is not null)
+            {
+                // Существующая связь — обновляем роль/заметки.
+                link.Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty;
+                link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
+                continue;
+            }
+
+            // Защита от дубля.
+            bool exists = await context.CompanyPeople.AnyAsync(cp =>
+                cp.CompanyId == input.CompanyId && cp.PersonId == person.Id);
+            if (exists) continue;
+
+            context.CompanyPeople.Add(new CompanyPerson
+            {
+                CompanyId = input.CompanyId,
+                PersonId = person.Id,
+                Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty,
+                Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    // ===== Синхронизация связей «персона ↔ событие» (CRUD внутри Update) =====
+
+    private static async Task SyncEventParticipationsAsync(
+        FiberSourceDbContext context, Person person, IReadOnlyList<EventParticipantEditInput>? inputs)
+    {
+        if (inputs is null) return;
+
+        // DELETE: связи, отсутствующие во входных данных.
+        foreach (var existing in person.EventParticipations?.ToList() ?? new List<EventParticipant>())
+        {
+            if (inputs.Any(i => i.Id == existing.Id)) continue;
+            context.EventParticipants.Remove(existing);
+        }
+
+        // UPDATE + CREATE.
+        foreach (var input in inputs.Where(i => i.EventId.HasValue))
+        {
+            var eventId = input.EventId!.Value;
+            if (!await context.Events.AnyAsync(e => e.Id == eventId))
+                throw new InvalidOperationException($"Событие Id={eventId} не найдено");
+
+            var link = person.EventParticipations?.FirstOrDefault(ep => ep.Id == input.Id);
+            if (link is not null)
+            {
+                link.Role = input.Role;
+                link.Notes = input.Notes ?? string.Empty;
+                continue;
+            }
+
+            // Защита от дубля.
+            bool exists = await context.EventParticipants.AnyAsync(ep =>
+                ep.EventId == eventId && ep.PersonId == person.Id);
+            if (exists) continue;
+
+            context.EventParticipants.Add(new EventParticipant
+            {
+                EventId = eventId,
+                PersonId = person.Id,
+                Role = input.Role,
+                Notes = input.Notes ?? string.Empty
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     // Добавляет зеркальную связь (related → person), если её ещё нет.
     private static async Task EnsureInverseAsync(
         FiberSourceDbContext context, int personId, int relatedPersonId, PersonRelationKind inverseKind)
@@ -654,7 +809,16 @@ public sealed class PersonService : BaseService, IPersonService
             async context =>
             {
                 var person = await context.People.FirstOrDefaultAsync(p => p.Id == id);
-                if (person is not null) context.People.Remove(person);
+                if (person is not null)
+                {
+                    // Удаляем связи «персона ↔ организация».
+                    var companyPeople = await context.CompanyPeople
+                        .Where(cp => cp.PersonId == id)
+                        .ToListAsync();
+                    context.CompanyPeople.RemoveRange(companyPeople);
+
+                    context.People.Remove(person);
+                }
             });
     }
 }

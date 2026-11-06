@@ -19,6 +19,7 @@ public partial class CreateEventViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly ICompanyService _companyService;
     private readonly IPersonService _personService;
+    private readonly IRelationService _relationService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
 
@@ -26,19 +27,23 @@ public partial class CreateEventViewModel : ObservableValidator
         IEventService eventService,
         ICompanyService companyService,
         IPersonService personService,
+        IRelationService relationService,
         IMediaService mediaService,
         IMediaManagementService mediaManagement)
     {
         _eventService = eventService;
         _companyService = companyService;
         _personService = personService;
+        _relationService = relationService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
     }
 
     public ObservableCollection<CompanySummary> Companies { get; } = new();
     public ObservableCollection<PersonSummary> Persons { get; } = new();
+    public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
     public ObservableCollection<EventParticipantEditVM> PendingParticipants { get; } = new();
+    public ObservableCollection<EventEventEditVM> EventEvents { get; } = new();
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
 
     /// <summary>Id только что созданного события (для привязки существующих медиа).</summary>
@@ -59,6 +64,7 @@ public partial class CreateEventViewModel : ObservableValidator
 
     [ObservableProperty] private int? _selectedPersonId;
     [ObservableProperty] private int? _selectedCompanyId;
+    [ObservableProperty] private int? _selectedTargetEventId;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
@@ -73,6 +79,11 @@ public partial class CreateEventViewModel : ObservableValidator
         var persons = await _personService.SearchAsync(string.Empty);
         Persons.Clear();
         foreach (var p in persons) Persons.Add(p);
+
+        // Справочник событий для связи «событие ↔ событие».
+        AvailableEvents.Clear();
+        foreach (var e in await _eventService.ListAsync(null))
+            AvailableEvents.Add(e);
     }
 
     public async Task HandleFilesDropAsync(string[] files)
@@ -136,7 +147,8 @@ public partial class CreateEventViewModel : ObservableValidator
                 Notes.Trim(),
                 OrganizerCompanyId,
                 OrganizerPersonId,
-                PendingParticipants.Select(p => p.ToInput()).ToList());
+                PendingParticipants.Select(p => p.ToInput()).ToList(),
+                EventEvents: BuildEventEventsInput());
 
             var ev = await _eventService.CreateAsync(input);
 
@@ -203,7 +215,50 @@ public partial class CreateEventViewModel : ObservableValidator
         PendingParticipants.Clear();
         SelectedPersonId = null;
         SelectedCompanyId = null;
+        SelectedTargetEventId = null;
+        EventEvents.Clear();
+        AvailableEvents.Clear();
         _mediaService.DeleteTempFiles(TempFiles);
         TempFiles.Clear();
     }
+
+    // ----- Связи «событие ↔ событие» при создании -----
+
+    [RelayCommand]
+    private void AddEventEvent()
+    {
+        if (SelectedTargetEventId == null) return;
+
+        var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
+        if (target == null) return;
+
+        // Защита от дубля: такое событие уже есть в списке связей.
+        if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            SelectedTargetEventId = null;
+            return;
+        }
+
+        EventEvents.Add(new EventEventEditVM
+        {
+            TargetEventId = target.Id,
+            TargetEventTitle = target.Title,
+            RelationshipType = "Связано с"
+        });
+        SelectedTargetEventId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveEventEvent(EventEventEditVM eventEvent)
+    {
+        if (eventEvent == null) return;
+        EventEvents.Remove(eventEvent);
+    }
+
+    private List<EventEventEditInput> BuildEventEventsInput() =>
+        EventEvents
+            .Where(ee => ee.TargetEventId.HasValue)
+            .Select(ee => ee.ToInput())
+            .ToList();
 }

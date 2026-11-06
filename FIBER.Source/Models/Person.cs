@@ -43,6 +43,8 @@ public class Person
     public ICollection<PersonRelationship> Relationships { get; set; } = new List<PersonRelationship>();
     // Связи, где данная персона является «связанной» (обратная сторона связи другой персоны).
     public ICollection<PersonRelationship> ReverseRelationships { get; set; } = new List<PersonRelationship>();
+    // Связи с организациями.
+    public ICollection<CompanyPerson> CompanyPeople { get; set; } = new List<CompanyPerson>();
 
     [NotMapped]
     public string? FullName =>

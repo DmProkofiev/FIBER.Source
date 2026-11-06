@@ -134,6 +134,12 @@ public sealed class EventService : BaseService, IEventService
                 });
             }
 
+            // Связи «событие ↔ событие» при создании.
+            if (input.EventEvents is { Count: > 0 })
+            {
+                await SyncEventEventsAsync(context, ev, input.EventEvents);
+            }
+
             await context.SaveChangesAsync();
             await tx.CommitAsync();
             await _auditLog.LogAsync("Event.Create", $"Id={ev.Id}");
@@ -154,6 +160,9 @@ public sealed class EventService : BaseService, IEventService
             .Include(e => e.OrganizerPerson!).ThenInclude(p => p.Aliases)
             .Include(e => e.Participants).ThenInclude(p => p.Person!).ThenInclude(p => p.Aliases)
             .Include(e => e.Participants).ThenInclude(p => p.Company)
+            // Связи события с другими событиями: прямые и обратные.
+            .Include(e => e.EventEvents).ThenInclude(ee => ee.TargetEvent)
+            .Include(e => e.ReverseEventEvents).ThenInclude(ee => ee.SourceEvent)
             .FirstOrDefaultAsync(e => e.Id == id);
     }
 
@@ -269,6 +278,9 @@ public sealed class EventService : BaseService, IEventService
         {
             var ev = await context.Events
                 .Include(e => e.Participants)
+                // Связи события с другими событиями: прямые и обратные.
+                .Include(e => e.EventEvents).ThenInclude(ee => ee.TargetEvent)
+                .Include(e => e.ReverseEventEvents).ThenInclude(ee => ee.SourceEvent)
                 .FirstOrDefaultAsync(e => e.Id == id)
                 ?? throw new InvalidOperationException($"Событие Id={id} не найдено");
 
@@ -303,6 +315,9 @@ public sealed class EventService : BaseService, IEventService
                     });
                 }
             }
+
+            // Связи «событие ↔ событие».
+            await SyncEventEventsAsync(context, ev, input.EventEvents);
 
             await context.SaveChangesAsync();
             await tx.CommitAsync();
@@ -391,6 +406,57 @@ public sealed class EventService : BaseService, IEventService
         await context.SaveChangesAsync();
     }
 
+    // ===== Синхронизация связей «событие ↔ событие» (CRUD внутри Update) =====
+
+    private static async Task SyncEventEventsAsync(
+        FiberSourceDbContext context, Event ev, IReadOnlyList<EventEventEditInput>? inputs)
+    {
+        if (inputs is null) return;
+
+        // DELETE: связи, отсутствующие во входных данных.
+        foreach (var existing in ev.EventEvents?.ToList() ?? new List<EventEvent>())
+        {
+            if (inputs.Any(i => i.Id == existing.Id)) continue;
+            context.EventEvents.Remove(existing);
+        }
+
+        // UPDATE + CREATE.
+        // Для новых связей (Id == null) SourceEventId не задан — используем ev.Id из контекста.
+        foreach (var input in inputs.Where(i => i.TargetEventId > 0))
+        {
+            var inputSourceEventId = input.Id.HasValue ? input.SourceEventId : ev.Id;
+            if (inputSourceEventId != ev.Id)
+                throw new InvalidOperationException("Невозможно связать событие с другим событием от имени другого события");
+
+            if (!await context.Events.AnyAsync(e => e.Id == input.TargetEventId))
+                throw new InvalidOperationException($"Событие Id={input.TargetEventId} не найдено");
+
+            var link = ev.EventEvents?.FirstOrDefault(ee => ee.Id == input.Id);
+            if (link is not null)
+            {
+                // Существующая связь — обновляем тип/заметки.
+                link.RelationshipType = StringHelpers.NullIfEmpty(input.RelationshipType) ?? string.Empty;
+                link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
+                continue;
+            }
+
+            // Защита от дубля.
+            bool exists = await context.EventEvents.AnyAsync(ee =>
+                ee.SourceEventId == ev.Id && ee.TargetEventId == input.TargetEventId);
+            if (exists) continue;
+
+            context.EventEvents.Add(new EventEvent
+            {
+                SourceEventId = ev.Id,
+                TargetEventId = input.TargetEventId,
+                RelationshipType = StringHelpers.NullIfEmpty(input.RelationshipType) ?? string.Empty,
+                Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     public async Task DeleteAsync(int id)
     {
         await DeleteWithMediaAsync(
@@ -399,6 +465,12 @@ public sealed class EventService : BaseService, IEventService
             "Event.Delete",
             async context =>
             {
+                // Удаляем связи «событие ↔ событие» (и исходящие, и обратные).
+                var eventEvents = await context.EventEvents
+                    .Where(ee => ee.SourceEventId == id || ee.TargetEventId == id)
+                    .ToListAsync();
+                context.EventEvents.RemoveRange(eventEvents);
+
                 var ev = await context.Events.FirstOrDefaultAsync(e => e.Id == id);
                 if (ev is not null) context.Events.Remove(ev);
             });

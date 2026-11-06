@@ -110,6 +110,16 @@ public sealed class RelationService : IRelationService
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<PersonRelationship>> ListReverseRelationshipsAsync(int personId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.PersonRelationships.AsNoTracking()
+            .Include(r => r.Person).ThenInclude(p => p.Aliases)
+            .Include(r => r.RelatedPerson)
+            .Where(r => r.RelatedPersonId == personId)
+            .ToListAsync();
+    }
+
     public async Task AddPersonRelationshipAsync(int personId, int relatedPersonId,
         PersonRelationKind kind, string notes)
     {
@@ -221,5 +231,127 @@ public sealed class RelationService : IRelationService
         await context.SaveChangesAsync();
         await _auditLog.LogAsync("Relation.RemoveCompanyInteraction",
             $"Source={sourceCompanyId}, Target={targetCompanyId}");
+    }
+
+    // ----- Связи «организация ↔ личность» -----
+
+    public async Task<IReadOnlyList<CompanyPerson>> ListCompanyPeopleAsync(int companyId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.CompanyPeople.AsNoTracking()
+            .Include(cp => cp.Person).ThenInclude(p => p.Aliases)
+            .Where(cp => cp.CompanyId == companyId)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<CompanyPerson>> ListPersonCompaniesAsync(int personId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.CompanyPeople.AsNoTracking()
+            .Include(cp => cp.Company)
+            .Where(cp => cp.PersonId == personId)
+            .ToListAsync();
+    }
+
+    public async Task AddCompanyPersonAsync(int companyId, int personId, string role, string notes)
+    {
+        if (companyId <= 0 || personId <= 0)
+            throw new InvalidOperationException("Некорректные идентификаторы организации или лица");
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        if (!await context.Companies.AnyAsync(c => c.Id == companyId))
+            throw new InvalidOperationException($"Организация Id={companyId} не найдена");
+        if (!await context.People.AnyAsync(p => p.Id == personId))
+            throw new InvalidOperationException($"Личность Id={personId} не найдена");
+
+        bool exists = await context.CompanyPeople.AnyAsync(cp =>
+            cp.CompanyId == companyId && cp.PersonId == personId);
+        if (exists) return;
+
+        context.CompanyPeople.Add(new CompanyPerson
+        {
+            CompanyId = companyId,
+            PersonId = personId,
+            Role = role ?? string.Empty,
+            Notes = notes ?? string.Empty
+        });
+        await context.SaveChangesAsync();
+        await _auditLog.LogAsync("Relation.AddCompanyPerson",
+            $"Company={companyId}, Person={personId}");
+    }
+
+    public async Task RemoveCompanyPersonAsync(int companyPersonId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var item = await context.CompanyPeople.FirstOrDefaultAsync(cp => cp.Id == companyPersonId);
+        if (item is null) return;
+
+        context.CompanyPeople.Remove(item);
+        await context.SaveChangesAsync();
+        await _auditLog.LogAsync("Relation.RemoveCompanyPerson", $"CompanyPerson={companyPersonId}");
+    }
+
+    // ----- Связи «событие ↔ событие» -----
+
+    public async Task<IReadOnlyList<EventEvent>> ListEventEventsAsync(int eventId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.EventEvents.AsNoTracking()
+            .Include(ee => ee.TargetEvent)
+            .Where(ee => ee.SourceEventId == eventId)
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<EventEvent>> ListReverseEventEventsAsync(int eventId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.EventEvents.AsNoTracking()
+            .Include(ee => ee.SourceEvent)
+            .Where(ee => ee.TargetEventId == eventId)
+            .ToListAsync();
+    }
+
+    public async Task AddEventEventAsync(int sourceEventId, int targetEventId,
+        string relationshipType, string notes)
+    {
+        if (sourceEventId <= 0 || targetEventId <= 0)
+            throw new InvalidOperationException("Некорректные идентификаторы событий");
+
+        if (sourceEventId == targetEventId)
+            throw new InvalidOperationException("Связь события с самим собой невозможна");
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
+        if (!await context.Events.AnyAsync(e => e.Id == sourceEventId))
+            throw new InvalidOperationException($"Событие Id={sourceEventId} не найдено");
+        if (!await context.Events.AnyAsync(e => e.Id == targetEventId))
+            throw new InvalidOperationException($"Событие Id={targetEventId} не найдено");
+
+        bool exists = await context.EventEvents.AnyAsync(ee =>
+            ee.SourceEventId == sourceEventId && ee.TargetEventId == targetEventId);
+        if (exists) return;
+
+        context.EventEvents.Add(new EventEvent
+        {
+            SourceEventId = sourceEventId,
+            TargetEventId = targetEventId,
+            RelationshipType = relationshipType ?? string.Empty,
+            Notes = notes ?? string.Empty
+        });
+        await context.SaveChangesAsync();
+        await _auditLog.LogAsync("Relation.AddEventEvent",
+            $"Source={sourceEventId}, Target={targetEventId}");
+    }
+
+    public async Task RemoveEventEventAsync(int eventEventId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var item = await context.EventEvents.FirstOrDefaultAsync(ee => ee.Id == eventEventId);
+        if (item is null) return;
+
+        context.EventEvents.Remove(item);
+        await context.SaveChangesAsync();
+        await _auditLog.LogAsync("Relation.RemoveEventEvent", $"EventEvent={eventEventId}");
     }
 }

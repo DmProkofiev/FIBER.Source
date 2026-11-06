@@ -22,6 +22,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly ICompanyService _companyService;
     private readonly IPersonService _personService;
+    private readonly IRelationService _relationService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
 
@@ -32,12 +33,14 @@ public partial class UpdateEventViewModel : ObservableValidator
         IEventService eventService,
         ICompanyService companyService,
         IPersonService personService,
+        IRelationService relationService,
         IMediaService mediaService,
         IMediaManagementService mediaManagement)
     {
         _eventService = eventService;
         _companyService = companyService;
         _personService = personService;
+        _relationService = relationService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
     }
@@ -46,7 +49,9 @@ public partial class UpdateEventViewModel : ObservableValidator
 
     public ObservableCollection<CompanySummary> Companies { get; } = new();
     public ObservableCollection<PersonSummary> Persons { get; } = new();
+    public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
     public ObservableCollection<EventParticipantEditVM> Participants { get; } = new();
+    public ObservableCollection<EventEventEditVM> EventEvents { get; } = new();
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingImages { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingVideos { get; } = new();
@@ -74,6 +79,7 @@ public partial class UpdateEventViewModel : ObservableValidator
 
     [ObservableProperty] private int? _selectedPersonId;
     [ObservableProperty] private int? _selectedCompanyId;
+    [ObservableProperty] private int? _selectedTargetEventId;
 
     // ----- Состояние -----
 
@@ -137,6 +143,16 @@ public partial class UpdateEventViewModel : ObservableValidator
             last.Notes = p.Notes;
         }
 
+        // Справочник событий для связи «событие ↔ событие».
+        AvailableEvents.Clear();
+        foreach (var e in await _eventService.ListAsync(null))
+            if (e.Id != eventId) AvailableEvents.Add(e);
+
+        // Связи события с другими событиями.
+        EventEvents.Clear();
+        foreach (var ee in ev.EventEvents)
+            EventEvents.Add(EventEventEditVM.FromModel(ee));
+
         await LoadExistingMediaAsync(eventId);
     }
 
@@ -161,6 +177,9 @@ public partial class UpdateEventViewModel : ObservableValidator
         _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
         _ownerMedia = null;
         ExistingImages.Clear(); ExistingVideos.Clear(); ExistingAudio.Clear();
+        EventEvents.Clear();
+        AvailableEvents.Clear();
+        SelectedTargetEventId = null;
     }
 
     // ----- Медиа -----
@@ -230,6 +249,45 @@ public partial class UpdateEventViewModel : ObservableValidator
         Participants.Remove(item);
     }
 
+    // ----- Связи «событие ↔ событие» -----
+
+    [RelayCommand]
+    private void AddEventEvent()
+    {
+        if (SelectedTargetEventId == null) return;
+
+        var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
+        if (target == null) return;
+
+        if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            SelectedTargetEventId = null;
+            return;
+        }
+
+        EventEvents.Add(new EventEventEditVM
+        {
+            TargetEventId = target.Id,
+            TargetEventTitle = target.Title,
+            RelationshipType = "Связано с"
+        });
+        SelectedTargetEventId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveEventEvent(EventEventEditVM eventEvent)
+    {
+        if (eventEvent == null) return;
+        EventEvents.Remove(eventEvent);
+    }
+
+    private List<EventEventEditInput> BuildEventEventsInput() =>
+        EventEvents
+            .Where(ee => ee.TargetEventId.HasValue)
+            .Select(ee => ee.ToInput())
+            .ToList();
+
     // ----- Сохранение -----
 
     [RelayCommand]
@@ -287,7 +345,8 @@ public partial class UpdateEventViewModel : ObservableValidator
                 Participants.Select(p => p.ToInput()).ToList(),
                 // Точечный CRUD связей: участники с Id обновляются на месте,
                 // без Id — создаются, удалённые из списка — удаляются.
-                ParticipantLinks: Participants.Select(p => p.ToEditInput()).ToList());
+                ParticipantLinks: Participants.Select(p => p.ToEditInput()).ToList(),
+                EventEvents: BuildEventEventsInput());
 
             await _eventService.UpdateAsync(EventId, input);
 

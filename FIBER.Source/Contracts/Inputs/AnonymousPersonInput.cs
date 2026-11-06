@@ -16,4 +16,6 @@ public record AnonymousPersonInput(
     string SocialMedia = "",
     string Address = "",
     IReadOnlyList<PersonAliasInput>? Aliases = null,
-    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null);
+    IReadOnlyList<PersonRelationshipEditInput>? Relationships = null,
+    IReadOnlyList<CompanyPersonEditInput>? CompanyPeople = null,
+    IReadOnlyList<EventParticipantEditInput>? EventParticipations = null);

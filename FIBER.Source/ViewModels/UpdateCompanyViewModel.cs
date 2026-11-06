@@ -1,8 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
+using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
+using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services.MediaManagement;
 using System;
@@ -17,15 +19,19 @@ namespace FIBER.Source.ViewModels;
 public partial class UpdateCompanyViewModel : ObservableValidator
 {
     private readonly ICompanyService _companyService;
+    private readonly IPersonService _personService;
+    private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
 
     public event Action? Saved;
     public event Action? Cancelled;
 
-    public UpdateCompanyViewModel(ICompanyService companyService, IMediaService mediaService, IMediaManagementService mediaManagement)
+    public UpdateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement)
     {
         _companyService = companyService;
+        _personService = personService;
+        _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
     }
@@ -39,8 +45,18 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     public ObservableCollection<CompanyInteractionEditVM> Interactions { get; } = new();
     // Справочник организаций для ComboBox выбора цели новой связи.
     public ObservableCollection<Models.Company> AvailableCompanies { get; } = new();
+    // Связи «организация ↔ персона».
+    public ObservableCollection<CompanyPersonEditVM> CompanyPeople { get; } = new();
+    // Справочник персон для связи с организацией.
+    public ObservableCollection<Contracts.Summaries.PersonSummary> AvailablePersons { get; } = new();
+    // Связи «организация ↔ событие».
+    public ObservableCollection<EventParticipantEditVM> EventParticipations { get; } = new();
+    // Справочник событий для связи с организацией.
+    public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
 
     [ObservableProperty] private int? _selectedTargetCompanyId;
+    [ObservableProperty] private int? _selectedTargetPersonId;
+    [ObservableProperty] private int? _selectedTargetEventId;
 
     [ObservableProperty] private int _companyId;
 
@@ -94,6 +110,26 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         foreach (var ci in company.IncomingInteractions)
             Interactions.Add(CompanyInteractionEditVM.FromReverse(ci));
 
+        // Справочник персон для связи «организация ↔ персона».
+        AvailablePersons.Clear();
+        foreach (var p in await _personService.SearchAsync(string.Empty))
+            AvailablePersons.Add(p);
+
+        // Связи организации с персонами.
+        CompanyPeople.Clear();
+        foreach (var cp in company.CompanyPeople)
+            CompanyPeople.Add(CompanyPersonEditVM.FromModel(cp));
+
+        // Справочник событий для связи «организация ↔ событие».
+        AvailableEvents.Clear();
+        foreach (var e in await _eventService.ListAsync(null))
+            AvailableEvents.Add(e);
+
+        // Связи организации с событиями.
+        EventParticipations.Clear();
+        foreach (var ep in company.EventParticipations)
+            EventParticipations.Add(EventParticipantEditVM.FromModel(ep));
+
         await LoadExistingMediaAsync(companyId);
     }
 
@@ -118,6 +154,12 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
         _ownerMedia = null;
         ExistingImages.Clear(); ExistingVideos.Clear(); ExistingAudio.Clear();
+        CompanyPeople.Clear();
+        AvailablePersons.Clear();
+        SelectedTargetPersonId = null;
+        EventParticipations.Clear();
+        AvailableEvents.Clear();
+        SelectedTargetEventId = null;
     }
 
     // ----- Взаимодействия «компания → компания»: CRUD внутри редактора -----
@@ -158,6 +200,88 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         Interactions
             .Where(i => !i.IsReverseOnly && i.TargetCompanyId.HasValue)
             .Select(i => i.ToInput())
+            .ToList();
+
+    // ----- Связи «организация ↔ персона» -----
+
+    [RelayCommand]
+    private void AddPersonCompany()
+    {
+        if (SelectedTargetPersonId == null) return;
+
+        var target = AvailablePersons.FirstOrDefault(p => p.Id == SelectedTargetPersonId.Value);
+        if (target == null) return;
+
+        if (CompanyPeople.Any(cp => cp.PersonId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            SelectedTargetPersonId = null;
+            return;
+        }
+
+        CompanyPeople.Add(new CompanyPersonEditVM
+        {
+            PersonId = target.Id,
+            PersonName = target.DisplayName,
+            CompanyId = CompanyId,  // Текущая организация
+            Role = "Сотрудник"
+        });
+        SelectedTargetPersonId = null;
+    }
+
+    [RelayCommand]
+    private void RemovePersonCompany(CompanyPersonEditVM companyPerson)
+    {
+        if (companyPerson == null) return;
+        CompanyPeople.Remove(companyPerson);
+    }
+
+    private List<CompanyPersonEditInput> BuildPersonCompaniesInput() =>
+        CompanyPeople
+            .Where(cp => cp.PersonId.HasValue)
+            .Select(cp => cp.ToInput())
+            .ToList();
+
+    // ----- Связи «организация ↔ событие» -----
+
+    [RelayCommand]
+    private void AddEventParticipation()
+    {
+        if (_selectedTargetEventId == null) return;
+
+        var target = AvailableEvents.FirstOrDefault(e => e.Id == _selectedTargetEventId.Value);
+        if (target == null) return;
+
+        // Защита от дубля: такое событие уже есть в списке.
+        if (EventParticipations.Any(ep => ep.EventId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            SelectedTargetEventId = null;
+            return;
+        }
+
+        EventParticipations.Add(new EventParticipantEditVM
+        {
+            CompanyId = CompanyId,  // Текущая организация
+            EventId = target.Id,
+            DisplayName = target.Title,
+            Role = EventParticipantRole.Participant,
+            Notes = string.Empty
+        });
+        SelectedTargetEventId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveEventParticipation(EventParticipantEditVM eventParticipation)
+    {
+        if (eventParticipation == null) return;
+        EventParticipations.Remove(eventParticipation);
+    }
+
+    private List<EventParticipantEditInput> BuildEventParticipationsInput() =>
+        EventParticipations
+            .Where(ep => ep.EventId.HasValue)
+            .Select(ep => ep.ToEditInput())
             .ToList();
 
     public async Task HandleFilesDropAsync(string[] files)
@@ -228,7 +352,9 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             var input = new CompanyInput(
                 Name.Trim(), RegistrationNumber.Trim(), Address.Trim(),
                 Phone.Trim(), Mail.Trim(), Website.Trim(), Notes.Trim(),
-                Interactions: BuildInteractionsInput());
+                Interactions: BuildInteractionsInput(),
+                CompanyPeople: BuildPersonCompaniesInput(),
+                EventParticipations: BuildEventParticipationsInput());
 
             await _companyService.UpdateAsync(CompanyId, input);
 

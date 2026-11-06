@@ -5,6 +5,7 @@ using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
+using FIBER.Source.Models.Helpers;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -567,6 +568,7 @@ public partial class SearchViewModel : ObservableObject
     {
         PersonRelations.Clear();
 
+        // Исходящие связи (персона — инициатор).
         foreach (var r in await _relationService.ListRelationshipsAsync(person.Id))
         {
             var related = r.RelatedPerson;
@@ -577,6 +579,32 @@ public partial class SearchViewModel : ObservableObject
                 RelationTargetType.Person,
                 related.Id,
                 NotesDetails(r.Notes)));
+        }
+
+        // Обратные связи (другая персона — инициатор, эта персона — цель).
+        foreach (var r in await _relationService.ListReverseRelationshipsAsync(person.Id))
+        {
+            var source = r.Person;
+            if (source is null) continue;
+            PersonRelations.Add(new RelationItemViewModel(
+                PersonRelationKinds.DisplayNameOfKind(r.Kind),
+                PersonDisplayName(source),
+                RelationTargetType.Person,
+                source.Id,
+                NotesDetails(r.Notes)));
+        }
+
+        // Связи персоны с организациями.
+        foreach (var cp in await _relationService.ListPersonCompaniesAsync(person.Id))
+        {
+            var company = cp.Company;
+            if (company is null) continue;
+            PersonRelations.Add(new RelationItemViewModel(
+                cp.RoleDisplay,
+                company.Name,
+                RelationTargetType.Company,
+                company.Id,
+                NotesDetails(cp.Notes)));
         }
 
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
@@ -622,6 +650,19 @@ public partial class SearchViewModel : ObservableObject
                 NotesDetails(ci.Notes)));
         }
 
+        // Связи организации с персонами.
+        foreach (var cp in await _relationService.ListCompanyPeopleAsync(company.Id))
+        {
+            var person = cp.Person;
+            if (person is null) continue;
+            CompanyRelations.Add(new RelationItemViewModel(
+                cp.RoleDisplay,
+                PersonDisplayName(person),
+                RelationTargetType.Person,
+                person.Id,
+                NotesDetails(cp.Notes)));
+        }
+
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
         {
             var evt = ep.Event;
@@ -645,6 +686,32 @@ public partial class SearchViewModel : ObservableObject
         if (evt.OrganizerCompany != null)
             EventRelations.Add(new RelationItemViewModel("Организатор", evt.OrganizerCompany.Name,
                 RelationTargetType.Company, evt.OrganizerCompany.Id));
+
+        // Связи события с другими событиями (исходящие).
+        foreach (var ee in await _relationService.ListEventEventsAsync(evt.Id))
+        {
+            var target = ee.TargetEvent;
+            if (target is null) continue;
+            EventRelations.Add(new RelationItemViewModel(
+                string.IsNullOrWhiteSpace(ee.RelationshipType) ? "Связано с" : ee.RelationshipType,
+                target.Title,
+                RelationTargetType.Event,
+                target.Id,
+                NotesDetails(ee.Notes)));
+        }
+
+        // Связи события с другими событиями (обратные).
+        foreach (var ee in await _relationService.ListReverseEventEventsAsync(evt.Id))
+        {
+            var source = ee.SourceEvent;
+            if (source is null) continue;
+            EventRelations.Add(new RelationItemViewModel(
+                string.IsNullOrWhiteSpace(ee.RelationshipType) ? "Связано с (обратная)" : ee.RelationshipType + " (обратная)",
+                source.Title,
+                RelationTargetType.Event,
+                source.Id,
+                NotesDetails(ee.Notes)));
+        }
 
         foreach (var ep in await _relationService.ListParticipantsByEventAsync(evt.Id))
         {

@@ -22,6 +22,9 @@ public class Event
     public Person? OrganizerPerson { get; set; }
 
     public ICollection<EventParticipant> Participants { get; set; } = new List<EventParticipant>();
+    // Связи «событие ↔ событие»: исходящие (данное событие — источник) и обратные.
+    public ICollection<EventEvent> EventEvents { get; set; } = new List<EventEvent>();
+    public ICollection<EventEvent> ReverseEventEvents { get; set; } = new List<EventEvent>();
 
     [NotMapped]
     public string DateDisplay => Date?.ToString("dd.MM.yyyy") ?? "Сведения отсутствуют";

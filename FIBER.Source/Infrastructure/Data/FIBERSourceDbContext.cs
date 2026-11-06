@@ -22,6 +22,8 @@ public class FiberSourceDbContext : DbContext
     public DbSet<EventParticipant> EventParticipants => Set<EventParticipant>();
     public DbSet<PersonRelationship> PersonRelationships => Set<PersonRelationship>();
     public DbSet<CompanyInteraction> CompanyInteractions => Set<CompanyInteraction>();
+    public DbSet<CompanyPerson> CompanyPeople => Set<CompanyPerson>();
+    public DbSet<EventEvent> EventEvents => Set<EventEvent>();
     public DbSet<MediaAttachmentLink> MediaAttachmentLinks => Set<MediaAttachmentLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

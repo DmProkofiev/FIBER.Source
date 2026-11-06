@@ -407,6 +407,67 @@ namespace FIBER.Source.Migrations
                     b.ToTable("CompanyInteractions", (string)null);
                 });
 
+            modelBuilder.Entity("FIBER.Source.Models.Joins.CompanyPerson", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CompanyId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("CompanyPeople");
+                });
+
+            modelBuilder.Entity("FIBER.Source.Models.Joins.EventEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelationshipType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SourceEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TargetEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetEventId")
+                        .HasDatabaseName("IX_EventEvent_TargetEventId");
+
+                    b.HasIndex("SourceEventId", "TargetEventId", "RelationshipType")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_EventEvent_Natural");
+
+                    b.ToTable("EventEvents", (string)null);
+                });
+
             modelBuilder.Entity("FIBER.Source.Models.Joins.EventParticipant", b =>
                 {
                     b.Property<int>("Id")
@@ -722,6 +783,46 @@ namespace FIBER.Source.Migrations
                     b.Navigation("TargetCompany");
                 });
 
+            modelBuilder.Entity("FIBER.Source.Models.Joins.CompanyPerson", b =>
+                {
+                    b.HasOne("FIBER.Source.Models.Company", "Company")
+                        .WithMany("CompanyPeople")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FIBER.Source.Models.Person", "Person")
+                        .WithMany("CompanyPeople")
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("FIBER.Source.Models.Joins.EventEvent", b =>
+                {
+                    b.HasOne("FIBER.Source.Models.Event", "SourceEvent")
+                        .WithMany("EventEvents")
+                        .HasForeignKey("SourceEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_EventEvent_SourceEvent");
+
+                    b.HasOne("FIBER.Source.Models.Event", "TargetEvent")
+                        .WithMany("ReverseEventEvents")
+                        .HasForeignKey("TargetEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_EventEvent_TargetEvent");
+
+                    b.Navigation("SourceEvent");
+
+                    b.Navigation("TargetEvent");
+                });
+
             modelBuilder.Entity("FIBER.Source.Models.Joins.EventParticipant", b =>
                 {
                     b.HasOne("FIBER.Source.Models.Company", "Company")
@@ -816,6 +917,8 @@ namespace FIBER.Source.Migrations
 
             modelBuilder.Entity("FIBER.Source.Models.Company", b =>
                 {
+                    b.Navigation("CompanyPeople");
+
                     b.Navigation("EventParticipations");
 
                     b.Navigation("IncomingInteractions");
@@ -827,7 +930,11 @@ namespace FIBER.Source.Migrations
 
             modelBuilder.Entity("FIBER.Source.Models.Event", b =>
                 {
+                    b.Navigation("EventEvents");
+
                     b.Navigation("Participants");
+
+                    b.Navigation("ReverseEventEvents");
                 });
 
             modelBuilder.Entity("FIBER.Source.Models.MediaAttachment", b =>
@@ -838,6 +945,8 @@ namespace FIBER.Source.Migrations
             modelBuilder.Entity("FIBER.Source.Models.Person", b =>
                 {
                     b.Navigation("Aliases");
+
+                    b.Navigation("CompanyPeople");
 
                     b.Navigation("EventParticipations");
 

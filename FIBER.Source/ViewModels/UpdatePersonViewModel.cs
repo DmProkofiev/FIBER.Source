@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Inputs;
+using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
@@ -21,6 +22,8 @@ public partial class UpdatePersonViewModel : ObservableValidator
 {
     private readonly IPersonService _personService;
     private readonly ICountryService _countryService;
+    private readonly ICompanyService _companyService;
+    private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
 
@@ -30,11 +33,15 @@ public partial class UpdatePersonViewModel : ObservableValidator
     public UpdatePersonViewModel(
         IPersonService personService,
         ICountryService countryService,
+        ICompanyService companyService,
+        IEventService eventService,
         IMediaService mediaService,
         IMediaManagementService mediaManagement)
     {
         _personService = personService;
         _countryService = countryService;
+        _companyService = companyService;
+        _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
     }
@@ -49,8 +56,18 @@ public partial class UpdatePersonViewModel : ObservableValidator
     public ObservableCollection<PersonRelationshipEditVM> Relationships { get; } = new();
     // Справочник персон для ComboBox выбора цели новой связи.
     public ObservableCollection<Contracts.Summaries.PersonSummary> AvailablePersons { get; } = new();
+    // Связи «персона ↔ организация».
+    public ObservableCollection<CompanyPersonEditVM> CompanyPeople { get; } = new();
+    // Справочник организаций для связи с персоной.
+    public ObservableCollection<CompanySummary> AvailableCompanies { get; } = new();
+    // Связи «персона ↔ событие».
+    public ObservableCollection<EventParticipantEditVM> EventParticipations { get; } = new();
+    // Справочник событий для связи с персоной.
+    public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
 
     [ObservableProperty] private int? _selectedRelatedPersonId;
+    [ObservableProperty] private int? _selectedTargetCompanyId;
+    [ObservableProperty] private int? _selectedTargetEventId;
 
     [ObservableProperty] private int _personId;
     [ObservableProperty] private IdentityStatus _currentStatus;
@@ -180,6 +197,26 @@ public partial class UpdatePersonViewModel : ObservableValidator
         foreach (var r in person.ReverseRelationships)
             Relationships.Add(PersonRelationshipEditVM.FromReverse(r));
 
+        // Справочник организаций для связи «персона ↔ организация».
+        AvailableCompanies.Clear();
+        foreach (var c in await _companyService.ListAsync(null))
+            AvailableCompanies.Add(c);
+
+        // Связи персоны с организациями.
+        CompanyPeople.Clear();
+        foreach (var cp in person.CompanyPeople)
+            CompanyPeople.Add(CompanyPersonEditVM.FromModel(cp));
+
+        // Справочник событий для связи «персона ↔ событие».
+        AvailableEvents.Clear();
+        foreach (var e in await _eventService.ListAsync(null))
+            AvailableEvents.Add(e);
+
+        // Связи персоны с событиями.
+        EventParticipations.Clear();
+        foreach (var ep in person.EventParticipations)
+            EventParticipations.Add(EventParticipantEditVM.FromModel(ep));
+
         await LoadExistingMediaAsync(personId);
     }
 
@@ -204,6 +241,12 @@ public partial class UpdatePersonViewModel : ObservableValidator
         _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
         _ownerMedia = null;
         ExistingImages.Clear(); ExistingVideos.Clear(); ExistingAudio.Clear();
+        CompanyPeople.Clear();
+        AvailableCompanies.Clear();
+        SelectedTargetCompanyId = null;
+        EventParticipations.Clear();
+        AvailableEvents.Clear();
+        SelectedTargetEventId = null;
     }
 
     [RelayCommand]
@@ -253,6 +296,88 @@ public partial class UpdatePersonViewModel : ObservableValidator
         Relationships
             .Where(r => !r.IsReverseOnly && r.RelatedPersonId.HasValue)
             .Select(r => r.ToInput())
+            .ToList();
+
+    // ----- Связи «персона ↔ организация» -----
+
+    [RelayCommand]
+    private void AddCompanyPerson()
+    {
+        if (SelectedTargetCompanyId == null) return;
+
+        var target = AvailableCompanies.FirstOrDefault(c => c.Id == SelectedTargetCompanyId.Value);
+        if (target == null) return;
+
+        if (CompanyPeople.Any(cp => cp.CompanyId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
+            SelectedTargetCompanyId = null;
+            return;
+        }
+
+        CompanyPeople.Add(new CompanyPersonEditVM
+        {
+            CompanyId = target.Id,
+            CompanyName = target.Name,
+            PersonId = PersonId,  // Текущая персона
+            Role = "Сотрудник"
+        });
+        SelectedTargetCompanyId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveCompanyPerson(CompanyPersonEditVM companyPerson)
+    {
+        if (companyPerson == null) return;
+        CompanyPeople.Remove(companyPerson);
+    }
+
+    private List<CompanyPersonEditInput> BuildCompanyPeopleInput() =>
+        CompanyPeople
+            .Where(cp => cp.CompanyId.HasValue)
+            .Select(cp => cp.ToInput())
+            .ToList();
+
+    // ----- Связи «персона ↔ событие» -----
+
+    [RelayCommand]
+    private void AddEventParticipation()
+    {
+        if (_selectedTargetEventId == null) return;
+
+        var target = AvailableEvents.FirstOrDefault(e => e.Id == _selectedTargetEventId.Value);
+        if (target == null) return;
+
+        // Защита от дубля: такое событие уже есть в списке.
+        if (EventParticipations.Any(ep => ep.EventId == target.Id))
+        {
+            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            SelectedTargetEventId = null;
+            return;
+        }
+
+        EventParticipations.Add(new EventParticipantEditVM
+        {
+            PersonId = PersonId,  // Текущая персона
+            EventId = target.Id,
+            DisplayName = target.Title,
+            Role = EventParticipantRole.Participant,
+            Notes = string.Empty
+        });
+        SelectedTargetEventId = null;
+    }
+
+    [RelayCommand]
+    private void RemoveEventParticipation(EventParticipantEditVM eventParticipation)
+    {
+        if (eventParticipation == null) return;
+        EventParticipations.Remove(eventParticipation);
+    }
+
+    private List<EventParticipantEditInput> BuildEventParticipationsInput() =>
+        EventParticipations
+            .Where(ep => ep.EventId.HasValue)
+            .Select(ep => ep.ToEditInput())
             .ToList();
 
     [RelayCommand]
@@ -372,7 +497,9 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(), Notes: Notes.Trim(),
                     Status: IdentityStatus.Identified,
-                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput(),
+                    CompanyPeople: BuildCompanyPeopleInput(),
+                    EventParticipations: BuildEventParticipationsInput());
 
                 await _personService.UpdateAsync(PersonId, personInput);
             }
@@ -392,7 +519,9 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(), Notes: Notes.Trim(),
                     Status: IdentityStatus.Identified,
-                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput(),
+                    CompanyPeople: BuildCompanyPeopleInput(),
+                    EventParticipations: BuildEventParticipationsInput());
 
                 await _personService.UpdateAsync(PersonId, input);
             }
@@ -412,7 +541,9 @@ public partial class UpdatePersonViewModel : ObservableValidator
                     CountryCode: string.IsNullOrWhiteSpace(CountryCode) ? null : CountryCode,
                     Car: Car.Trim(), Mail: Mail.Trim(), SocialMedia: SocialMedia.Trim(),
                     Address: Address.Trim(),
-                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput());
+                    Aliases: aliasesInput, Relationships: BuildRelationshipsInput(),
+                    CompanyPeople: BuildCompanyPeopleInput(),
+                    EventParticipations: BuildEventParticipationsInput());
 
                 await _personService.UpdateAnonymousAsync(PersonId, input);
             }

@@ -18,4 +18,5 @@ public class Company
     public ICollection<EventParticipant> EventParticipations { get; set; } = new List<EventParticipant>();
     public ICollection<CompanyInteraction> OutgoingInteractions { get; set; } = new List<CompanyInteraction>();
     public ICollection<CompanyInteraction> IncomingInteractions { get; set; } = new List<CompanyInteraction>();
+    public ICollection<CompanyPerson> CompanyPeople { get; set; } = new List<CompanyPerson>();
 }
