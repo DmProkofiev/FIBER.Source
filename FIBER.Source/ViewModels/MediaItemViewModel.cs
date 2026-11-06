@@ -77,6 +77,9 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     /// <summary>Удалять FilePath при Dispose.</summary>
     public bool DeleteOnDispose { get; set; }
 
+    /// <summary>SHA-256 hex содержимого файла — для защиты от дублей при перетаскивании.</summary>
+    public string? ContentHash { get; set; }
+
     /// <summary>Признак неудачной загрузки.</summary>
     [ObservableProperty] private bool _loadFailed;
 

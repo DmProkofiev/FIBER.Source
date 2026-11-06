@@ -77,8 +77,7 @@ public partial class CreateEventViewModel : ObservableValidator
 
     public async Task HandleFilesDropAsync(string[] files)
     {
-        var newFiles = await _mediaService.SaveToTempAsync(files);
-        foreach (var file in newFiles) TempFiles.Add(file);
+        await _mediaManagement.HandleFilesDropAsync(TempFiles, files);
     }
 
     [RelayCommand]
@@ -143,7 +142,23 @@ public partial class CreateEventViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                await _mediaService.CommitTempFilesAsync(TempFiles.ToList(), MediaOwnerType.Event, ev.Id);
+                // Существующие медиа (уже в БД) — привязать к владельцу
+                var existingIds = TempFiles
+                    .Where(m => m.MediaId.HasValue)
+                    .Select(m => m.MediaId!.Value)
+                    .ToList();
+                if (existingIds.Count > 0)
+                {
+                    await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Event, ev.Id);
+                }
+
+                // Новые медиа — закоммитить в БД
+                var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
+                if (newMedia.Count > 0)
+                {
+                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Event, ev.Id);
+                }
+
                 TempFiles.Clear();
             }
 
@@ -161,14 +176,18 @@ public partial class CreateEventViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private async Task AddExistingMediaAsync()
+    private async Task AddExistingMedia()
     {
-        if (CreatedOwnerId is null)
+        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        if (selected.Count == 0) return;
+
+        foreach (var media in selected)
         {
-            Notification.Show("Внимание", "Сначала создайте объект", NotificationType.Warning);
-            return;
+            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
+                TempFiles.Add(media);
         }
-       
+
+        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     private bool CanCreate() => !IsBusy;

@@ -53,8 +53,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
     // Принимает drag-and-drop файлов
     public async Task HandleFilesDropAsync(string[] files)
     {
-        var newFiles = await _mediaService.SaveToTempAsync(files);
-        foreach (var file in newFiles) TempFiles.Add(file);
+        await _mediaManagement.HandleFilesDropAsync(TempFiles, files);
     }
 
     // Удаляет временный файл
@@ -85,7 +84,23 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                await _mediaService.CommitTempFilesAsync(TempFiles.ToList(), MediaOwnerType.Company, company.Id);
+                // Существующие медиа (уже в БД) — привязать к владельцу
+                var existingIds = TempFiles
+                    .Where(m => m.MediaId.HasValue)
+                    .Select(m => m.MediaId!.Value)
+                    .ToList();
+                if (existingIds.Count > 0)
+                {
+                    await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Company, company.Id);
+                }
+
+                // Новые медиа — закоммитить в БД
+                var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
+                if (newMedia.Count > 0)
+                {
+                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Company, company.Id);
+                }
+
                 TempFiles.Clear();
             }
 
@@ -105,7 +120,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private async Task AddExistingMediaAsync()
+    private async Task AddExistingMedia()
     {
         var selected = await _mediaManagement.SelectExistingMediaAsync();
         if (selected.Count == 0) return;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FIBER.Source.Infrastructure.Data;
@@ -120,7 +121,11 @@ public sealed class MediaService : IMediaService
                     await src.CopyToAsync(dst);
                 }
 
-                result.Add(new MediaItemViewModel(destPath, Path.GetFileName(path)));
+                var vm = new MediaItemViewModel(destPath, Path.GetFileName(path))
+                {
+                    ContentHash = await ComputeFileHashAsync(path)
+                };
+                result.Add(vm);
             }
             catch (Exception ex)
             {
@@ -157,6 +162,13 @@ public sealed class MediaService : IMediaService
 
         try
         {
+            // Загружаем ВСЕ существующие наименования медиа из БД один раз,
+            // чтобы проверять новые имена против них (включая файлы из этой же пакета).
+            var existingNames = await context.MediaAttachments
+                .Select(m => m.OriginalFileName)
+                .ToListAsync();
+            var nameSet = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+
             foreach (var vm in tempFiles)
             {
                 if (vm is null || !File.Exists(vm.FilePath)) continue;
@@ -178,9 +190,15 @@ public sealed class MediaService : IMediaService
 
                     var data = await File.ReadAllBytesAsync(vm.FilePath);
 
+                    // Генерируем уникальное отображаемое имя, не совпадающее ни с одним существующим в БД.
+                    // Суффикс состоит только из цифр и латиницы (a-z, A-Z, 0-9).
+                    // После генерации имя добавляется в nameSet, чтобы файлы из этой же пакета
+                    // не получали одинаковое имя.
+                    var originalFileName = GenerateUniqueFileName(vm.FileName, ext, nameSet);
+
                     media = new MediaAttachment
                     {
-                        OriginalFileName = vm.FileName,
+                        OriginalFileName = originalFileName,
                         MimeType = GetMimeType(ext),
                         SizeBytes = data.LongLength,
                         ContentHash = hash,
@@ -261,6 +279,16 @@ public sealed class MediaService : IMediaService
             _logger.LogError(ex, "Ошибка добавления связи {MediaId}", mediaId);
             throw;
         }
+    }
+
+    /// <summary>Проверяет, привязан ли медиафайл уже к данному владельцу.</summary>
+    public async Task<bool> IsMediaLinkedToOwnerAsync(int mediaId, MediaOwnerType ownerType, int ownerId)
+    {
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MediaAttachmentLinks
+            .AnyAsync(l => l.MediaAttachmentId == mediaId
+                            && l.OwnerType == ownerType
+                            && l.OwnerId == ownerId);
     }
 
     /// <summary>Возвращает медиа владельца. VM берутся из общего кэша — не создаются заново.</summary>
@@ -737,6 +765,14 @@ public sealed class MediaService : IMediaService
         }
     }
 
+    /// <summary>Вычисляет SHA-256 hex содержимого файла (для защиты от дублей).</summary>
+    public Task<string> ComputeFileHashAsync(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            return Task.FromResult(string.Empty);
+        return ComputeSha256HexAsync(filePath);
+    }
+
     /// <summary>Вычисляет SHA-256 hex содержимого файла.</summary>
     private static async Task<string> ComputeSha256HexAsync(string path)
     {
@@ -762,6 +798,49 @@ public sealed class MediaService : IMediaService
         ".wma" => "audio/x-ms-wma",
         _ => "application/octet-stream"
     };
+
+    /// <summary>Генерирует уникальное отображаемое имя медиафайла, не совпадающее ни с одним существующим в БД.
+    /// Работает одинаково для изображений, видео и аудио. Суффикс состоит только из цифр и латиницы (a-z, A-Z, 0-9).
+    /// Сгенерированное имя добавляется в <paramref name="nameSet"/>, чтобы файлы из одной пакетной загрузки
+    /// не получали одинаковое имя.</summary>
+    /// <param name="proposedFileName">Предлагаемое имя файла (исходное имя загружаемого файла).</param>
+    /// <param name="extension">Расширение файла с точкой, например <c>.jpg</c>.</param>
+    /// <param name="nameSet">Набор всех существующих (и уже сгенерированных в этой пакете) наименований.</param>
+    /// <returns>Уникальное имя файла.</returns>
+    private static string GenerateUniqueFileName(
+        string proposedFileName,
+        string extension,
+        HashSet<string> nameSet)
+    {
+        // Используем исходное имя только как основу (базу) для генерации суффикса.
+        var nameWithoutExt = Path.GetFileNameWithoutExtension(proposedFileName);
+        if (string.IsNullOrWhiteSpace(nameWithoutExt))
+            nameWithoutExt = "media";
+
+        // Генерируем новое уникальное имя с суффиксом из цифр и латиницы,
+        // пока оно не станет уникальным против всех имён в nameSet (БД + эта пачка).
+        string candidate;
+        do
+        {
+            var suffix = GenerateRandomSuffix(12);
+            candidate = $"{nameWithoutExt}_{suffix}{extension}";
+        }
+        while (nameSet.Contains(candidate));
+
+        nameSet.Add(candidate);
+        return candidate;
+    }
+
+    /// <summary>Генерирует случайную строку заданной длины из цифр и латиницы (a-z, A-Z, 0-9).</summary>
+    /// <param name="length">Длина строки.</param>
+    private static string GenerateRandomSuffix(int length)
+    {
+        const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++)
+            sb.Append(chars[RandomNumberGenerator.GetInt32(chars.Length)]);
+        return sb.ToString();
+    }
 
     /// <summary>Пытается удалить файл, игнорирует ошибки.</summary>
     private static void TryDeleteFile(string path)

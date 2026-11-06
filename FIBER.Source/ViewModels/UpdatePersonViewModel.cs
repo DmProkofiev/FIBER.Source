@@ -290,19 +290,43 @@ public partial class UpdatePersonViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private async Task AddExistingMediaAsync()
+    private async Task AddExistingMedia()
     {
         var selected = await _mediaManagement.SelectExistingMediaAsync();
         if (selected.Count == 0) return;
 
-        foreach (var media in selected)
+        // Разделяем на существующие (уже в БД, есть MediaId) и новые (без MediaId, нужны в TempFiles)
+        var existingIds = selected
+            .Where(m => m.MediaId.HasValue)
+            .Select(m => m.MediaId!.Value)
+            .ToList();
+        var newMedia = selected.Where(m => !m.MediaId.HasValue).ToList();
+
+        // Привязываем существующие медиа к владельцу в БД.
+        // Уже привязанные к этому объекту файлы пропускаются — о защите сообщаем пользователю.
+        int skipped = 0;
+        if (existingIds.Count > 0)
         {
-            // Не добавляем дубликаты в TempFiles
+            skipped = await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Person, PersonId);
+            // Перезагружаем существующие медиа, чтобы отобразить их в UI
+            await LoadExistingMediaAsync(PersonId);
+        }
+
+        // Новые медиа добавляем во TempFiles для последующего коммита при сохранении
+        foreach (var media in newMedia)
+        {
             if (!TempFiles.Any(t => t.MediaId == media.MediaId))
                 TempFiles.Add(media);
         }
 
-        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
+        var added = existingIds.Count - skipped;
+        if (skipped > 0)
+        {
+            Notification.Show("Внимание",
+                $"{skipped} файл(ов) уже привязаны к этой личности и не добавлены повторно.",
+                NotificationType.Warning);
+        }
+        Notification.Show("Успех", $"Привязано существующих: {added}, добавлено новых: {newMedia.Count}", NotificationType.Success);
     }
 
     [RelayCommand]
@@ -395,7 +419,23 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                await _mediaService.CommitTempFilesAsync(TempFiles.ToList(), MediaOwnerType.Person, PersonId);
+                // Существующие медиа — привязать к владельцу
+                var existingIds = TempFiles
+                    .Where(m => m.MediaId.HasValue)
+                    .Select(m => m.MediaId!.Value)
+                    .ToList();
+                if (existingIds.Count > 0)
+                {
+                    await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Person, PersonId);
+                }
+
+                // Новые медиа — закоммитить в БД
+                var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
+                if (newMedia.Count > 0)
+                {
+                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Person, PersonId);
+                }
+
                 TempFiles.Clear();
             }
 

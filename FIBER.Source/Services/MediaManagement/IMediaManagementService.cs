@@ -27,10 +27,14 @@ public interface IMediaManagementService
     void ClearMedia(OwnerMedia media);
 
     /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
-    /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
-    /// а не прямую привязку к владельцу в БД.
+    /// Возвращает выбранные медиа-элементы (уже имеют MediaId, файл кэширован во Temp).
     /// Пустой список — диалог отменён или ничего не выбрано.</summary>
     Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync();
+
+    /// <summary>Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
+    /// Уже привязанные к владельцу файлы пропускаются (без дублей).
+    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя.</summary>
+    Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId);
 
     /// <summary>Удаляет существующий медиафайл у владельца.</summary>
     Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media);

@@ -85,8 +85,7 @@ public partial class CreatePersonViewModel : ObservableValidator
 
     public async Task HandleFilesDropAsync(string[] files)
     {
-        var newFiles = await _mediaService.SaveToTempAsync(files);
-        foreach (var file in newFiles) TempFiles.Add(file);
+        await _mediaManagement.HandleFilesDropAsync(TempFiles, files);
     }
 
     [RelayCommand]
@@ -171,7 +170,23 @@ public partial class CreatePersonViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                await _mediaService.CommitTempFilesAsync(TempFiles.ToList(), MediaOwnerType.Person, personId);
+                // Существующие медиа (уже в БД) — привязать к владельцу
+                var existingIds = TempFiles
+                    .Where(m => m.MediaId.HasValue)
+                    .Select(m => m.MediaId!.Value)
+                    .ToList();
+                if (existingIds.Count > 0)
+                {
+                    await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Person, personId);
+                }
+
+                // Новые медиа — закоммитить в БД
+                var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
+                if (newMedia.Count > 0)
+                {
+                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Person, personId);
+                }
+
                 TempFiles.Clear();
             }
 
@@ -188,7 +203,7 @@ public partial class CreatePersonViewModel : ObservableValidator
     private bool CanCreate() => !IsBusy;
 
     [RelayCommand]
-    private async Task AddExistingMediaAsync()
+    private async Task AddExistingMedia()
     {
         var selected = await _mediaManagement.SelectExistingMediaAsync();
         if (selected.Count == 0) return;

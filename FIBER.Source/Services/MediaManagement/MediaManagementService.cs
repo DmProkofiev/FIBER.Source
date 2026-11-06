@@ -74,6 +74,27 @@ public sealed class MediaManagementService : IMediaManagementService
         return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
     }
 
+    /// <summary>Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
+    /// Уже привязанные к владельцу файлы пропускаются (без дублей).
+    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя.</summary>
+    public async Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId)
+    {
+        var ids = mediaIds is null ? new List<int>() : mediaIds.Where(id => id > 0).Distinct().ToList();
+        if (ids.Count == 0) return 0;
+
+        int skipped = 0;
+        foreach (var mediaId in ids)
+        {
+            if (await _mediaService.IsMediaLinkedToOwnerAsync(mediaId, ownerType, ownerId))
+            {
+                skipped++;
+                continue;
+            }
+            await _mediaService.AddLinkAsync(mediaId, ownerType, ownerId);
+        }
+        return skipped;
+    }
+
     /// <summary>Удаляет существующий медиафайл у владельца.</summary>
     public async Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media)
     {
@@ -91,11 +112,35 @@ public sealed class MediaManagementService : IMediaManagementService
         }
     }
 
-    /// <summary>Обрабатывает перетаскивание файлов (добавляет во временные файлы).</summary>
+    /// <summary>Обрабатывает перетаскивание файлов (добавляет во временные файлы).
+    /// Защита от дубля: один и тот же файл (по SHA-256 содержимому) не может быть
+    /// перетащен во временные файлы более одного раза.</summary>
     public async Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
-        foreach (var file in newFiles) tempFiles.Add(file);
+        int skipped = 0;
+
+        foreach (var file in newFiles)
+        {
+            if (file is null || string.IsNullOrEmpty(file.ContentHash)) continue;
+
+            // Защита от дубля: такой же файл уже есть во временных файлах
+            if (tempFiles.Any(t => t.ContentHash == file.ContentHash))
+            {
+                skipped++;
+                _mediaService.DeleteTempFiles(new[] { file }); // удаляем временную копию дубля
+                continue;
+            }
+
+            tempFiles.Add(file);
+        }
+
+        if (skipped > 0)
+        {
+            Notification.Show("Внимание",
+                $"{skipped} файл(ов) не добавлен(о) — такой же файл уже во временных файлах.",
+                NotificationType.Warning);
+        }
     }
 
     /// <summary>Удаляет временный файл из коллекции и диска.</summary>

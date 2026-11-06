@@ -233,18 +233,39 @@ public partial class UpdateEventViewModel : ObservableValidator
     // ----- Сохранение -----
 
     [RelayCommand]
-    private async Task AddExistingMediaAsync()
+    private async Task AddExistingMedia()
     {
         var selected = await _mediaManagement.SelectExistingMediaAsync();
         if (selected.Count == 0) return;
 
-        foreach (var media in selected)
+        var existingIds = selected
+            .Where(m => m.MediaId.HasValue)
+            .Select(m => m.MediaId!.Value)
+            .ToList();
+        var newMedia = selected.Where(m => !m.MediaId.HasValue).ToList();
+
+        // Уже привязанные к этому событию файлы пропускаются — о защите сообщаем пользователю.
+        int skipped = 0;
+        if (existingIds.Count > 0)
+        {
+            skipped = await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Event, EventId);
+            await LoadExistingMediaAsync(EventId);
+        }
+
+        foreach (var media in newMedia)
         {
             if (!TempFiles.Any(t => t.MediaId == media.MediaId))
                 TempFiles.Add(media);
         }
 
-        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
+        var added = existingIds.Count - skipped;
+        if (skipped > 0)
+        {
+            Notification.Show("Внимание",
+                $"{skipped} файл(ов) уже привязаны к этому событию и не добавлены повторно.",
+                NotificationType.Warning);
+        }
+        Notification.Show("Успех", $"Привязано существующих: {added}, добавлено новых: {newMedia.Count}", NotificationType.Success);
     }
 
     [RelayCommand]
@@ -272,7 +293,23 @@ public partial class UpdateEventViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                await _mediaService.CommitTempFilesAsync(TempFiles.ToList(), MediaOwnerType.Event, EventId);
+                // Существующие медиа — привязать к владельцу
+                var existingIds = TempFiles
+                    .Where(m => m.MediaId.HasValue)
+                    .Select(m => m.MediaId!.Value)
+                    .ToList();
+                if (existingIds.Count > 0)
+                {
+                    await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Event, EventId);
+                }
+
+                // Новые медиа — закоммитить в БД
+                var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
+                if (newMedia.Count > 0)
+                {
+                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Event, EventId);
+                }
+
                 TempFiles.Clear();
             }
 

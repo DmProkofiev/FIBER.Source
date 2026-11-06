@@ -25,6 +25,9 @@ public interface IMediaService
     /// <summary>Добавляет существующий медиафайл к владельцу (без дублирования ссылки).</summary>
     Task AddLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId);
 
+    /// <summary>Проверяет, привязан ли медиафайл уже к данному владельцу.</summary>
+    Task<bool> IsMediaLinkedToOwnerAsync(int mediaId, MediaOwnerType ownerType, int ownerId);
+
     /// <summary>Возвращает медиа владельца: изображения из памяти, видео/аудио через Temp-файл.</summary>
     Task<List<MediaItemViewModel>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId);
 
@@ -39,6 +42,9 @@ public interface IMediaService
 
     /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).</summary>
     Task<byte[]?> GetMediaDataAsync(int mediaId);
+
+    /// <summary>Вычисляет SHA-256 hex содержимого файла (для защиты от дублей).</summary>
+    Task<string> ComputeFileHashAsync(string filePath);
 
     /// <summary>Инвалидировать кэш списка «все медиа» (вызывать после изменения ссылок).</summary>
     void InvalidateAllMediaCache();
