@@ -2,491 +2,129 @@
 
 ## 1. Назначение
 
-FIBER Source — десктопное приложение для хранения и управления связанными данными о личностях (`Person`), организациях (`Company`) и событиях (`Event`). Данные имеют сложную взаимосвязь между собой. К каждой записи можно прикреплять медиафайлы: изображения, видео, аудио. Все данные (база данных и медиафайлы) хранятся локально в **едином зашифрованном файле базы данных** (`fiber.db`), защищённом паролем.
-
----
+FIBER Source — десктопное приложение для хранения и управления связанными данными о личностях, организациях и событиях. К каждой записи можно прикреплять медиафайлы: изображения, видео, аудио. Все данные хранятся локально в едином зашифрованном файле базы данных, защищённом паролем.
 
 ## 2. Технологический стек
 
-- **Язык:** C# (.NET 10).
-- **UI-паттерн:** MVVM.
-- **Архитектура:** Асинхронное оконное приложение (WPF).
-- **Хостинг:** `Microsoft.Extensions.Hosting` для управления жизненным циклом, DI и фоновыми службами.
-- **Хранение данных:** SQLite (с расширением SQLCipher) + EF Core.
-- **MVVM-инфраструктура:** `CommunityToolkit.Mvvm` (команды, `ObservableObject`, генераторы свойств, `ObservableValidator`).
-
----
+- Язык: C# (.NET 10).
+- UI-паттерн: MVVM.
+- Архитектура: асинхронное оконное приложение (WPF).
+- Хостинг: Microsoft.Extensions.Hosting для управления жизненным циклом, DI и фоновыми службами.
+- Хранение данных: SQLite (с расширением SQLCipher) + EF Core.
+- MVVM-инфраструктура: CommunityToolkit.Mvvm.
 
 ## 3. Хранение данных и безопасность
 
 ### 3.1. Формат хранения данных
 
-Все данные хранятся в **едином файле** `fiber.db` (база данных SQLite).
-- Файл базы данных **полностью зашифрован** с использованием алгоритма AES-256 (через SQLCipher).
-- Медиафайлы (изображения, видео, аудио) хранятся непосредственно внутри базы данных в виде BLOB-полей (`byte[]`).
+Все данные хранятся в едином файле fiber.db (база данных SQLite).
+- Файл базы данных полностью зашифрован алгоритмом AES-256 (через SQLCipher).
+- Медиафайлы (изображения, видео, аудио) хранятся внутри базы данных в виде BLOB-полей.
 - Отдельные папки для медиафайлов, ZIP-архивы или временные рабочие директории для БД не создаются.
 
 ### 3.2. Жизненный цикл данных
 
-1. **Запуск:** Пользователь запускает приложение и вводит пароль. Приложение открывает файл БД с этим паролем. Если файла нет — он создаётся автоматически, с присвоением наименования и пароля.
-2. **Работа:** Все операции чтения и записи (CRUD) выполняются напрямую через EF Core. SQLCipher на лету расшифровывает нужные страницы в оперативной памяти и шифрует их обратно при записи.
-3. **Временные файлы:** Для воспроизведения видео и аудио (так как `MediaPlayer` в WPF требует физический путь к файлу) BLOB-данные извлекаются во временную директорию `%Temp%\FIBER\`. Эти файлы удаляются сразу после закрытия карточки или приложения.
-4. **Завершение:** При выходе из приложения временные файлы очищаются, соединение с базой данных закрывается. На диске остаётся только зашифрованный файл БД.
+1. Запуск: пользователь запускает приложение и вводит пароль. Приложение открывает файл БД с этим паролем. Если файла нет — он создаётся автоматически.
+2. Работа: все операции чтения и записи (CRUD) выполняются через EF Core. SQLCipher на лету расшифровывает нужные страницы в оперативной памяти и шифрует их обратно при записи.
+3. Временные файлы: для воспроизведения видео и аудио BLOB-данные извлекаются во временную директорию %Temp%\FIBER\. Эти файлы удаляются сразу после закрытия карточки или приложения.
+4. Завершение: при выходе из приложения временные файлы очищаются, соединение с базой данных закрывается. На диске остаётся только зашифрованный файл БД.
 
 ### 3.3. Защита от повреждения при аварийном завершении
 
-Поскольку приложение работает напрямую с базой данных, защита обеспечивается встроенными механизмами SQLite/SQLCipher:
-1. Включён режим WAL (Write-Ahead Logging) для предотвращения повреждения базы при сбоях питания.
-2. Все транзакции атомарны. При аварийном завершении незавершённые транзакции откатываются, база данных остаётся валидной и зашифрованной.
-3. Никакие незашифрованные данные не остаются на диске.
+- Включён режим WAL (Write-Ahead Logging) для предотвращения повреждения базы при сбоях питания.
+- Все транзакции атомарны. При аварийном завершении незавершённые транзакции откатываются, база данных остаётся валидной и зашифрованной.
+- Никакие незашифрованные данные не остаются на диске.
 
 ### 3.4. Аутентификация и управление
 
-- При запуске: ввод пароля для расшифровки базы данных (окно идентификации).
+- При запуске: ввод пароля для расшифровки базы данных.
 - В настройках приложения доступен функционал:
-  - Смена пароля (перешифровка всего файла `fiber.db`).
-  - Экспорт (создание резервной копии зашифрованного/незашифрованного (по выбору) файла `fiber.db` в выбранную папку).
+  - Смена пароля (перешифровка всего файла fiber.db).
+  - Экспорт (создание резервной копии зашифрованного/незашифрованного файла fiber.db в выбранную папку).
 
 ---
 
 ## 4. Модели данных и связи
 
-Модели анемичные: содержат только свойства. Конфигурация EF Core вынесена в `FiberSourceDbContext.OnModelCreating` (и отдельные классы `IEntityTypeConfiguration`).
-
 ### 4.1. Сущности
 
 **Доменные:**
-- `Person` — личность. Может быть идентифицированной или анонимной. ФИО разбито на три поля; добавлено поле `Gender`.
-- `PersonAlias` — имя, под которым известна личность (ник, кличка, ФИО).
-- `Company` — организация.
-- `Event` — событие.
-- `MediaAttachment` — файл с метаданными и бинарными данными (BLOB).
-- `Country` — справочник стран (ISO 3166-1 alpha-2), заполняется через `HasData`.
-- `AuditLogEntry` — журнал действий приложения.
+- Person — личность. Может быть идентифицированной или анонимной. ФИО разбито на три поля; добавлено поле пола.
+- PersonAlias — имя, под которым известна личность (ник, кличка, ФИО).
+- Company — организация.
+- Event — событие.
+- MediaAttachment — файл с метаданными и бинарными данными.
+- Country — справочник стран.
+- AuditLogEntry — журнал действий приложения.
 
 **Связующие:**
-- `EventParticipant` — участие в событии (payload: `Role`, `Notes`).
-- `PersonRelationship` — связь между людьми, self-ref (payload: `Kind`, `Notes`).
-- `CompanyInteraction` — связь между организациями, self-ref. В фазе 1.0.0 **не развивается**, сохраняется в БД без изменений (см. §8).
-- `MediaAttachmentLink` — M2M-связь медиа с владельцами (Person/Company/Event).
+- EventParticipant — участие в событии (связь события с человеком или организацией).
+- PersonRelationship — связь между людьми (связь «человек ↔ человек»).
+- CompanyInteraction — связь между организациями (связь «организация ↔ организация»).
+- CompanyPerson — связь между организацией и человеком (связь «организация ↔ человек»).
+- EventEvent — связь между событиями (связь «событие ↔ событие»).
+- MediaAttachmentLink — связь медиа с владельцами (человеком, организацией или событием).
 
 **Удалённые:**
-- `Employment` — признан недостаточным (composite key запрещает повторный найм, нет полей подразделения/типа занятости, нет `Id` для `Update`). Полностью удаляется в 1.0.0. Замена (`PersonCompanyRole`) — в фазе будущего (см. §8).
+- Employment — признан недостаточным, полностью удалён.
 
 **Перечисления:**
-- `IdentityStatus` — `Anonymous = 0`, `Identified = 1`.
-- `Gender` — `Unknown = 0`, `Male = 1`, `Female = 2`.
-- `AliasType` — `LegalName`, `Nickname`, `Alias`, `Handle`, `Other`.
-- `MediaOwnerType` — `Person`, `Company`, `Event`.
-- `PersonRelationKind` — вид связи Person↔Person (см. §4.4).
-- `EventParticipantRole` — вид участия Person↔Event (см. §4.4).
+- IdentityStatus — аноним / идентифицированный.
+- Gender — неизвестен / мужской / женский.
+- AliasType — тип псевдонима.
+- MediaOwnerType — владелец медиа (человек / организация / событие).
+- PersonRelationKind — вид связи между людьми.
+- EventParticipantRole — вид участия в событии.
 
 ### 4.2. Ключевые модели
 
-`Person`:
+Person — enthält основные поля: фамилия, имя, отчество, пол, дата рождения, паспорт, профессия, телефон, город, страна, транспорт, почта, соцсети, адрес, заметки, дата создания. Также навигационные свойства: страну, aliases (псевдонимы), связи с другими людьми, связи с организациями, связи с событиями, события, которые организует.
 
-~~~csharp
-public class Person
-{
-    public int Id { get; set; }
-    public IdentityStatus Status { get; set; } = IdentityStatus.Anonymous;
+Company — содержит название, рег. номер, адрес, телефон, почту, сайт, заметки. Также навигационные свойства: organisируемые события, участие в событиях, взаимодействия с другими организациями, связи с людьми.
 
-    public string? LastName { get; set; }
-    public string? FirstName { get; set; }
-    public string? SecondName { get; set; }
+Event — содержит название, дату, описание, заметки, организатора (организацию или человека). Также навигационные свойства: участники, связи с другими событиями.
 
-    public Gender Gender { get; set; } = Gender.Unknown;
+EventParticipant — участник события: ссылка на событие, человека или организацию, роль, заметки.
 
-    public DateTime? BirthDate { get; set; }
-    public string? Passport { get; set; }
-    public string? Job { get; set; }
-    public string? Phone { get; set; }
-    public string? City { get; set; }
-    public string? CountryCode { get; set; }
-    public string? Car { get; set; }
-    public string? Mail { get; set; }
-    public string? SocialMedia { get; set; }
-    public string? Address { get; set; }
-    public string? Notes { get; set; }
+PersonRelationship — связь между людьми: ссылка на человека и связанного человека, вид связи, заметки.
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public int? MergedIntoPersonId { get; set; }
+CompanyPerson — связь между организацией и человеком: ссылка на организацию, человека, роль, заметки.
 
-    public Country? Country { get; set; }
-    public Person? MergedInto { get; set; }
+CompanyInteraction — связь между организациями: ссылка на исходную и целевую организации, тип взаимодействия, заметки.
 
-    public ICollection<PersonAlias> Aliases { get; set; } = new List<PersonAlias>();
-    public ICollection<EventParticipant> EventParticipations { get; set; } = new List<EventParticipant>();
-    public ICollection<Event> OrganizerEvents { get; set; } = new List<Event>();
-    public ICollection<PersonRelationship> Relationships { get; set; } = new List<PersonRelationship>();
-    public ICollection<PersonRelationship> ReverseRelationships { get; set; } = new List<PersonRelationship>();
+EventEvent — связь между событиями: ссылка на исходное и целевое события, тип связи, заметки.
 
-    [NotMapped]
-    public string? FullName =>
-        Status == IdentityStatus.Identified && !string.IsNullOrWhiteSpace(LastName)
-            ? string.Join(" ",
-                new[] { LastName, FirstName, SecondName }
-                    .Where(s => !string.IsNullOrWhiteSpace(s)))
-            : null;
-
-    [NotMapped]
-    public string BirthDateDisplay => BirthDate?.ToString("dd.MM.yyyy") ?? "Сведения отсутствуют";
-}
-~~~
-
-Check-constraint `CK_Person_Status_FullName`:
-
-~~~sql
-(Status = 0 AND LastName IS NULL AND FirstName IS NULL AND SecondName IS NULL)
-OR
-(Status = 1 AND LastName IS NOT NULL AND FirstName IS NOT NULL)
-~~~
-
-Требование: у идентифицированного обязательно `LastName` + `FirstName`; `SecondName` опционален. Аноним не имеет ни одного из трёх.
-
-`Company` — без `Employees` (удалено вместе с `Employment`):
-
-~~~csharp
-public class Company
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? RegistrationNumber { get; set; }
-    public string? Address { get; set; }
-    public string? Phone { get; set; }
-    public string? Mail { get; set; }
-    public string? Website { get; set; }
-    public string? Notes { get; set; }
-
-    public ICollection<Event> OrganizedEvents { get; set; } = new List<Event>();
-    public ICollection<EventParticipant> EventParticipations { get; set; } = new List<EventParticipant>();
-    public ICollection<CompanyInteraction> OutgoingInteractions { get; set; } = new List<CompanyInteraction>();
-    public ICollection<CompanyInteraction> IncomingInteractions { get; set; } = new List<CompanyInteraction>();
-}
-~~~
-
-`Event`:
-
-~~~csharp
-public class Event
-{
-    public int Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public DateTime? Date { get; set; }
-    public string? Description { get; set; }
-    public string? Notes { get; set; }
-
-    public int? OrganizerCompanyId { get; set; }
-    public Company? OrganizerCompany { get; set; }
-
-    public int? OrganizerPersonId { get; set; }
-    public Person? OrganizerPerson { get; set; }
-
-    public ICollection<EventParticipant> Participants { get; set; } = new List<EventParticipant>();
-
-    [NotMapped]
-    public string DateDisplay => Date?.ToString("dd.MM.yyyy") ?? "Сведения отсутствуют";
-
-    [NotMapped]
-    public int ParticipantCount => Participants?.Count ?? 0;
-
-    [NotMapped]
-    public string OrganizerDisplay
-    {
-        get
-        {
-            var company = OrganizerCompany?.Name;
-            var person = OrganizerPerson?.FullName
-                ?? OrganizerPerson?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
-                ?? (OrganizerPerson != null ? $"Аноним #{OrganizerPerson.Id}" : null);
-
-            if (!string.IsNullOrWhiteSpace(company) && !string.IsNullOrWhiteSpace(person))
-                return $"{company} ({person})";
-            if (!string.IsNullOrWhiteSpace(company)) return company;
-            if (!string.IsNullOrWhiteSpace(person)) return person;
-            return "Сведения отсутствуют";
-        }
-    }
-}
-~~~
-
-`EventParticipant` (Person↔Event):
-
-~~~csharp
-public class EventParticipant
-{
-    public int Id { get; set; }
-    public int EventId { get; set; }
-    public Event Event { get; set; } = null!;
-
-    public int? PersonId { get; set; }
-    public Person? Person { get; set; }
-
-    public int? CompanyId { get; set; }
-    public Company? Company { get; set; }
-
-    public EventParticipantRole Role { get; set; } = EventParticipantRole.Participant;
-    public string Notes { get; set; } = string.Empty;
-}
-~~~
-
-Ограничение: ровно один из `PersonId`/`CompanyId` задан (CHECK-constraint `CK_EventParticipant_OneOwner`). В 1.0.0 UI и сервис развивают **только** ветку Person; ветка Company сохраняется в БД для обратной совместимости.
-
-`PersonRelationship` (Person↔Person):
-
-~~~csharp
-public class PersonRelationship
-{
-    public int Id { get; set; }
-    public int PersonId { get; set; }
-    public int RelatedPersonId { get; set; }
-    public PersonRelationKind Kind { get; set; }
-    public string Notes { get; set; } = string.Empty;
-
-    public Person Person { get; set; } = null!;
-    public Person RelatedPerson { get; set; } = null!;
-}
-~~~
-
-Семантика строки `(PersonId = A, RelatedPersonId = B, Kind = X)`: **«B является A-у X»**. Пример: `(A, B, Parent)` — B является A-у родителем. При просмотре связей A показываются только строки `PersonId == A`; подпись в UI зависит от `Kind` и `B.Gender`. Обратная запись `(B, A, InverseOf(X))` создаётся автоматически в сервисе.
-
-`MediaAttachment` — без изменений.
+MediaAttachment — файл с метаданными и бинарными данными: исходное имя, MIME-тип, размер, хэш SHA-256, бинарные данные, дата создания, связи с владельцами.
 
 ### 4.3. Анонимные и идентифицированные личности
 
-Два логических типа, хранятся в одной таблице `Person`, разделяются полем `Status`:
+Два логических типа, хранятся в одной таблице Person, разделяются полем статуса:
+1. Неидентифицированная — нет фамилии/имени/отчества, есть обязательный основной псевдоним.
+2. Идентифицированная — фамилия и имя заполнены.
 
-1. **Неидентифицированная** (`Anonymous`): нет `LastName`/`FirstName`/`SecondName`, есть обязательный основной псевдоним.
-2. **Идентифицированная** (`Identified`): `LastName` и `FirstName` заполнены.
-
-Псевдонимы идентифицированной личности автоматически не создаются: ФИО хранится в полях персоны, `Aliases` — только явно добавленные пользователем имена (ник, кличка и т.п.).
-
-**Процесс идентификации (Promote):**
-1. Вызывается `IPersonService.PromoteAsync(personId, PromotePersonInput)`.
-2. Заполняются `LastName`, `FirstName`, `SecondName?`, `Gender`, `BirthDate?`, `Passport?`.
-3. `Status` меняется на `Identified`.
-4. Текущий основной псевдоним теряет флаг `IsPrimary` и остаётся обычным псевдонимом.
-5. Новый основной псевдоним не создаётся — ФИО уже хранится в полях `LastName`/`FirstName`/`SecondName`.
+Процесс идентификации:
+1. Вызывается сервис идентификации.
+2. Заполняются фамилия, имя, отчество, пол, дата рождения, паспорт.
+3. Статус меняется на идентифицированный.
+4. Основной псевдоним теряет флаг первичности и остаётся обычным псевдонимом.
+5. Новый основной псевдоним не создаётся — ФИО уже хранится в полях персоны.
 6. Обратный переход не предусмотрен.
 
 ### 4.4. Перечисления
 
-`Gender`:
+Gender — неизвестен, мужской, женский.
 
-~~~csharp
-public enum Gender
-{
-    Unknown = 0,
-    Male = 1,
-    Female = 2
-}
-~~~
+PersonRelationKind — виды связи между людьми: родитель, ребёнок, брат/сестра, супруг, дедушка, внук, дядя, тётя, племянник, кузен, друг, близкий друг, знакомый, сосед, коллега, одноклассник, партнёр, соучредитель, наставник, подопечный, работодатель, работник, оппонент, соучастник, сожитель, другое.
 
-`PersonRelationKind` — гендерно-нейтральные имена, гендерные формы — только в `DisplayName`:
+EventParticipantRole — виды участия в событии: участник, организатор, соорганизатор, докладчик, гость, наблюдатель, спонсор, объект события, свидетель, потерпевший, подозреваемый, другое.
 
-~~~csharp
-public enum PersonRelationKind
-{
-    // Родство
-    Parent,
-    Child,
-    Sibling,
-    Spouse,
-    Grandparent,
-    Grandchild,
-    UncleAunt,
-    NephewNiece,
-    Cousin,
+### 4.5. Конфигурация EF Core
 
-    // Социальные
-    Friend,
-    CloseFriend,
-    Acquaintance,
-    Neighbor,
-    Colleague,
-    Classmate,
-
-    // Деловые
-    BusinessPartner,
-    CoFounder,
-    Mentor,
-    Mentee,
-    Employer,
-    EmployeeOf,
-
-    // Конфликтные / следственные
-    Opponent,
-    CoConspirator,
-    Cohabitant,
-
-    Other
-}
-~~~
-
-`EventParticipantRole`:
-
-~~~csharp
-public enum EventParticipantRole
-{
-    Participant,
-    Organizer,
-    CoOrganizer,
-    Speaker,
-    Guest,
-    Observer,
-    Sponsor,
-    Target,
-    Witness,
-    Victim,
-    Suspect,
-    Other
-}
-~~~
-
-### 4.5. Справочники (хелперы)
-
-`PersonRelationKinds`:
-
-~~~csharp
-public static class PersonRelationKinds
-{
-    public static PersonRelationKind InverseOf(PersonRelationKind kind) => kind switch
-    {
-        PersonRelationKind.Parent       => PersonRelationKind.Child,
-        PersonRelationKind.Child        => PersonRelationKind.Parent,
-        PersonRelationKind.Grandparent  => PersonRelationKind.Grandchild,
-        PersonRelationKind.Grandchild   => PersonRelationKind.Grandparent,
-        PersonRelationKind.UncleAunt    => PersonRelationKind.NephewNiece,
-        PersonRelationKind.NephewNiece  => PersonRelationKind.UncleAunt,
-        PersonRelationKind.Mentor       => PersonRelationKind.Mentee,
-        PersonRelationKind.Mentee       => PersonRelationKind.Mentor,
-        PersonRelationKind.Employer     => PersonRelationKind.EmployeeOf,
-        PersonRelationKind.EmployeeOf   => PersonRelationKind.Employer,
-        PersonRelationKind.Other        => PersonRelationKind.Other,
-        _ => kind   // симметричные: Sibling, Spouse, Friend, Colleague, BusinessPartner, ...
-    };
-
-    public static string DisplayNameOfKind(PersonRelationKind kind) => kind switch
-    {
-        PersonRelationKind.Parent       => "Родитель",
-        PersonRelationKind.Child        => "Ребёнок",
-        PersonRelationKind.Sibling      => "Брат/сестра",
-        PersonRelationKind.Spouse       => "Супруг(а)",
-        PersonRelationKind.Grandparent  => "Дедушка/бабушка",
-        PersonRelationKind.Grandchild   => "Внук/внучка",
-        PersonRelationKind.UncleAunt    => "Дядя/тётя",
-        PersonRelationKind.NephewNiece  => "Племянник(ца)",
-        PersonRelationKind.Cousin       => "Двоюродный брат/сестра",
-        PersonRelationKind.Friend       => "Друг",
-        PersonRelationKind.CloseFriend  => "Близкий друг",
-        PersonRelationKind.Acquaintance => "Знакомый",
-        PersonRelationKind.Neighbor     => "Сосед",
-        PersonRelationKind.Colleague    => "Коллега",
-        PersonRelationKind.Classmate    => "Одноклассник",
-        PersonRelationKind.BusinessPartner => "Партнёр",
-        PersonRelationKind.CoFounder    => "Соучредитель",
-        PersonRelationKind.Mentor       => "Наставник",
-        PersonRelationKind.Mentee       => "Подопечный",
-        PersonRelationKind.Employer     => "Работодатель",
-        PersonRelationKind.EmployeeOf   => "Работник",
-        PersonRelationKind.Opponent     => "Оппонент",
-        PersonRelationKind.CoConspirator => "Соучастник",
-        PersonRelationKind.Cohabitant   => "Сожитель",
-        PersonRelationKind.Other        => "Другое",
-        _ => kind.ToString()
-    };
-
-    public static string DisplayNameForRelated(PersonRelationKind kind, Gender relatedGender)
-        => (kind, relatedGender) switch
-        {
-            (PersonRelationKind.Parent,      Gender.Male)   => "Отец",
-            (PersonRelationKind.Parent,      Gender.Female) => "Мать",
-            (PersonRelationKind.Parent,      _)             => "Родитель",
-            (PersonRelationKind.Child,       Gender.Male)   => "Сын",
-            (PersonRelationKind.Child,       Gender.Female) => "Дочь",
-            (PersonRelationKind.Child,       _)             => "Ребёнок",
-            (PersonRelationKind.Sibling,     Gender.Male)   => "Брат",
-            (PersonRelationKind.Sibling,     Gender.Female) => "Сестра",
-            (PersonRelationKind.Sibling,     _)             => "Брат/сестра",
-            (PersonRelationKind.Spouse,      Gender.Male)   => "Муж",
-            (PersonRelationKind.Spouse,      Gender.Female) => "Жена",
-            (PersonRelationKind.Spouse,      _)             => "Супруг(а)",
-            (PersonRelationKind.Grandparent, Gender.Male)   => "Дедушка",
-            (PersonRelationKind.Grandparent, Gender.Female) => "Бабушка",
-            (PersonRelationKind.Grandparent, _)             => "Дедушка/бабушка",
-            (PersonRelationKind.Grandchild,  Gender.Male)   => "Внук",
-            (PersonRelationKind.Grandchild,  Gender.Female) => "Внучка",
-            (PersonRelationKind.Grandchild,  _)             => "Внук/внучка",
-            (PersonRelationKind.UncleAunt,   Gender.Male)   => "Дядя",
-            (PersonRelationKind.UncleAunt,   Gender.Female) => "Тётя",
-            (PersonRelationKind.UncleAunt,   _)             => "Дядя/тётя",
-            (PersonRelationKind.NephewNiece, Gender.Male)   => "Племянник",
-            (PersonRelationKind.NephewNiece, Gender.Female) => "Племянница",
-            (PersonRelationKind.NephewNiece, _)             => "Племянник(ца)",
-            (PersonRelationKind.Cousin,      Gender.Male)   => "Двоюродный брат",
-            (PersonRelationKind.Cousin,      Gender.Female) => "Двоюродная сестра",
-            (PersonRelationKind.Cousin,      _)             => "Двоюродный брат/сестра",
-            (PersonRelationKind.Mentor,      Gender.Female) => "Наставница",
-            (PersonRelationKind.Mentee,      Gender.Female) => "Подопечная",
-            (PersonRelationKind.EmployeeOf,  Gender.Female) => "Работница",
-            (PersonRelationKind.Friend,      Gender.Female) => "Подруга",
-            (PersonRelationKind.CloseFriend, Gender.Female) => "Близкая подруга",
-            (PersonRelationKind.Neighbor,    Gender.Female) => "Соседка",
-            (PersonRelationKind.Classmate,   Gender.Female) => "Одноклассница",
-            (PersonRelationKind.Acquaintance,Gender.Female) => "Знакомая",
-            (PersonRelationKind.Opponent,    Gender.Female) => "Оппонентка",
-            (PersonRelationKind.CoConspirator,Gender.Female)=> "Соучастница",
-            (PersonRelationKind.Cohabitant,  Gender.Female) => "Сожительница",
-            (PersonRelationKind.CoFounder,   Gender.Female) => "Соучредительница",
-            (PersonRelationKind.BusinessPartner, Gender.Female) => "Партнёрша",
-            _ => DisplayNameOfKind(kind)
-        };
-}
-~~~
-
-`EventParticipantRoles`:
-
-~~~csharp
-public static class EventParticipantRoles
-{
-    public static string DisplayName(EventParticipantRole role) => role switch
-    {
-        EventParticipantRole.Participant  => "Участник",
-        EventParticipantRole.Organizer    => "Организатор",
-        EventParticipantRole.CoOrganizer  => "Соорганизатор",
-        EventParticipantRole.Speaker      => "Докладчик",
-        EventParticipantRole.Guest        => "Гость",
-        EventParticipantRole.Observer     => "Наблюдатель",
-        EventParticipantRole.Sponsor      => "Спонсор",
-        EventParticipantRole.Target       => "Объект события",
-        EventParticipantRole.Witness      => "Свидетель",
-        EventParticipantRole.Victim       => "Потерпевший",
-        EventParticipantRole.Suspect      => "Подозреваемый",
-        EventParticipantRole.Other        => "Другое",
-        _ => role.ToString()
-    };
-}
-~~~
-
-### 4.6. Конфигурация EF Core
-
-`PersonConfiguration`:
-- `LastName`, `FirstName`, `SecondName` — `HasMaxLength(100)`, коллация `NOCASE`.
-- `Gender` — `HasConversion<int>()`.
-- CHECK-constraint `CK_Person_Status_FullName` (см. §4.2).
-- Индексы: `(LastName, FirstName)` фильтр `Status = 1`; `BirthDate` фильтр `IS NOT NULL`; `(Status, CreatedAt)`; `CountryCode`; `MergedIntoPersonId`.
-
-`PersonRelationshipConfiguration`:
-- `HasKey(e => e.Id)`.
-- `Property(e => e.Kind).HasConversion<int>()`.
-- `HasIndex(e => new { e.PersonId, e.RelatedPersonId, e.Kind }).IsUnique()` — `UQ_PersonRelationship_Natural`.
-- Оба FK — `OnDelete(DeleteBehavior.Cascade)`.
-
-`EventParticipantConfiguration`:
-- `Property(e => e.Role).HasConversion<int>()`.
-- `Notes` — `HasColumnType("TEXT")`.
-- CHECK-constraint `CK_EventParticipant_OneOwner` — без изменений.
-- Уникальные индексы `(EventId, PersonId)` и `(EventId, CompanyId)` — без изменений.
+- Person: индексы на фамилии и имени, дату рождения, статус и дату создания, код страны, код слияния.
+- PersonRelationship: уникальный индекс на человека, связанного человека и вид связи.
+- EventParticipant: уникальные индексы на событие и человека/организацию.
+- CompanyPerson: уникальный индекс на организацию и человека.
+- EventEvent: уникальный индекс на исходное и целевое события и тип связи.
 
 ---
 
@@ -494,211 +132,114 @@ public static class EventParticipantRoles
 
 ### 5.1. CRUD-операции
 
-- Создание, чтение, обновление и удаление `Person`, `Company`, `Event`.
-- Создание, чтение, обновление и удаление вложений `MediaAttachment`.
-- Прикрепление одного и того же `MediaAttachment` к нескольким владельцам (M2M).
-- Поиск по `Person` через стратегии поиска (`ISearchStrategy`): по ID, по ФИО, по паспорту, по телефону, по алиасам.
-  - Поиск «по ФИО» выполняется по трём колонкам (`LastName` / `FirstName` / `SecondName`) через `Contains` по каждой.
+- Создание, чтение, обновление и удаление личности, организации, события.
+- Создание, чтение, обновление и удаление вложений медиа.
+- Прикрепление одного и того же медиафайла к нескольким владельцам (M2M).
+- Поиск по личности через стратегии поиска: по ID, по ФИО, по паспорту, по телефону, по алиасам. Поиск по ФИО выполняется по трём колонкам: фамилия, имя, отчество.
 
 ### 5.2. Работа с медиафайлами
 
-- При загрузке файл считывается в массив байтов и сохраняется в поле `Data` таблицы `MediaAttachments`.
-- **Дедупликация:** перед сохранением вычисляется хэш SHA-256 (`ContentHash`). Если файл с таким хэшем уже существует в БД, создаётся только новая связь `MediaAttachmentLink`, дубликат BLOB-данных не создаётся.
-- **Отображение картинок:** считывание `byte[]` из БД, создание `MemoryStream` и передача в `BitmapImage`. Файлы на диск не сохраняются.
-- **Воспроизведение видео/аудио:** извлечение `byte[]` из БД во временный файл, воспроизведение через `MediaPlayer`, удаление временного файла после завершения.
-- **Защита ОЗУ:** при работе с большими файлами (видео) — потоковое чтение из БД, чтобы не загружать весь BLOB в память.
+- При загрузке файл считывается в массив байтов и сохраняется в поле бинарных данных таблицы медиавложений.
+- Дедупликация: перед сохранением вычисляется хэш SHA-256. Если файл с таким хэшем уже существует в БД, создаётся только новая связь, дубликат бинарных данных не создаётся.
+- Отображение картинок: чтение байтов из БД, создание изображения. Файлы на диск не сохраняются.
+- Воспроизведение видео/аудио: извлечение байтов из БД во временный файл, воспроизведение через медиаплеер, удаление временного файла после завершения.
+- Защита оперативной памяти: при работе с большими файлами (видео) — потоковое чтение из БД.
+- Генерация уникального наименования: при создании нового медиафайла генерируется уникальное отображаемое имя, не совпадающее ни с одним существующим в БД. Имя состоит из базового имени файла и случайного суффикса из цифр и латинских букв. Проверка выполняется против всех существующих наименований в таблице медиавложений.
 
 ### 5.3. Каскадное удаление
 
-- `PersonRelationship` — `OnDelete(Cascade)` на обоих FK. Удаление `Person` автоматически чистит её связи на уровне БД. Ручной `RemoveRange` из `PersonService.DeleteAsync` удаляется.
-- `EventParticipant` — `OnDelete(Cascade)` на `EventId`, `PersonId`, `CompanyId`. Удаление `Event`/`Person`/`Company` каскадно чистит участия.
-- `MediaAttachmentLink` — `OnDelete(Cascade)` от `MediaAttachment`.
-- При удалении `Person`/`Company`/`Event`:
-  1. Удаляются строки `MediaAttachmentLink`.
-  2. Если у `MediaAttachment` не осталось ссылок — запись удаляется из БД (вместе с BLOB-данными).
-  3. Логика очистки медиа реализована **внутри** `PersonService.DeleteAsync`, `CompanyService.DeleteAsync`, `EventService.DeleteAsync`. `SearchViewModel` не вызывает `IMediaService.RemoveAllLinksForOwnerAsync` напрямую.
+- При удалении связи между людьми, организацией и человеком, организацией и событием, события и событием — удаляются связанные строки на уровне БД.
+- При удалении человека, организации или события:
+  1. Удаляются строки связей медиа с владельцем.
+  2. Удаляются связанные строки организации и человека, организации и события, события и события.
+  3. Если у медиавложения не осталось ссылок — запись удаляется из БД (вместе с бинарными данными).
+  4. Логика очистки реализована внутри сервисов удаления сущностей.
 
 ### 5.4. Стратегии сравнения (дубликаты)
 
-Единый контракт:
+Единый контракт для стратегий сравнения. Выбор стратегии через фабрику в окне поиска дубликатов.
 
-~~~csharp
-public interface IComparisonStrategy
-{
-    string Key { get; }
-    string DisplayName { get; }
-    double Compare(Person a, Person b);   // 0.0 … 1.0
-}
-~~~
+**Точное совпадение:**
+- только по идентифицирующим полям.
+- Совпадение по паспорту, если оба непустые.
+- Совпадение по фамилии, имени, отчеству и дате рождения.
+- Анонимы не идентифицируются точным совпадением.
 
-Выбор стратегии — через `IComparisonStrategyFactory` в UI (`DuplicateFinderWindow`).
+**Нечёткое сравнение:**
+- расстояние редактирования по имени с множителем по дате рождения.
+- имя для идентифицированного — ФИО, для анонима — псевдоним.
+- нормализация: обрезка пробелов, приведение к нижнему регистру, удаление лишних пробелов.
 
-Оркестрация вынесена в сервис:
-
-~~~csharp
-public sealed record DuplicateCandidate(Person Person, double Score);
-
-public interface IDuplicateFinderService
-{
-    Task<IReadOnlyList<DuplicateCandidate>> FindAsync(
-        int sourcePersonId, string? strategyKey,
-        double minScore = 0.0,
-        CancellationToken ct = default);
-}
-~~~
-
-`DuplicateFinderViewModel` — тонкий, вызывает сервис, заполняет `ObservableCollection<DuplicateCandidate>`, фильтр по `minScore` (по умолчанию 0.6).
-
-**5.4.1. ExactMatchStrategy — точное совпадение**
-
-Логика: только по идентифицирующим полям. Возвращает 0.0 или 1.0. Никаких «степеней похожести».
-
-- `Passport` совпал, оба непустые → 1.0. Иначе, если оба непустые и разные → 0.0.
-- `LastName + FirstName + SecondName + BirthDate` совпали, отчество опционально, дата должна совпасть → 1.0.
-- Анонимы (`FullName = null`) → 0.0. Анонимов точное совпадение не идентифицирует.
-- `null == null` **не** считается совпадением.
-
-**5.4.2. LevenshteinStrategy — нечёткое сравнение**
-
-Логика: расстояние редактирования по имени с множителем по дате рождения.
-
-- Имя для идентифицированного — `FullName`; для анонима — `PrimaryAlias`.
-- Нормализация: `Trim()`, `ToLowerInvariant()`, сворачивание множественных пробелов.
-- `nameScore = 1 - DamerauLevenshtein(a, b) / max(len(a), len(b))`.
-- Множитель по `BirthDate`: обе пусто → 0.3; одна пусто → 0.5; разница 0 дней → 1.0; ≤ 365 дней → 0.9; иначе → 0.3.
-- `score = nameScore * factor`.
-- Порог UI: `score >= 0.6`. Для анонимов с коротким псевдонимом (< 5 символов) порог 0.75.
-
-**5.4.3. MetadataStrategy — сравнение по метаданным**
-
-Логика: взвешенная доля совпавших полей. Поле участвует только если у обеих сторон непустое.
-
-Веса:
-
-| Поле | Вес |
-|---|---|
-| `Passport` | 5.0 |
-| `Phone` | 3.0 |
-| `Mail` | 3.0 |
-| `Address` | 1.5 |
-| `SocialMedia` | 1.5 |
-| `Car` | 1.0 |
-| `City` | 0.5 |
-| `Job` | 0.5 |
-| `CountryCode` | 0.3 |
-
-Формула: `score = Σ(weight × is_match) / Σ(weight)`, только по сравнимым полям. Штраф за малое число сравнимых полей (< 2): если совпало только одно поле, score ограничен 0.5. Если `Phone` и `Mail` совпали, а больше сравнивать нечего, `score = 1.0`.
-
-Сопоставление значений:
-- `Phone` — только цифры.
-- `Mail` — `Trim().ToLowerInvariant()`.
-- `Passport` — `Trim()`, регистронезависимо.
-- `Address` — `Trim()`, регистронезависимо.
-- Остальные — `Trim()`, регистронезависимо.
+**Сравнение по метаданным:**
+- взвешенная доля совпавших полей: паспорт, телефон, почта, адрес, соцсети, транспорт, город, профессия, код страны.
+- поле участвует только если у обеих сторон непустое.
 
 ### 5.5. Фоновые службы
 
-`StorageMaintenanceService` (`BackgroundService`):
-- При старте проверяет целостность БД и удаляет осиротевшие `MediaAttachmentLink`.
-- Раз в 10 минут очищает папку `%Temp%\FIBER\`.
-- Работает напрямую с зашифрованной БД.
+- При старте проверяет целостность базы и удаляет осиротевшие связи медиа.
+- Раз в 10 минут очищает временную папку %Temp%\FIBER\.
+- Работает напрямую с зашифрованной базой.
 
 ### 5.6. Связи
 
-**5.6.1. Person ↔ Person**
+**Человек - Человек:**
+- модель связи между людьми.
+- вид связи: родственник, друг, коллега, Opponent и другие.
+- при добавлении связи создаётся прямая и обратная запись (если вид не симметричный).
+- проверка на дубликат.
 
-Модель: `PersonRelationship` (см. §4.2). Виды — `PersonRelationKind` (§4.4).
+**Человек - Событие:**
+- модель участия в событии.
+- человек или организация participating в событии.
+- роль и заметки.
+- проверка на дубликат.
 
-`IRelationService`:
+**Организация - Организация:**
+- модель взаимодействия между организациями.
+- тип взаимодействия и заметки.
+- проверка на дубликат.
 
-~~~csharp
-Task<IReadOnlyList<PersonRelationship>> ListRelationshipsAsync(int personId);
-Task AddPersonRelationshipAsync(int personId, int relatedPersonId,
-    PersonRelationKind kind, string notes);
-Task RemovePersonRelationshipAsync(int relationshipId);
-~~~
+**Организация - Человек:**
+- модель связи между организацией и человеком.
+- роль и заметки.
+- проверка на дубликат.
 
-Правила `AddPersonRelationshipAsync`:
-1. `personId != relatedPersonId`, иначе `InvalidOperationException`.
-2. Проверка существования обоих `Person` в БД.
-3. Проверка дубликата `(personId, relatedPersonId, kind)` — если есть, выйти идемпотентно.
-4. В одной транзакции: добавить прямую строку `(A, B, kind)`, затем — если `InverseOf(kind) != kind` и `InverseOf(kind) != Other` — добавить обратную `(B, A, InverseOf(kind))`.
-5. Commit.
+**Событие - Событие:**
+- модель связи между событиями.
+- тип связи и заметки.
+- проверка на дубликат.
 
-`ListRelationshipsAsync(personId)` — `WHERE PersonId == personId`. Обратные записи уже существуют явно, дублей не будет.
+### 5.8. Хранилище медиа
 
-Подпись строки в UI — `PersonRelationKinds.DisplayNameForRelated(r.Kind, r.RelatedPerson.Gender)`.
-
-`RemovePersonRelationshipAsync(relationshipId)` — удаляет одну строку (прямую). Обратную пользователь удаляет отдельным подтверждением.
-
-**5.6.2. Person ↔ Event**
-
-Модель: `EventParticipant` (см. §4.2). Виды — `EventParticipantRole` (§4.4).
-
-`IRelationService`:
-
-~~~csharp
-Task<IReadOnlyList<EventParticipant>> ListEventParticipantsAsync(int personId);
-Task<IReadOnlyList<EventParticipant>> ListParticipantsByEventAsync(int eventId);
-Task AddEventParticipantAsync(int eventId, int? personId, int? companyId,
-    EventParticipantRole role, string notes);
-Task RemoveEventParticipantAsync(int participantId);
-~~~
-
-Правила `AddEventParticipantAsync`:
-1. Ровно один из `personId`/`companyId` задан — иначе `InvalidOperationException`.
-2. Проверка существования `Event` и (Person или Company).
-3. Проверка дубликата `(eventId, personId|companyId, role)` — если есть, выйти идемпотентно.
-4. Insert.
-
-В 1.0.0 UI и сервисы реализуют только ветку Person (Person↔Event). Ветка Company сохраняется в модели для обратной совместимости.
-
-`EventInput.Participants` расширяется:
-
-~~~csharp
-public record EventParticipantInput(
-    int? PersonId,
-    int? CompanyId,
-    EventParticipantRole Role,
-    string Notes = "");
-~~~
-
-`EventService.ValidateParticipantsAsync` — проверка уникальности по `(PersonId|CompanyId, Role)`.
-
-### 5.7. Дубликаты — итоговый UX
-
-- Кнопка «Дубликаты» доступна на вкладке «Личности» в `SearchView`.
-- Открывается `DuplicateFinderWindow`: ComboBox стратегии, кнопка «Искать», список кандидатов (`ScoreText`, `Id`, `DisplayName`, `BirthDate`, `Gender`).
-- Двойной клик по строке открывает кандидата в `SearchView` по его `Id`; переход сохраняется в маршруте истории просмотра, кнопка «Назад» возвращает к исходной записи.
-- Порог отсечения выбирается из ComboBox: весь диапазон 0–100 % с шагом 5 % (по умолчанию 60 %).
-- «Точное совпадение» — быстрая проверка по паспорту/ФИО+дате.
-- «Нечёткое сравнение» — для случаев с опечатками и для анонимов.
-- «Сравнение по метаданным» — для случаев, где ФИО неизвестно или искажено, но есть контакты.
+- кнопка «Хранилище медиа» на экранах создания и редактирования открывает диалог выбора существующих медиафайлов.
+- при выборе медиафайла, уже привязанного к текущему владельцу, отображается предупреждение и файл не добавляется повторно.
+- при перетаскивании файлов в зону загрузки проверяется дубль по хэшу SHA-256. Один и тот же файл не может быть добавлен во временные файлы более одного раза.
+- при создании нового медиафайла генерируется уникальное наименование, не совпадающее ни с одним существующим в БД.
 
 ---
 
 ## 6. Нефункциональные требования
 
-- **Асинхронность I/O:** все операции чтения/записи БД и временных файлов — через `async`-API. Отсутствуют блокирующие вызовы (`.Result` / `.Wait()`).
-- **Потокобезопасность:** общее состояние между UI и фоновыми службами защищено.
-- **Обработка ошибок:** ошибки I/O логируются через `ILogger`, приложение не падает. Пользователю показывается уведомление.
-- **Отзывчивость UI:** длительные операции (импорт медиа, извлечение видео, поиск дубликатов) выполняются в фоновом режиме без блокировки интерфейса.
-- **Чистая архитектура:** валидация и бизнес-правила — в сервисах (`PersonService`, `RelationService`, `CompanyService`, `EventService`), не в ViewModels и не в Views. ViewModels — тонкие, вызывают сервисы, обрабатывают UI-состояние. Views — только разметка.
-- **SOLID:** стратегии поиска и сравнения — через фабрики, добавление нового вида не требует правки существующих классов. DRY — логика удаления сущности и её связей/медиа живёт только в соответствующем сервисе.
-- **KISS:** без обобщённых `<T>` для стратегий сравнения в фазе 1.0.0; без универсального сериализатора; без лишних абстракций.
+- все операции чтения/записи базы и временных файлов — через асинхронный API. Отсутствуют блокирующие вызовы.
+- общее состояние между интерфейсом и фоновыми службами защищено.
+- ошибки ввода-вывода логируются, приложение не падает. Пользователю показывается уведомление.
+- длительные операции (импорт медиа, извлечение видео, поиск дубликатов) выполняются в фоновом режиме без блокировки интерфейса.
+- валидация и бизнес-правила — в сервисах, не в ViewModels и не в Views. ViewModels — тонкие, вызывают сервисы, обрабатывают состояние интерфейса. Views — только разметка.
+- стратегии поиска и сравнения — через фабрики. Добавление нового вида не требует правки существующих классов.
+- логика удаления сущности и её связей/медиа живёт только в соответствующем сервисе.
+- без обобщённых шаблонов для стратегий сравнения; без универсального сериализатора; без лишних абстракций.
 
 ---
 
 ## 7. Список библиотек
 
-| Назначение       | Пакет NuGet                                          | Версия    | Примечание                              |
-| :--------------- | :--------------------------------------------------- | :-------- | :-------------------------------------- |
-| EF Core + SQLite | `Microsoft.EntityFrameworkCore.Sqlite.Core`          | `10.0.13` | Провайдер EF Core.                      |
-| Нативный SQLite  | `SQLitePCLRaw.bundle_e_sqlcipher`                    | `2.1.11`  | SQLite с поддержкой AES-256 шифрования. |
-| MVVM             | `CommunityToolkit.Mvvm`                              | `8.4.2`   | Без изменений.                          |
-| Хостинг / DI     | `Microsoft.Extensions.Hosting`                       | `10.0.13` | Без изменений.                          |
-| Логирование      | `Microsoft.Extensions.Logging`, `.Debug`, `.Console` | `10.0.13` | Без изменений.                          |
-| EF Core Design   | `Microsoft.EntityFrameworkCore.Design`               | `10.0.13` | Для миграций (`PrivateAssets="all"`).   |
+| Назначение | Пакет NuGet | Версия | Примечание |
+|------------|-------------|--------|------------|
+| EF Core + SQLite | Microsoft.EntityFrameworkCore.Sqlite.Core | 10.0.13 | Провайдер EF Core. |
+| Нативный SQLite | SQLitePCLRaw.bundle_e_sqlcipher | 2.1.11 | SQLite с поддержкой AES-256 шифрования. |
+| MVVM | CommunityToolkit.Mvvm | 8.4.2 | Без изменений. |
+| Хостинг / DI | Microsoft.Extensions.Hosting | 10.0.13 | Без изменений. |
+| Логирование | Microsoft.Extensions.Logging | 10.0.13 | Без изменений. |
+| EF Core Design | Microsoft.EntityFrameworkCore.Design | 10.0.13 | Для миграций. |
 
 ---
-
