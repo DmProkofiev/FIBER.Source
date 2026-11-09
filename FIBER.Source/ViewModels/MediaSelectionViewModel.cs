@@ -31,6 +31,9 @@ public partial class MediaSelectionItem : ObservableObject
     /// <summary>Источник изображения (пробрасывает PropertyChanged из исходного VM).</summary>
     public ImageSource? ImageSource => _media.ImageSource;
 
+    /// <summary>Исходная модель медиа (для открытия окон зума).</summary>
+    public MediaItemViewModel Media => _media;
+
     [ObservableProperty]
     private bool _isSelected;
 

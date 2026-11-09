@@ -549,6 +549,30 @@
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
 
+        <!-- Контейнер карточки медиа при редактировании объекта -->
+        <Style x:Key="MediaVideoCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="MinWidth" Value="260"/>
+            <Setter Property="MinHeight" Value="240"/>
+        </Style>
+
+        <!-- Контейнер карточки аудио при редактировании объекта -->
+        <Style x:Key="MediaAudioCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+            <Setter Property="MinWidth" Value="260"/>
+            <Setter Property="MinHeight" Value="120"/>
+        </Style>
+
         <!-- Контейнер видео: желтый, адекватные размеры -->
         <Style x:Key="VideoContainerStyle" TargetType="Border">
             <Setter Property="Background" Value="#F1C40F"/>

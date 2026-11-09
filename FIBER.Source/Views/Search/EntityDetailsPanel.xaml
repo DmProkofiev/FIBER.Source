@@ -165,7 +165,7 @@
                             <TabControl Style="{StaticResource MediaTabControlStyle}">
                                 <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}"
                                          Visibility="{Binding Images.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="#19FFFFFF">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}">
                                         <ItemsControl ItemsSource="{Binding Images, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" HorizontalAlignment="Center" Foreground="{x:Null}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -257,7 +257,7 @@
                                 <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}"
                                          Visibility="{Binding Audio.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" BorderBrush="Red">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}">
-                                        <ItemsControl ItemsSource="{Binding Audio, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" Foreground="{x:Null}" Background="#19FFFFFF">
+                                        <ItemsControl ItemsSource="{Binding Audio, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" Foreground="{x:Null}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <UniformGrid Columns="1"/>
