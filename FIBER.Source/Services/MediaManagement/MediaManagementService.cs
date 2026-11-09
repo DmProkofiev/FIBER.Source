@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace FIBER.Source.Services.MediaManagement;
 
-/// <summary>Реализация общих операций с медиа для Update-экранов.</summary>
+/// Реализация общих операций с медиа для Update-экранов
 public sealed class MediaManagementService : IMediaManagementService
 {
     private readonly IMediaService _mediaService;
@@ -24,7 +24,7 @@ public sealed class MediaManagementService : IMediaManagementService
         _dialogService = dialogService;
     }
 
-    /// <summary>Загружает существующие медиа владельца, сгруппированные по типам.</summary>
+    /// Загружает существующие медиа владельца, сгруппированные по типам
     public async Task<OwnerMedia> LoadOwnerMediaAsync(MediaOwnerType ownerType, int ownerId)
     {
         var media = new OwnerMedia();
@@ -43,8 +43,8 @@ public sealed class MediaManagementService : IMediaManagementService
         return media;
     }
 
-    /// <summary>Очищает коллекции существующих медиа.
-    /// Не утилизирует VM — они belong к общему кэшу MediaService и используются повторно.</summary>
+    /// Очищает коллекции существующих медиа.
+    /// Не утилизирует VM — они belong к общему кэшу MediaService и используются повторно
     public void ClearMedia(OwnerMedia media)
     {
         media.Images.Clear();
@@ -52,10 +52,10 @@ public sealed class MediaManagementService : IMediaManagementService
         media.Audios.Clear();
     }
 
-    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
+    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
     /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
     /// а не прямую привязку к владельцу в БД.
-    /// Пустой список — диалог отменён или ничего не выбрано.</summary>
+    /// Пустой список — диалог отменён или ничего не выбрано
     public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync()
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
@@ -74,9 +74,9 @@ public sealed class MediaManagementService : IMediaManagementService
         return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
     }
 
-    /// <summary>Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
-    /// Уже привязанные к владельцу файлы пропускаются (без дублей).
-    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя.</summary>
+    /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД
+    /// Уже привязанные к владельцу файлы пропускаются (без дублей)
+    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя
     public async Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId)
     {
         var ids = mediaIds is null ? new List<int>() : mediaIds.Where(id => id > 0).Distinct().ToList();
@@ -95,7 +95,7 @@ public sealed class MediaManagementService : IMediaManagementService
         return skipped;
     }
 
-    /// <summary>Удаляет существующий медиафайл у владельца.</summary>
+    /// Удаляет существующий медиафайл у владельца
     public async Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media)
     {
         if (media == null || media.MediaId is null) return;
@@ -112,9 +112,9 @@ public sealed class MediaManagementService : IMediaManagementService
         }
     }
 
-    /// <summary>Обрабатывает перетаскивание файлов (добавляет во временные файлы).
+    /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
     /// Защита от дубля: один и тот же файл (по SHA-256 содержимому) не может быть
-    /// перетащен во временные файлы более одного раза.</summary>
+    /// перетащен во временные файлы более одного раз
     public async Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
@@ -138,12 +138,12 @@ public sealed class MediaManagementService : IMediaManagementService
         if (skipped > 0)
         {
             Notification.Show("Внимание",
-                $"{skipped} файл(ов) не добавлен(о) — такой же файл уже во временных файлах.",
+                $"{skipped} уже добавлен",
                 NotificationType.Warning);
         }
     }
 
-    /// <summary>Удаляет временный файл из коллекции и диска.</summary>
+    /// Удаляет временный файл из коллекции и диска
     public void RemoveTempFile(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item)
     {
         if (item == null) return;

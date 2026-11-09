@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FIBER.Source.Services.MediaManagement;
 
-/// <summary>Результат загрузки существующих медиа владельца, сгруппированный по типам.</summary>
+/// Результат загрузки существующих медиа владельца, сгруппированный по типам
 public sealed class OwnerMedia
 {
     public ObservableCollection<MediaItemViewModel> Images { get; } = new();
@@ -17,31 +17,31 @@ public sealed class OwnerMedia
     public int TotalCount => Images.Count + Videos.Count + Audios.Count;
 }
 
-/// <summary>Операции над медиа, общие для всех Update-экранов (человек, событие, организация).</summary>
+/// Операции над медиа, общие для всех Update-экранов (человек, событие, организация)
 public interface IMediaManagementService
 {
-    /// <summary>Загружает существующие медиа владельца, сгруппированные по типам.</summary>
+    /// Загружает существующие медиа владельца, сгруппированные по типам
     Task<OwnerMedia> LoadOwnerMediaAsync(MediaOwnerType ownerType, int ownerId);
 
-    /// <summary>Очищает коллекции существующих медиа с утилизацией ресурсов.</summary>
+    /// Очищает коллекции существующих медиа с утилизацией ресурсов
     void ClearMedia(OwnerMedia media);
 
-    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
-    /// Возвращает выбранные медиа-элементы (уже имеют MediaId, файл кэширован во Temp).
-    /// Пустой список — диалог отменён или ничего не выбрано.</summary>
+    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные
+    /// Возвращает выбранные медиа-элементы (уже имеют MediaId, файл кэширован во Temp)
+    /// Пустой список — диалог отменён или ничего не выбрано
     Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync();
 
-    /// <summary>Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
+    /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
     /// Уже привязанные к владельцу файлы пропускаются (без дублей).
-    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя.</summary>
+    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя
     Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId);
 
-    /// <summary>Удаляет существующий медиафайл у владельца.</summary>
+    /// Удаляет существующий медиафайл у владельца
     Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media);
 
-    /// <summary>Обрабатывает перетаскивание файлов (добавляет во временные файлы).</summary>
+    /// Обрабатывает перетаскивание файлов (добавляет во временные файлы)
     Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths);
 
-    /// <summary>Удаляет временный файл из коллекции и диска.</summary>
+    /// Удаляет временный файл из коллекции и диска
     void RemoveTempFile(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item);
 }

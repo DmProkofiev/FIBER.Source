@@ -8,13 +8,13 @@ namespace FIBER.Source.Services.Search;
 // Все выражения остаются «чистыми» лямбдами — провайдер EF Core SQLite транслирует их в SQL.
 public static class PredicateBuilder
 {
-    // Истинный предикат — нейтральный элемент для накопительного And (true AND P == P).
+    // Истинный предикат — нейтральный элемент для накопительного And (true AND P == P)
     public static Expression<Func<T, bool>> Empty<T>() => _ => true;
 
-    // Ложный предикат — нейтральный элемент для накопительного Or.
+    // Ложный предикат — нейтральный элемент для накопительного Or
     public static Expression<Func<T, bool>> False<T>() => _ => false;
 
-    // Логическое И: left AND right (параметры переименовываются к одному).
+    // Логическое И: left AND right (параметры переименовываются к одному)
     public static Expression<Func<T, bool>> And<T>(this Expression<Func<T, bool>> left,
         Expression<Func<T, bool>> right)
     {
@@ -25,7 +25,7 @@ public static class PredicateBuilder
         return Expression.Lambda<Func<T, bool>>(body, param);
     }
 
-    // Логическое ИЛИ: left OR right.
+    // Логическое ИЛИ: left OR right
     public static Expression<Func<T, bool>> Or<T>(this Expression<Func<T, bool>> left,
         Expression<Func<T, bool>> right)
     {

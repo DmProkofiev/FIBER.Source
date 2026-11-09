@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,13 +17,15 @@ namespace FIBER.Source.Services;
 
 public sealed class CompanyService : BaseService, ICompanyService
 {
+
+
     public CompanyService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IMediaService mediaService,
         IAuditLogService auditLog)
         : base(contextFactory, mediaService, auditLog)
-    {
-    }
+        {
+        }
 
     public async Task<Company> CreateAsync(CompanyInput input)
     {
@@ -215,46 +217,28 @@ public sealed class CompanyService : BaseService, ICompanyService
     {
         if (inputs is null) return;
 
-        // DELETE: связи, отсутствующие во входных данных.
-        foreach (var existing in company.CompanyPeople?.ToList() ?? new List<CompanyPerson>())
-        {
-            if (inputs.Any(i => i.Id == existing.Id)) continue;
-            context.CompanyPeople.Remove(existing);
-        }
-
-        // UPDATE + CREATE.
-        // Для новых связей (Id == null) CompanyId не задан — используем company.Id из контекста.
-        foreach (var input in inputs.Where(i => i.PersonId > 0))
-        {
-            var inputCompanyId = input.Id.HasValue ? input.CompanyId : company.Id;
-            if (inputCompanyId != company.Id)
-                throw new InvalidOperationException("Невозможно связать организацию с персоной от имени другой организации");
-
-            if (!await context.People.AnyAsync(p => p.Id == input.PersonId))
-                throw new InvalidOperationException($"Личность Id={input.PersonId} не найдена");
-
-            var link = company.CompanyPeople?.FirstOrDefault(cp => cp.Id == input.Id);
-            if (link is not null)
+        var sync = new LinkSynchronizer(context);
+        await sync.SyncLinksAsync(
+            existingLinks: company.CompanyPeople,
+            inputs: inputs,
+            ownerId: company.Id,
+            getInputId: i => i.Id,
+            getInputTargetId: i => i.PersonId,
+            getInputRole: i => i.Role,
+            getInputNotes: i => i.Notes,
+            setLinkFields: (link, role, notes) =>
             {
-                link.Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty;
-                link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
-                continue;
-            }
-
-            bool exists = await context.CompanyPeople.AnyAsync(cp =>
-                cp.CompanyId == company.Id && cp.PersonId == input.PersonId);
-            if (exists) continue;
-
-            context.CompanyPeople.Add(new CompanyPerson
+                link.Role = role;
+                link.Notes = notes;
+            },
+            targetExists: id => context.People.AnyAsync(p => p.Id == id),
+            duplicateExists: (ownerId, targetId) => context.CompanyPeople.AnyAsync(cp =>
+                cp.CompanyId == ownerId && cp.PersonId == targetId),
+            createLink: targetId => new CompanyPerson
             {
                 CompanyId = company.Id,
-                PersonId = input.PersonId,
-                Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty,
-                Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
+                PersonId = targetId
             });
-        }
-
-        await context.SaveChangesAsync();
     }
 
     // ===== Синхронизация связей «организация ↔ событие» (CRUD внутри Update) =====
@@ -281,7 +265,7 @@ public sealed class CompanyService : BaseService, ICompanyService
             var link = company.EventParticipations?.FirstOrDefault(ep => ep.Id == input.Id);
             if (link is not null)
             {
-                link.Role = input.Role;
+                link.Role = input.Role.GetValueOrDefault();
                 link.Notes = input.Notes ?? string.Empty;
                 continue;
             }
@@ -295,12 +279,10 @@ public sealed class CompanyService : BaseService, ICompanyService
             {
                 EventId = eventId,
                 CompanyId = company.Id,
-                Role = input.Role,
+                Role = input.Role.GetValueOrDefault(),
                 Notes = input.Notes ?? string.Empty
             });
         }
-
-        await context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)

@@ -247,9 +247,9 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private void AddEventParticipation()
     {
-        if (_selectedTargetEventId == null) return;
+        if (SelectedTargetEventId == null) return;
 
-        var target = AvailableEvents.FirstOrDefault(e => e.Id == _selectedTargetEventId.Value);
+        var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
 
         // Защита от дубля: такое событие уже есть в списке.

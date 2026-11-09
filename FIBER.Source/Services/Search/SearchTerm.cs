@@ -6,18 +6,12 @@ using System.Linq;
 namespace FIBER.Source.Services.Search;
 
 // Разобранная строка поиска для стратегий «По ФИО» и «ФИО + дата рождения».
-// Токены нормализуются (trim, схлопывание пробелов) и приводятся к нижнему регистру —
-// провайдер SQLite транслирует LOWER(...) в SQL, поэтому данные приводятся к нижнему
-// регистру на стороне СУБД, а терм — здесь.
 public sealed class SearchTerm
 {
-    // Слова запроса без учёта регистра (даты и годы из них исключены).
     public IReadOnlyList<string> Words { get; }
 
-    // Полная дата рождения, если распознана (dd.MM.yyyy, dd/MM/yyyy, yyyy-MM-dd, yyyyMMdd, d.M.yy).
     public DateTime? FullDate { get; }
 
-    // Год рождения, если в запросе указано только он (4 цифры, 1900..2100).
     public int? Year { get; }
 
     private SearchTerm(IReadOnlyList<string> words, DateTime? fullDate, int? year)
@@ -33,7 +27,6 @@ public sealed class SearchTerm
     public bool HasDate => FullDate != null || Year != null;
     public bool HasAnything => HasName || HasDate;
 
-    // Нормализация: trim, нижний регистр, схлопывание повторных пробелов.
     public static string NormalizeWord(string? value)
     {
         var v = (value ?? string.Empty).Trim();
@@ -55,7 +48,6 @@ public sealed class SearchTerm
 
         var tokens = raw.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToList();
 
-        // 1) Пробуем выделить полную дату (подходящий токен с конца).
         DateTime? fullDate = null;
         int dateIndex = -1;
         for (int i = tokens.Count - 1; i >= 0; i--)
@@ -71,7 +63,6 @@ public sealed class SearchTerm
             }
         }
 
-        // 2) Если полной даты нет — пробуем выделить год (4 цифры, 1900..2100).
         int? year = null;
         int yearIndex = -1;
         if (fullDate == null)

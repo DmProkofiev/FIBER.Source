@@ -1,5 +1,5 @@
-using System;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using FIBER.Source.Interfaces;
 using FIBER.Source.ViewModels;
@@ -21,6 +21,8 @@ public partial class DuplicateFinderWindow : Window
         InitializeComponent();
         var vm = new DuplicateFinderViewModel(personId, duplicateFinderService);
         DataContext = vm;
+        vm.NavigateRequested += (type, id) => { NavigateRequested?.Invoke(type, id); };
+        vm.CloseRequested += () => Close();
         Loaded += async (_, _) => await vm.InitializeAsync();
     }
 
@@ -33,6 +35,8 @@ public partial class DuplicateFinderWindow : Window
         InitializeComponent();
         var vm = new DuplicateFinderViewModel(companyId, isCompanyMode, duplicateFinderService);
         DataContext = vm;
+        vm.NavigateRequested += (type, id) => { NavigateRequested?.Invoke(type, id); };
+        vm.CloseRequested += () => Close();
         Loaded += async (_, _) => await vm.InitializeAsync();
     }
 
@@ -40,12 +44,7 @@ public partial class DuplicateFinderWindow : Window
     private void PersonCandidate_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ListViewItem { DataContext: DuplicateCandidate candidate }) return;
-
-        var navigate = NavigateRequested;
-        Close();
-        navigate?.Invoke(RelationTargetType.Person, candidate.Person.Id);
+        if (DataContext is DuplicateFinderViewModel vm)
+            vm.NavigateToCandidateCommand.Execute(candidate);
     }
-
-    // Закрывает окно
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }

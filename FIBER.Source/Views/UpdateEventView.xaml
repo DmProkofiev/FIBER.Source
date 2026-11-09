@@ -70,7 +70,8 @@
                         <TextBlock Grid.Row="8" Grid.Column="0" Text="Заметки:" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,8,15,0"/>
                         <TextBox Grid.Row="8" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
                                  Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="70" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"/>
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top" VerticalAlignment="Stretch"/>
                     </Grid>
 
                     <!-- ================= УЧАСТНИКИ (CRUD связей события) ================= -->
@@ -111,44 +112,32 @@
                             <ItemsControl ItemsSource="{Binding Participants}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#11FFFFFF" CornerRadius="4" Padding="6" Margin="0,2">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <!-- Подписи -->
-                                                <TextBlock Grid.Column="0" Text="Участник" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="1" Text="Роль" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="2" Text="Заметки" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding DisplayName}"
-                                                           Foreground="White" FontFamily="Times New Roman"
-                                                           FontSize="14" VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" Margin="0,0,6,0"/>
-                                                <ComboBox Grid.Row="1" Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
-                                                          ItemsSource="{x:Static vm:EventParticipantEditVM.AvailableRoles}"
-                                                          SelectedValue="{Binding Role}"
-                                                          SelectedValuePath="Value"
-                                                          DisplayMemberPath="Display"
-                                                          Margin="0,0,6,0"/>
-                                                <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,0,6,0"/>
-                                                <Button Grid.Row="1" Grid.Column="3" Content="×" Width="26" Height="26"
-                                                        Background="#CCFF0000" Foreground="White" BorderThickness="0"
-                                                        Command="{Binding DataContext.RemoveParticipantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </Grid>
-                                        </Border>
+                                                                                <Border Background="#11FFFFFF" CornerRadius="4" Padding="6" Margin="0,2">
+                                                                                    <StackPanel>
+                                                                                        <TextBlock Text="Участник" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                                                        <TextBox Text="{Binding DisplayName}" IsReadOnly="True"
+                                                                                                 Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
+                                                                                        
+                                                                                        <TextBlock Text="Роль" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                                                        <ComboBox Style="{StaticResource ModernComboBoxStyle}"
+                                                                                                  ItemsSource="{x:Static vm:EventParticipantEditVM.AvailableRoles}"
+                                                                                                  SelectedValue="{Binding Role}"
+                                                                                                  SelectedValuePath="Value"
+                                                                                                  DisplayMemberPath="Display"
+                                                                                                  Margin="0,0,0,6"/>
+                                                                                        
+                                                                                        <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                                                        <TextBox Style="{StaticResource ModernTextBoxStyle}"
+                                                                                             Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                                                             Margin="0,0,0,6"/>
+                                                                                        
+                                                                                        <Button Content="×" Width="26" Height="26"
+                                                                                                Background="#CCFF0000" Foreground="White" BorderThickness="0"
+                                                                                                Command="{Binding DataContext.RemoveParticipantCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                                                CommandParameter="{Binding}"
+                                                                                                HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                                                                    </StackPanel>
+                                            </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -184,48 +173,38 @@
                                           SelectedValue="{Binding SelectedTargetEventId}"
                                           SelectedValuePath="Id"
                                           DisplayMemberPath="Title"/>
-                                <Button Grid.Column="1" Content="+ Добавить событие"
+                                <Button Grid.Column="1" Content="Добавить"
                                         Command="{Binding AddEventEventCommand}"
                                         HorizontalAlignment="Right" Height="30" Padding="12,4" Margin="8,0,0,0"
-                                        Background="#27AE60" Foreground="White" FontFamily="Times New Roman"
-                                        FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
+                                        Style="{StaticResource ActionButtonGreen}"
+                                        FontWeight="Bold" BorderThickness="0"/>
                             </Grid>
 
                             <ItemsControl ItemsSource="{Binding EventEvents}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Background="#11FFFFFF" CornerRadius="4" Padding="6" Margin="0,2">
-                                            <Grid>
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <!-- Подписи -->
-                                                <TextBlock Grid.Column="0" Text="Событие" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="1" Text="Тип связи" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="2" Text="Заметки" FontSize="12" FontWeight="Bold"
-                                                           Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding TargetEventTitle, Mode=OneWay}" IsReadOnly="True"
-                                                         Margin="0,0,6,0"/>
-                                                <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
+                                            <StackPanel>
+                                                <TextBlock Text="Событие" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Text="{Binding TargetEventTitle, Mode=OneWay}" IsReadOnly="True"
+                                                         Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
+                                                
+                                                <TextBlock Text="Тип связи" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Style="{StaticResource ModernTextBoxStyle}"
                                                          Text="{Binding RelationshipType, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,0,6,0"/>
-                                                <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
-                                                         Margin="0,0,6,0"/>
-                                                <Button Grid.Row="1" Grid.Column="3" Content="×" Width="26" Height="26"
+                                                         Margin="0,0,0,6"/>
+                                                
+                                                <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Style="{StaticResource ModernTextBoxStyle}"
+                                                     Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                     Margin="0,0,0,6"/>
+                                                
+                                                <Button Content="×" Width="26" Height="26"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.RemoveEventEventCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </Grid>
+                                                        CommandParameter="{Binding}"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                                            </StackPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -547,4 +526,7 @@
         </Grid>
     </Border>
 </UserControl>
+
+
+
 

@@ -5,10 +5,7 @@ using FIBER.Source.Models;
 
 namespace FIBER.Source.Services.Comparison;
 
-// Взвешенное сравнение по метаданным (ТЗ §5.4.3).
-// Поле участвует только если у обеих сторон непустое значение;
-// score = Σ(вес × совпадение) / Σ(вес). Штраф за малое число сравнимых полей (< 2):
-// если совпало только одно поле, score ограничен 0.5, чтобы не плодить ложные дубликаты.
+// Взвешенное сравнение по метаданным ТЗ 5.4.3
 public sealed class MetadataStrategy : IComparisonStrategy
 {
     public string Name => "Сравнение по метаданным";
@@ -45,19 +42,16 @@ public sealed class MetadataStrategy : IComparisonStrategy
 
         double score = matchedWeight / comparableWeight;
 
-        // Штраф за малое число сравнимых полей (меньше 2).
-        // Если совпало только одно поле (например, только Город или только Телефон),
-        // score не может быть выше 0.5, чтобы избежать ложных дублей.
         if (comparableFieldCount < 2)
             score = Math.Min(score, 0.5);
 
         return Math.Clamp(score, 0.0, 1.0);
     }
 
-    // Trim + нижний регистр (сравнение регистронезависимо).
+    // Trim + нижний регистр сравнение регистронезависимо
     private static string Trimmed(string? value) => value?.Trim().ToLowerInvariant() ?? string.Empty;
 
-    // Телефон сравнивается только по цифрам.
+    // Телефон сравнивается только по цифрам
     private static string DigitsOnly(string? value) =>
         value is null ? string.Empty : new string(value.Where(char.IsDigit).ToArray());
 }

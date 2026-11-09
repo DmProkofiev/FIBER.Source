@@ -23,7 +23,7 @@ public partial class EventParticipantEditVM : ObservableObject
 
     public bool IsCompany => CompanyId.HasValue;
 
-    [ObservableProperty] private EventParticipantRole _role = EventParticipantRole.Participant;
+    [ObservableProperty] private EventParticipantRole? _role;
 
     [ObservableProperty] private string _notes = string.Empty;
 
@@ -32,7 +32,7 @@ public partial class EventParticipantEditVM : ObservableObject
             .Select(r => new EventParticipantRoleOption(r, EventParticipantRoles.DisplayName(r)))
             .ToList();
 
-    public EventParticipantInput ToInput() => new(PersonId, CompanyId, EventId, Role, Notes);
+    public EventParticipantInput ToInput() => new(PersonId, CompanyId, EventId, Role.GetValueOrDefault(), Notes);
 
     public EventParticipantEditInput ToEditInput() => new(Id, PersonId, CompanyId, EventId, Role, Notes);
 

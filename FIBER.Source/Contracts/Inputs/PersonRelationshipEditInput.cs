@@ -7,5 +7,5 @@ namespace FIBER.Source.Contracts.Inputs;
 public record PersonRelationshipEditInput(
     int? Id,
     int RelatedPersonId,
-    PersonRelationKind Kind,
+    PersonRelationKind? Kind,
     string Notes = "");

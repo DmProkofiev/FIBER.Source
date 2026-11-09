@@ -16,11 +16,4 @@ public partial class IdentificationWindow : Window
         DataContext = new IdentificationWindowViewModel(this, databaseService);
         Loaded += (_, _) => PasswordBox.Focus();
     }
-
-    /// <summary>Проброс ввода пароля из PasswordBox в VM.</summary>
-    private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is IdentificationWindowViewModel vm)
-            vm.Password = PasswordBox.Password;
-    }
 }

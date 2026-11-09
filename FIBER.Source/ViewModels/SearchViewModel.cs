@@ -7,6 +7,7 @@ using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -22,6 +23,8 @@ public partial class SearchViewModel : ObservableObject
     private readonly IMediaService _mediaService;
     private readonly IRelationService _relationService;
     private readonly ISearchStrategyFactory _strategyFactory;
+    private readonly IDuplicateFinderService _duplicateFinderService;
+    private readonly IExportService _exportService;
 
     public event Action<int>? UpdatePersonRequested;
     public event Action<int>? UpdateCompanyRequested;
@@ -32,6 +35,15 @@ public partial class SearchViewModel : ObservableObject
     public event Action<int>? NavigateToCompanyRequested;
     public event Action<int>? NavigateToEventRequested;
 
+    // Открыть окно дубликатов для персоны
+    public event Action<int>? DuplicatesRequested;
+    // Экспорт объекта
+    public event Action<MediaOwnerType, int, string>? ExportRequested;
+    // Зум изображения
+    public event Action<MediaItemViewModel>? ImageZoomRequested;
+    // Зум видео
+    public event Action<MediaItemViewModel>? VideoZoomRequested;
+
     public SearchViewModel(
         IPersonService personService,
         ICompanyService companyService,
@@ -39,7 +51,9 @@ public partial class SearchViewModel : ObservableObject
         ICountryService countryService,
         IMediaService mediaService,
         IRelationService relationService,
-        ISearchStrategyFactory strategyFactory)
+        ISearchStrategyFactory strategyFactory,
+        IDuplicateFinderService duplicateFinderService,
+        IExportService exportService)
     {
         _personService = personService;
         _companyService = companyService;
@@ -48,6 +62,8 @@ public partial class SearchViewModel : ObservableObject
         _mediaService = mediaService;
         _relationService = relationService;
         _strategyFactory = strategyFactory;
+        _duplicateFinderService = duplicateFinderService;
+        _exportService = exportService;
 
         _selectedStatusFilter = StatusFilters.First();
     }
@@ -146,6 +162,23 @@ public partial class SearchViewModel : ObservableObject
     public bool HasEventSelection => SelectedEvent != null;
     public string SelectedEventDisplayName => SelectedEvent?.Title ?? string.Empty;
 
+    // ===== Унифицированные свойства для EntityDetailsPanel (устранение дублирования SearchView) =====
+
+    /// <summary>Отображаемое имя выбранной сущности (для любой вкладки).</summary>
+    [ObservableProperty] private string _selectedEntityDisplayName = string.Empty;
+
+    /// <summary>Поля для отображения в унифицированной панели деталей.</summary>
+    public ObservableCollection<FieldViewModel> SelectedEntityFields { get; } = new();
+
+    /// <summary>Связи выбранной сущности (общие для любой вкладки).</summary>
+    public ObservableCollection<RelationItemViewModel> SelectedEntityRelations { get; } = new();
+
+    /// <summary>Признак того, что выбрана какая-то запись (любой вкладки).</summary>
+    public bool HasEntitySelection => SelectedPerson != null || SelectedCompany != null || SelectedEvent != null;
+
+    /// <summary>Текущий тип выбранной сущности.</summary>
+    public EntityType SelectedEntityType { get; private set; } = EntityType.None;
+
     public async Task InitializeAsync()
     {
         await EnsureCountriesAsync();
@@ -223,6 +256,7 @@ public partial class SearchViewModel : ObservableObject
 
             await LoadMediaAsync(MediaOwnerType.Person, SelectedPerson.Id, PersonImages, PersonVideos, PersonAudio);
             await LoadPersonRelationsAsync(SelectedPerson);
+            BuildEntityFieldsForPerson(SelectedPerson);
         }
         catch (Exception ex)
         {
@@ -231,7 +265,13 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearPersonSelection() { DisposeMedia(PersonImages, PersonVideos, PersonAudio); PersonRelations.Clear(); SelectedPerson = null; }
+    private void ClearPersonSelection()
+    {
+        DisposeMedia(PersonImages, PersonVideos, PersonAudio);
+        PersonRelations.Clear();
+        SelectedPerson = null;
+        ClearEntityFields();
+    }
 
     [RelayCommand]
     private void UpdatePerson() { if (SelectedPerson != null) UpdatePersonRequested?.Invoke(SelectedPerson.Id); }
@@ -320,6 +360,7 @@ public partial class SearchViewModel : ObservableObject
 
             await LoadMediaAsync(MediaOwnerType.Company, SelectedCompany.Id, CompanyImages, CompanyVideos, CompanyAudio);
             await LoadCompanyRelationsAsync(SelectedCompany);
+            BuildEntityFieldsForCompany(SelectedCompany);
         }
         catch (Exception ex)
         {
@@ -328,7 +369,13 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearCompanySelection() { DisposeMedia(CompanyImages, CompanyVideos, CompanyAudio); CompanyRelations.Clear(); SelectedCompany = null; }
+    private void ClearCompanySelection()
+    {
+        DisposeMedia(CompanyImages, CompanyVideos, CompanyAudio);
+        CompanyRelations.Clear();
+        SelectedCompany = null;
+        ClearEntityFields();
+    }
 
     [RelayCommand]
     private void UpdateCompany() { if (SelectedCompany != null) UpdateCompanyRequested?.Invoke(SelectedCompany.Id); }
@@ -398,6 +445,7 @@ public partial class SearchViewModel : ObservableObject
 
             await LoadMediaAsync(MediaOwnerType.Event, SelectedEvent.Id, EventImages, EventVideos, EventAudio);
             await LoadEventRelationsAsync(SelectedEvent);
+            BuildEntityFieldsForEvent(SelectedEvent);
         }
         catch (Exception ex)
         {
@@ -406,7 +454,13 @@ public partial class SearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ClearEventSelection() { DisposeMedia(EventImages, EventVideos, EventAudio); EventRelations.Clear(); SelectedEvent = null; }
+    private void ClearEventSelection()
+    {
+        DisposeMedia(EventImages, EventVideos, EventAudio);
+        EventRelations.Clear();
+        SelectedEvent = null;
+        ClearEntityFields();
+    }
 
     [RelayCommand]
     private void UpdateEvent() { if (SelectedEvent != null) UpdateEventRequested?.Invoke(SelectedEvent.Id); }
@@ -429,6 +483,56 @@ public partial class SearchViewModel : ObservableObject
             Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
         finally { IsEventBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task ShowDuplicatesAsync()
+    {
+        if (SelectedPerson == null) return;
+        var result = await _duplicateFinderService.FindAsync(
+            SelectedPerson.Id, null, DuplicateFinderViewModel.DefaultThreshold);
+        if (result is null) return;
+
+        // Событие для открытия окна дубликатов (обрабатывается во View или MainViewModel)
+        DuplicatesRequested?.Invoke(SelectedPerson.Id);
+    }
+
+    [RelayCommand]
+    private async Task ExportPersonAsync()
+    {
+        if (SelectedPerson == null) return;
+        ExportRequested?.Invoke(MediaOwnerType.Person, SelectedPerson.Id,
+            $"Личность: {SelectedPerson.FullName ?? $"Аноним #{SelectedPerson.Id}"}");
+    }
+
+    [RelayCommand]
+    private async Task ExportCompanyAsync()
+    {
+        if (SelectedCompany == null) return;
+        ExportRequested?.Invoke(MediaOwnerType.Company, SelectedCompany.Id,
+            $"Организация: {SelectedCompany.Name}");
+    }
+
+    [RelayCommand]
+    private async Task ExportEventAsync()
+    {
+        if (SelectedEvent == null) return;
+        ExportRequested?.Invoke(MediaOwnerType.Event, SelectedEvent.Id,
+            $"Событие: {SelectedEvent.Title}");
+    }
+
+    [RelayCommand]
+    private void ZoomImage(MediaItemViewModel media)
+    {
+        if (media == null || media.ImageSource == null) return;
+        ImageZoomRequested?.Invoke(media);
+    }
+
+    [RelayCommand]
+    private void ZoomVideo(MediaItemViewModel media)
+    {
+        if (media == null || string.IsNullOrEmpty(media.FilePath)) return;
+        VideoZoomRequested?.Invoke(media);
     }
 
     // ===== Навигация по связям =====
@@ -717,12 +821,12 @@ public partial class SearchViewModel : ObservableObject
         {
             if (ep.Person != null)
             {
-                EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", PersonDisplayName(ep.Person),
+                EventRelations.Add(new RelationItemViewModel($"Роль: {ep.RoleDisplay}", PersonDisplayName(ep.Person),
                     RelationTargetType.Person, ep.Person.Id, NotesDetails(ep.Notes)));
             }
             else if (ep.Company != null)
             {
-                EventRelations.Add(new RelationItemViewModel($"Участник: {ep.RoleDisplay}", ep.Company.Name,
+                EventRelations.Add(new RelationItemViewModel($"Роль: {ep.RoleDisplay}", ep.Company.Name,
                     RelationTargetType.Company, ep.Company.Id, NotesDetails(ep.Notes)));
             }
         }
@@ -773,6 +877,101 @@ public partial class SearchViewModel : ObservableObject
         foreach (var v in videos) v.Dispose();
         foreach (var a in audio) a.Dispose();
         images.Clear(); videos.Clear(); audio.Clear();
+    }
+
+    // ===== Унифицированные поля для EntityDetailsPanel =====
+
+    private void ClearEntityFields()
+    {
+        SelectedEntityFields.Clear();
+        SelectedEntityRelations.Clear();
+        SelectedEntityDisplayName = string.Empty;
+        SelectedEntityType = EntityType.None;
+        OnPropertyChanged(nameof(HasEntitySelection));
+    }
+
+    private void BuildEntityFieldsForPerson(Person person)
+    {
+        SelectedEntityType = EntityType.Person;
+        SelectedEntityDisplayName = SelectedPersonDisplayName;
+        SelectedEntityFields.Clear();
+        SelectedEntityRelations.Clear();
+
+        foreach (var r in PersonRelations) SelectedEntityRelations.Add(r);
+
+        AddField("ID", person.Id.ToString());
+        AddField("Фамилия", person.LastName);
+        AddField("Имя", person.FirstName);
+        AddField("Отчество", person.SecondName);
+        AddField("Статус", person.Status == IdentityStatus.Identified ? "Идентифицирован" : "Не идентифицирован");
+        AddField("Пол", person.GenderDisplay);
+        AddField("Дата рождения", person.BirthDateDisplay);
+        AddField("Паспорт", person.Passport);
+        AddField("Профессия", person.Job);
+        AddField("Телефон", person.Phone);
+        AddField("Город", person.City);
+        AddField("Страна", person.Country?.NameRu ?? "—");
+        AddField("Транспорт", person.Car);
+        AddField("Email", person.Mail);
+        AddField("Соцсети", person.SocialMedia);
+        AddField("Адрес", person.Address);
+        AddField("Заметки", person.Notes);
+
+        if (person.Aliases.Count > 0)
+        {
+            AddField("Псевдонимы", string.Join(", ", person.Aliases.Select(a => $"{(a.IsPrimary ? "*" : "")}{a.Value}")));
+        }
+
+        OnPropertyChanged(nameof(HasEntitySelection));
+    }
+
+    private void BuildEntityFieldsForCompany(Company company)
+    {
+        SelectedEntityType = EntityType.Company;
+        SelectedEntityDisplayName = SelectedCompanyDisplayName;
+        SelectedEntityFields.Clear();
+        SelectedEntityRelations.Clear();
+
+        foreach (var r in CompanyRelations) SelectedEntityRelations.Add(r);
+
+        AddField("ID", company.Id.ToString());
+        AddField("Название", company.Name);
+        AddField("Рег. номер", company.RegistrationNumber);
+        AddField("Адрес", company.Address);
+        AddField("Телефон", company.Phone);
+        AddField("Email", company.Mail);
+        AddField("Сайт", company.Website);
+        AddField("Заметки", company.Notes);
+
+        OnPropertyChanged(nameof(HasEntitySelection));
+    }
+
+    private void BuildEntityFieldsForEvent(Event evt)
+    {
+        SelectedEntityType = EntityType.Event;
+        SelectedEntityDisplayName = SelectedEventDisplayName;
+        SelectedEntityFields.Clear();
+        SelectedEntityRelations.Clear();
+
+        foreach (var r in EventRelations) SelectedEntityRelations.Add(r);
+
+        AddField("ID", evt.Id.ToString());
+        AddField("Название", evt.Title);
+        AddField("Дата", evt.DateDisplay);
+        AddField("Организатор", evt.OrganizerDisplay);
+        AddField("Описание", evt.Description);
+        AddField("Заметки", evt.Notes);
+
+        OnPropertyChanged(nameof(HasEntitySelection));
+    }
+
+    private void AddField(string label, string? value)
+    {
+        SelectedEntityFields.Add(new FieldViewModel
+        {
+            Label = label,
+            Value = value ?? "Сведения отсутствуют"
+        });
     }
 }
 

@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services.Search;
 
-// Поиск по подстроке псевдонима (без учёта регистра, включая кириллицу);
-// применим и к анонимам.
+// Поиск по подстроке псевдонима (без учёта регистра, включая кириллицу)
+// применим и к анонимам
 public sealed class SearchByAliasStrategy : ISearchStrategy
 {
     public string Key => "alias";
@@ -17,7 +17,7 @@ public sealed class SearchByAliasStrategy : ISearchStrategy
         var t = SearchTerm.NormalizeWord(term);
         if (t.Length == 0) return query;
 
-        // Все варианты регистра ищутся через OR (поддержка кириллицы и латиницы).
+        // Все варианты регистра ищутся через OR (поддержка кириллицы и латиницы)
         var predicate = PredicateBuilder.False<Person>();
         foreach (var v in SqliteLike.CaseVariants(t))
         {

@@ -40,7 +40,7 @@
                           SelectedValue="{Binding Threshold, Mode=TwoWay}"/>
                 <Button Grid.Column="4" Content="Искать" Command="{Binding SearchCommand}"
                         Style="{StaticResource PrimaryButtonStyle}"
-                        Height="34" Width="120" Padding="0" Margin="10,0,0,0"/>
+                        Height="34" Width="120" Margin="10,0,0,0"/>
             </Grid>
 
             <Border Grid.Row="2" Background="#22FFFFFF" CornerRadius="8" Margin="30,10,30,10" Padding="8">
@@ -68,7 +68,7 @@
                        Foreground="#AAAAAA" HorizontalAlignment="Center" Margin="0,0,0,6"/>
 
             <Button Grid.Row="3" Content="Закрыть" Height="40" Width="160" Margin="0,0,0,20"
-                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Click="Close_Click"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Command="{Binding CloseCommand}"
                     Background="#7F7F7F" Foreground="White" FontSize="16" FontWeight="Bold" Cursor="Hand"/>
         </Grid>
     </Border>

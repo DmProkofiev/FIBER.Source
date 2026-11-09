@@ -17,13 +17,15 @@ namespace FIBER.Source.Services;
 
 public sealed class EventService : BaseService, IEventService
 {
+
+
     public EventService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IMediaService mediaService,
         IAuditLogService auditLog)
         : base(contextFactory, mediaService, auditLog)
-    {
-    }
+        {
+        }
 
     private static string? BuildFullName(string? last, string? first, string? second)
     {
@@ -386,7 +388,7 @@ public sealed class EventService : BaseService, IEventService
         {
             var link = ev.Participants.FirstOrDefault(p => p.Id == input.Id!.Value);
             if (link is null) continue;
-            link.Role = input.Role;
+            link.Role = input.Role.GetValueOrDefault();
             link.Notes = input.Notes ?? string.Empty;
         }
 
@@ -398,7 +400,7 @@ public sealed class EventService : BaseService, IEventService
                 EventId = ev.Id,
                 PersonId = input.PersonId,
                 CompanyId = input.CompanyId,
-                Role = input.Role,
+                Role = input.Role.GetValueOrDefault(),
                 Notes = input.Notes ?? string.Empty
             });
         }

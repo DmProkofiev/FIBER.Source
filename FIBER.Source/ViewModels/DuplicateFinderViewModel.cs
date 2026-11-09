@@ -8,12 +8,17 @@ using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Services;
-
-namespace FIBER.Source.ViewModels;
+using FIBER.Source.Models.Enums;
+using System.Windows;
 
 public partial class DuplicateFinderViewModel : ObservableObject
 {
     public const double DefaultThreshold = 0.6;
+
+    /// <summary>Переход к найденному кандидату.</summary>
+    public event Action<FIBER.Source.ViewModels.RelationTargetType, int>? NavigateRequested;
+    /// <summary>Закрыть окно.</summary>
+    public event Action? CloseRequested;
 
     private readonly IDuplicateFinderService _duplicateFinderService;
     private readonly int _sourcePersonId;
@@ -141,6 +146,16 @@ public partial class DuplicateFinderViewModel : ObservableObject
         }
         catch (Exception ex) { Notification.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
         finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private void Close() => CloseRequested?.Invoke();
+
+    [RelayCommand]
+    private void NavigateToCandidate(DuplicateCandidate candidate)
+    {
+        CloseRequested?.Invoke();
+        NavigateRequested?.Invoke(FIBER.Source.ViewModels.RelationTargetType.Person, candidate.Person.Id);
     }
 }
 

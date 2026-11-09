@@ -9,5 +9,5 @@ public record EventParticipantEditInput(
     int? PersonId,
     int? CompanyId,
     int? EventId,
-    EventParticipantRole Role,
+    EventParticipantRole? Role,
     string Notes = "");

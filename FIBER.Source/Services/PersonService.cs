@@ -29,6 +29,7 @@ public sealed class PersonService : BaseService, IPersonService
         : base(contextFactory, mediaService, auditLog)
     {
         _searchFactory = searchFactory;
+
     }
 
     private static void ValidateBirthDate(DateTime? value)
@@ -613,9 +614,9 @@ public sealed class PersonService : BaseService, IPersonService
 
             // Старое зеркало удаляем только если оно действительно станет неактуальным.
             var oldInverse = PersonRelationKinds.InverseOf(oldKind);
-            var newInverse = PersonRelationKinds.InverseOf(input.Kind);
+            var newInverse = PersonRelationKinds.InverseOf(input.Kind.GetValueOrDefault());
             bool oldHasMirror = oldInverse != oldKind && oldInverse != PersonRelationKind.Other;
-            bool newHasMirror = newInverse != input.Kind && newInverse != PersonRelationKind.Other;
+            bool newHasMirror = newInverse != input.Kind.GetValueOrDefault() && newInverse != PersonRelationKind.Other;
 
             if (oldHasMirror &&
                 (targetChanged || !newHasMirror || oldInverse != newInverse))
@@ -628,7 +629,7 @@ public sealed class PersonService : BaseService, IPersonService
             }
 
             link.RelatedPersonId = input.RelatedPersonId;
-            link.Kind = input.Kind;
+            link.Kind = input.Kind.GetValueOrDefault();
             link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
 
             if (newHasMirror &&
@@ -645,21 +646,21 @@ public sealed class PersonService : BaseService, IPersonService
                 throw new InvalidOperationException("Связь человека с самим собой невозможна");
 
             var exists = person.Relationships.Any(r =>
-                r.RelatedPersonId == input.RelatedPersonId && r.Kind == input.Kind);
+                r.RelatedPersonId == input.RelatedPersonId && r.Kind == input.Kind.GetValueOrDefault());
             if (exists) continue;
 
             var link = new PersonRelationship
             {
                 PersonId = person.Id,
                 RelatedPersonId = input.RelatedPersonId,
-                Kind = input.Kind,
+                Kind = input.Kind.GetValueOrDefault(),
                 Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
             };
             context.PersonRelationships.Add(link);
             person.Relationships.Add(link);
 
-            var inverseKind = PersonRelationKinds.InverseOf(input.Kind);
-            if (inverseKind == input.Kind || inverseKind == PersonRelationKind.Other) continue;
+            var inverseKind = PersonRelationKinds.InverseOf(input.Kind.GetValueOrDefault());
+            if (inverseKind == input.Kind.GetValueOrDefault() || inverseKind == PersonRelationKind.Other) continue;
 
             await EnsureInverseAsync(context, person.Id, input.RelatedPersonId, inverseKind);
         }
@@ -669,56 +670,33 @@ public sealed class PersonService : BaseService, IPersonService
 
     // ===== Синхронизация связей «персона ↔ организация» (CRUD внутри Update) =====
 
-    // Полная синхронизация связей персоны с организациями: новые добавляются,
-    // изменённые обновляются, отсутствующие удаляются.
     private static async Task SyncCompanyPeopleAsync(
         FiberSourceDbContext context, Person person, IReadOnlyList<CompanyPersonEditInput>? inputs)
     {
         if (inputs is null) return;
 
-        // DELETE: связи, отсутствующие во входных данных.
-        foreach (var existing in person.CompanyPeople?.ToList() ?? new List<CompanyPerson>())
-        {
-            if (inputs.Any(i => i.Id == existing.Id)) continue;
-
-            context.CompanyPeople.Remove(existing);
-        }
-
-        // UPDATE + CREATE.
-        // Для новых связей (Id == null) PersonId не задан — используем person.Id из контекста.
-        foreach (var input in inputs.Where(i => i.CompanyId > 0))
-        {
-            var inputPersonId = input.Id.HasValue ? input.PersonId : person.Id;
-            if (inputPersonId != person.Id)
-                throw new InvalidOperationException("Невозможно связать персону с организацией от имени другого лица");
-
-            if (!await context.Companies.AnyAsync(c => c.Id == input.CompanyId))
-                throw new InvalidOperationException($"Организация Id={input.CompanyId} не найдена");
-
-            var link = person.CompanyPeople?.FirstOrDefault(cp => cp.Id == input.Id);
-            if (link is not null)
+        var sync = new LinkSynchronizer(context);
+        await sync.SyncLinksAsync(
+            existingLinks: person.CompanyPeople,
+            inputs: inputs,
+            ownerId: person.Id,
+            getInputId: i => i.Id,
+            getInputTargetId: i => i.CompanyId,
+            getInputRole: i => i.Role,
+            getInputNotes: i => i.Notes,
+            setLinkFields: (link, role, notes) =>
             {
-                // Существующая связь — обновляем роль/заметки.
-                link.Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty;
-                link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
-                continue;
-            }
-
-            // Защита от дубля.
-            bool exists = await context.CompanyPeople.AnyAsync(cp =>
-                cp.CompanyId == input.CompanyId && cp.PersonId == person.Id);
-            if (exists) continue;
-
-            context.CompanyPeople.Add(new CompanyPerson
+                link.Role = role;
+                link.Notes = notes;
+            },
+            targetExists: id => context.Companies.AnyAsync(c => c.Id == id),
+            duplicateExists: (ownerId, targetId) => context.CompanyPeople.AnyAsync(cp =>
+                cp.CompanyId == targetId && cp.PersonId == ownerId),
+            createLink: targetId => new CompanyPerson
             {
-                CompanyId = input.CompanyId,
                 PersonId = person.Id,
-                Role = StringHelpers.NullIfEmpty(input.Role) ?? string.Empty,
-                Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
+                CompanyId = targetId
             });
-        }
-
-        await context.SaveChangesAsync();
     }
 
     // ===== Синхронизация связей «персона ↔ событие» (CRUD внутри Update) =====
@@ -745,7 +723,7 @@ public sealed class PersonService : BaseService, IPersonService
             var link = person.EventParticipations?.FirstOrDefault(ep => ep.Id == input.Id);
             if (link is not null)
             {
-                link.Role = input.Role;
+                link.Role = input.Role.GetValueOrDefault();
                 link.Notes = input.Notes ?? string.Empty;
                 continue;
             }
@@ -759,12 +737,10 @@ public sealed class PersonService : BaseService, IPersonService
             {
                 EventId = eventId,
                 PersonId = person.Id,
-                Role = input.Role,
+                Role = input.Role.GetValueOrDefault(),
                 Notes = input.Notes ?? string.Empty
             });
         }
-
-        await context.SaveChangesAsync();
     }
 
     // Добавляет зеркальную связь (related → person), если её ещё нет.

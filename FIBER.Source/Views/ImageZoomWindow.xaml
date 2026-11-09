@@ -10,22 +10,16 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-
-        <!-- Панель управления -->
         <Border Grid.Row="0" Background="#88000000" Padding="10">
             <Grid>
                 <TextBlock x:Name="TitleText" Foreground="White" FontSize="18" VerticalAlignment="Center"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBlock Text="Колесико: зум | Мышь: перемещение | Стрелки: листать | Esc: закрыть" Foreground="Gray" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                    <Button Content="×" Width="40" Height="40" FontSize="20" Click="Close_Click" Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="×" Width="40" Height="40" FontSize="20" Click="Close_Click" Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand" Padding="8"/>
                 </StackPanel>
             </Grid>
         </Border>
-
-        <!-- Область просмотра -->
         <Grid Grid.Row="1" x:Name="ZoomContainer" ClipToBounds="True" Background="Transparent">
-
-            <!-- 1. Картинка (в самом низу, чтобы кнопки были сверху) -->
             <Image x:Name="ZoomImage" Stretch="Uniform" 
                    RenderOptions.BitmapScalingMode="HighQuality"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -38,14 +32,12 @@
                    Cursor="SizeAll">
                 <Image.RenderTransform>
                     <TransformGroup>
-                        <!-- Порядок важен: сначала масштабирование, затем перемещение -->
                         <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>
                         <TranslateTransform x:Name="ImageTranslate" X="0" Y="0"/>
                     </TransformGroup>
                 </Image.RenderTransform>
             </Image>
 
-            <!-- 2. Кнопки навигации (сверху над картинкой) -->
             <Button x:Name="PrevButton" Content="&lt;" Click="Prev_Click"
                     HorizontalAlignment="Left" VerticalAlignment="Center"
                     Width="60" Height="100" Margin="20,0,0,0"
@@ -53,7 +45,7 @@
                     BorderThickness="0" Cursor="Hand">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="20,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
@@ -67,7 +59,7 @@
                     BorderThickness="0" Cursor="Hand">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="20,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>

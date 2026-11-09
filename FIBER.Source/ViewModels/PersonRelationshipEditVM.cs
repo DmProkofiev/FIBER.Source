@@ -16,7 +16,7 @@ public partial class PersonRelationshipEditVM : ObservableObject
 
     [ObservableProperty] private int? _relatedPersonId;
     [ObservableProperty] private string _displayName = string.Empty;
-    [ObservableProperty] private PersonRelationKind _kind = PersonRelationKind.Friend;
+    [ObservableProperty] private PersonRelationKind? _kind;
     [ObservableProperty] private string _notes = string.Empty;
 
     // Только для отображения: связь пришла от другой персоны (обратная сторона).
@@ -25,7 +25,7 @@ public partial class PersonRelationshipEditVM : ObservableObject
 
     public static IReadOnlyList<PersonRelationKindOption> AvailableKinds => PersonRelationKinds.AllOptions;
 
-    public PersonRelationshipEditInput ToInput() => new(Id, RelatedPersonId!.Value, Kind, Notes);
+    public PersonRelationshipEditInput ToInput() => new(Id, RelatedPersonId!.Value, Kind.GetValueOrDefault(), Notes);
 
     public static PersonRelationshipEditVM FromModel(PersonRelationship r) => new()
     {

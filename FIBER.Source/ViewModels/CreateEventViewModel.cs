@@ -46,7 +46,6 @@ public partial class CreateEventViewModel : ObservableValidator
     public ObservableCollection<EventEventEditVM> EventEvents { get; } = new();
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
 
-    /// <summary>Id только что созданного события (для привязки существующих медиа).</summary>
     public int? CreatedOwnerId { get; private set; }
 
     [ObservableProperty]
@@ -74,13 +73,14 @@ public partial class CreateEventViewModel : ObservableValidator
     {
         var companies = await _companyService.ListAsync(null);
         Companies.Clear();
+        Companies.Add(new CompanySummary(0, "не указан", null));
         foreach (var c in companies) Companies.Add(c);
 
         var persons = await _personService.SearchAsync(string.Empty);
         Persons.Clear();
+        Persons.Add(new PersonSummary(0, "(не указан)", IdentityStatus.Anonymous, null));
         foreach (var p in persons) Persons.Add(p);
 
-        // Справочник событий для связи «событие ↔ событие».
         AvailableEvents.Clear();
         foreach (var e in await _eventService.ListAsync(null))
             AvailableEvents.Add(e);
@@ -145,8 +145,8 @@ public partial class CreateEventViewModel : ObservableValidator
                 Date,
                 Description.Trim(),
                 Notes.Trim(),
-                OrganizerCompanyId,
-                OrganizerPersonId,
+                OrganizerCompanyId == 0 ? null : OrganizerCompanyId,
+                OrganizerPersonId == 0 ? null : OrganizerPersonId,
                 PendingParticipants.Select(p => p.ToInput()).ToList(),
                 EventEvents: BuildEventEventsInput());
 
@@ -154,7 +154,6 @@ public partial class CreateEventViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                // Существующие медиа (уже в БД) — привязать к владельцу
                 var existingIds = TempFiles
                     .Where(m => m.MediaId.HasValue)
                     .Select(m => m.MediaId!.Value)
@@ -164,7 +163,6 @@ public partial class CreateEventViewModel : ObservableValidator
                     await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Event, ev.Id);
                 }
 
-                // Новые медиа — закоммитить в БД
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
@@ -222,7 +220,7 @@ public partial class CreateEventViewModel : ObservableValidator
         TempFiles.Clear();
     }
 
-    // ----- Связи «событие ↔ событие» при создании -----
+    // Связи «событие событие» при создании 
 
     [RelayCommand]
     private void AddEventEvent()
@@ -232,7 +230,7 @@ public partial class CreateEventViewModel : ObservableValidator
         var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
 
-        // Защита от дубля: такое событие уже есть в списке связей.
+        // Защита от дубля
         if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
         {
             Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
@@ -244,7 +242,7 @@ public partial class CreateEventViewModel : ObservableValidator
         {
             TargetEventId = target.Id,
             TargetEventTitle = target.Title,
-            RelationshipType = "Связано с"
+            RelationshipType = string.Empty
         });
         SelectedTargetEventId = null;
     }

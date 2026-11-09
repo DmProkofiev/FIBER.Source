@@ -16,7 +16,7 @@ public static class PersonSearchFilters
         string.Join(" ", new[] { lastName, firstName, secondName }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
-    // Нормализация номера телефона: остаются только цифры («+7 (900) 111-22-33» -> «79001112233»).
+    // Нормализация номера телефона: остаются только цифры («+7 (900) 111-22-33» -> «79001112233»)
     public static string DigitsOnly(string? value) =>
         value == null ? string.Empty : new(value.Where(char.IsDigit).ToArray());
 }

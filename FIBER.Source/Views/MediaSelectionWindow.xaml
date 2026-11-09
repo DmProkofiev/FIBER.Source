@@ -190,11 +190,11 @@
                                                             <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                                                         Margin="10,0,10,10" Orientation="Horizontal">
                                                                 <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
-                                                                        Click="MediaPlay_Click"/>
+                                                                        Command="{Binding PlayCommand}"/>
                                                                 <Button Content="Pause" Style="{StaticResource MediaPauseButtonStyle}"
-                                                                        Click="MediaPause_Click"/>
+                                                                        Command="{Binding PauseCommand}"/>
                                                                 <Button Content="Stop" Style="{StaticResource MediaStopButtonStyle}"
-                                                                        Click="MediaStop_Click"/>
+                                                                        Command="{Binding StopCommand}"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>
@@ -252,11 +252,11 @@
                                                             <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                                                         Margin="10,0,10,10" Orientation="Horizontal">
                                                                 <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
-                                                                        Click="MediaPlay_Click"/>
+                                                                        Command="{Binding PlayCommand}"/>
                                                                 <Button Content="Пауза" Style="{StaticResource MediaPauseButtonStyle}"
-                                                                        Click="MediaPause_Click"/>
+                                                                        Command="{Binding PauseCommand}"/>
                                                                 <Button Content="Стоп" Style="{StaticResource MediaStopButtonStyle}"
-                                                                        Click="MediaStop_Click"/>
+                                                                        Command="{Binding StopCommand}"/>
                                                             </StackPanel>
                                                         </Grid>
                                                     </Border>

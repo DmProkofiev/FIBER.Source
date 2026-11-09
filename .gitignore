@@ -499,3 +499,6 @@ AGENTS.md
 
 # ConsoleApp — локальный инструмент миграции, не в репозиторий
 ConsoleApp/
+
+# ConsoleAppDumpProject — локальный дамп проекта, не в репозиторий
+ConsoleAppDumpProject/

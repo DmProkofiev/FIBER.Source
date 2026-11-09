@@ -55,7 +55,7 @@
                              Height="32" VerticalAlignment="Center"/>
                     <Button Grid.Column="2" Content="Обзор..." Command="{Binding BrowseFolderCommand}"
                             Height="32" Width="100" Margin="8,0,0,0"
-                            Style="{StaticResource PrimaryButtonStyle}" Padding="0"/>
+                            Style="{StaticResource PrimaryButtonStyle}"/>
                 </Grid>
 
                 <Border Grid.Row="3" Background="#22FFFFFF" CornerRadius="8" Padding="8">

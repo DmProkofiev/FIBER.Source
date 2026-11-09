@@ -7,12 +7,12 @@ namespace FIBER.Source.Helpers;
 public class VideoSurface : FrameworkElement
 {
     public static readonly DependencyProperty PlayerProperty =
-        DependencyProperty.Register(nameof(Player), typeof(MediaPlayer), typeof(VideoSurface),
+        DependencyProperty.Register(nameof(Player), typeof(System.Windows.Media.MediaPlayer), typeof(VideoSurface),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public MediaPlayer? Player
+    public System.Windows.Media.MediaPlayer? Player
     {
-        get => (MediaPlayer?)GetValue(PlayerProperty);
+        get => (System.Windows.Media.MediaPlayer?)GetValue(PlayerProperty);
         set => SetValue(PlayerProperty, value);
     }
 

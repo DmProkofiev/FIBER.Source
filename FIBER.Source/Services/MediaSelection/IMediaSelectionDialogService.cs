@@ -7,9 +7,9 @@ using FIBER.Source.ViewModels;
 
 namespace FIBER.Source.Services.MediaSelection;
 
-/// <summary>Абстракция диалога выбора существующих медиафайлов.</summary>
+/// Абстракция диалога выбора существующих медиафайлов
 public interface IMediaSelectionDialogService
 {
-    /// <summary>Показывает диалог выбора медиа и возвращает Id выбранных (пусто — отмена/ничего не выбрано).</summary>
+    /// Показывает диалог выбора медиа и возвращает Id выбранных пусто — отмена/ничего не выбрано
     Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia);
 }

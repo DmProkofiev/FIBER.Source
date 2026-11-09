@@ -97,11 +97,13 @@ public partial class UpdateEventViewModel : ObservableValidator
         if (Companies.Count == 0)
         {
             var companies = await _companyService.ListAsync(null);
+            Companies.Add(new CompanySummary(0, "(не указан)", null));
             foreach (var c in companies) Companies.Add(c);
         }
         if (Persons.Count == 0)
         {
             var persons = await _personService.SearchAsync(string.Empty);
+            Persons.Add(new PersonSummary(0, "(не указан)", IdentityStatus.Anonymous, null));
             foreach (var p in persons) Persons.Add(p);
         }
 
@@ -340,8 +342,8 @@ public partial class UpdateEventViewModel : ObservableValidator
                 Date,
                 Description.Trim(),
                 Notes.Trim(),
-                OrganizerCompanyId,
-                OrganizerPersonId,
+                OrganizerCompanyId == 0 ? null : OrganizerCompanyId,
+                OrganizerPersonId == 0 ? null : OrganizerPersonId,
                 Participants.Select(p => p.ToInput()).ToList(),
                 // Точечный CRUD связей: участники с Id обновляются на месте,
                 // без Id — создаются, удалённые из списка — удаляются.

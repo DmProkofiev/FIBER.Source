@@ -5,8 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FIBER.Source.Services.Search;
 
-// Поиск по подстроке паспорта (без учёта регистра, включая кириллицу).
-// Используется переводимая для SQLite конструкция EF.Functions.Like (Contains со StringComparison не транслируется).
+// Поиск по подстроке паспорта
 public sealed class SearchByPassportStrategy : ISearchStrategy
 {
     public string Key => "passport";
@@ -17,7 +16,7 @@ public sealed class SearchByPassportStrategy : ISearchStrategy
         var t = SearchTerm.NormalizeWord(term);
         if (t.Length == 0) return query;
 
-        // Все варианты регистра ищутся через OR (поддержка кириллицы и латиницы).
+        // Все варианты регистра ищутся через OR
         var predicate = PredicateBuilder.False<Person>();
         foreach (var v in SqliteLike.CaseVariants(t))
         {

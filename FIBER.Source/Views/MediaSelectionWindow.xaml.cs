@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using FIBER.Source.ViewModels;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
@@ -51,51 +50,5 @@ public partial class MediaSelectionWindow : Window
             Owner = owner;
         else
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-    }
-
-    /// <summary>Находит MediaElement в том же визуальном контейнере, что и кнопка.
-    /// Кнопка и MediaElement — родные элементы в одном Grid.</summary>
-    private static MediaElement? FindMediaElement(Button button)
-    {
-        var current = (DependencyObject)button;
-        while (current is not null)
-        {
-            var count = VisualTreeHelper.GetChildrenCount(current);
-            for (int i = 0; i < count; i++)
-            {
-                var child = VisualTreeHelper.GetChild(current, i);
-                if (child is MediaElement me)
-                    return me;
-            }
-            current = VisualTreeHelper.GetParent(current);
-        }
-        return null;
-    }
-
-    private void MediaPlay_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn)
-        {
-            var media = FindMediaElement(btn);
-            media?.Play();
-        }
-    }
-
-    private void MediaPause_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn)
-        {
-            var media = FindMediaElement(btn);
-            media?.Pause();
-        }
-    }
-
-    private void MediaStop_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn)
-        {
-            var media = FindMediaElement(btn);
-            media?.Stop();
-        }
     }
 }

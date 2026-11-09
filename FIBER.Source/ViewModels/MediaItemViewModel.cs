@@ -17,7 +17,7 @@ namespace FIBER.Source.ViewModels;
 public partial class MediaItemViewModel : ObservableObject, IDisposable
 {
     /// <summary>Плеер WPF для видео/аудио.</summary>
-    private MediaPlayer? _player;
+    private System.Windows.Media.MediaPlayer? _player;
 
     /// <summary>Таймер обновления позиции.</summary>
     private DispatcherTimer? _timer;
@@ -69,7 +69,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     private readonly int? _mediaIdForLazyLoad;
 
     /// <summary>Плеер для видео/аудио (null до инициализации).</summary>
-    public MediaPlayer? Player => _player;
+    public System.Windows.Media.MediaPlayer? Player => _player;
 
     /// <summary>Идентификатор MediaAttachment.</summary>
     public int? MediaId { get; set; }
@@ -243,7 +243,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         try
         {
-            _player = new MediaPlayer
+            _player = new System.Windows.Media.MediaPlayer
             {
                 ScrubbingEnabled = IsVideo,
                 Volume = 1.0,

@@ -5,8 +5,8 @@ using FIBER.Source.Models;
 
 namespace FIBER.Source.Services.Comparison;
 
-// Нечёткое сравнение (ТЗ §5.4.2): расстояние Дамерау–Левенштейна по имени
-// с множителем по дате рождения.
+// Нечёткое сравнение ТЗ 5.4.2: расстояние Дамерау–Левенштейна по имени
+// с множителем по дате рождения
 public sealed class LevenshteinStrategy : IComparisonStrategy
 {
     public string Name => "Нечеткое сравнение (Левенштейн)";
@@ -39,7 +39,7 @@ public sealed class LevenshteinStrategy : IComparisonStrategy
             : string.Join(' ', value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
                 .ToLowerInvariant();
 
-    // Множитель по дате рождения (ТЗ §5.4.2).
+    // Множитель по дате рождения ТЗ 5.4.2
     // При отсутствии обеих дат рождения множитель снижен с 0.6 до 0.3,
     // чтобы одинаковые имена без дат рождения не считались дублями по умолчанию.
     private static double BirthDateFactor(DateTime? a, DateTime? b)
@@ -53,7 +53,7 @@ public sealed class LevenshteinStrategy : IComparisonStrategy
         return 0.3;
     }
 
-    // Оптимальное строковое выравнивание (Damerau–Levenshtein, транспозиции соседних символов).
+    // Оптимальное строковое выравнивание (Damerau–Levenshtein, транспозиции соседних символов)
     private static int CalculateDamerauLevenshtein(string s, string t)
     {
         int[,] d = new int[s.Length + 1, t.Length + 1];
@@ -70,7 +70,7 @@ public sealed class LevenshteinStrategy : IComparisonStrategy
                     Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
                     d[i - 1, j - 1] + cost);
 
-                // Транспозиция двух соседних символов.
+                // Транспозиция двух соседних символов
                 if (i > 1 && j > 1 &&
                     s[i - 1] == t[j - 2] && s[i - 2] == t[j - 1])
                 {

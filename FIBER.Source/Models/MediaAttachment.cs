@@ -4,32 +4,30 @@ using FIBER.Source.Models.Joins;
 
 namespace FIBER.Source.Models;
 
-/// <summary>
-/// Метаданные и бинарное содержимое медиафайла, хранимые внутри зашифрованной БД.
-/// </summary>
+/// Метаданные и бинарное содержимое медиафайла
 public class MediaAttachment
 {
-    /// <summary>Первичный ключ.</summary>
+    /// Первичный ключ
     public int Id { get; set; }
 
-    /// <summary>Исходное имя файла для отображения пользователю.</summary>
+    ///Исходное имя файла для отображения пользователю
     public string OriginalFileName { get; set; } = string.Empty;
 
-    /// <summary>MIME-тип содержимого.</summary>
+    /// MIME-тип содержимого
     public string MimeType { get; set; } = string.Empty;
 
-    /// <summary>Размер файла в байтах.</summary>
+    /// Размер файла в байтах
     public long SizeBytes { get; set; }
 
-    /// <summary>SHA-256 hex содержимого для дедупликации.</summary>
+    /// SHA-256 hex содержимого для дедупликации
     public string ContentHash { get; set; } = string.Empty;
 
-    /// <summary>Бинарное содержимое файла, шифруемое SQLCipher.</summary>
+    /// Бинарное содержимое файла, шифруемое SQLCipher
     public byte[] Data { get; set; } = Array.Empty<byte>();
 
-    /// <summary>Дата добавления записи.</summary>
+    /// Дата добавления записи
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>Связи с владельцами (M2M).</summary>
+    /// Связи с владельцами (M2M)
     public ICollection<MediaAttachmentLink> Links { get; set; } = new List<MediaAttachmentLink>();
 }

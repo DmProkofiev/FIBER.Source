@@ -1,8 +1,6 @@
-using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 using System.Windows;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
+using System.Windows.Controls;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
@@ -10,8 +8,6 @@ using FIBER.Source.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 using UserControl = System.Windows.Controls.UserControl;
-using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using Clipboard = System.Windows.Clipboard;
 
 namespace FIBER.Source.Views;
 
@@ -19,73 +15,40 @@ public partial class SearchView : UserControl
 {
     public SearchView() => InitializeComponent();
 
-    // Открывает окно предпросмотра изображения; коллекция выбирается по Tag
-    private void Image_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
-        if (e.ClickCount != 2) return;
-        if (sender is not FrameworkElement element) return;
-        if (element.DataContext is not MediaItemViewModel mediaVm) return;
-        if (DataContext is not SearchViewModel vm) return;
-
-        var source = element.Tag switch
+        if (e.OldValue is SearchViewModel oldVm)
         {
-            "Person" => vm.PersonImages,
-            "Company" => vm.CompanyImages,
-            "Event" => vm.EventImages,
-            _ => null
-        };
-        if (source == null || source.Count == 0) return;
+            oldVm.DuplicatesRequested -= OnDuplicatesRequested;
+            oldVm.ExportRequested -= OnExportRequested;
+            oldVm.ImageZoomRequested -= OnImageZoomRequested;
+            oldVm.VideoZoomRequested -= OnVideoZoomRequested;
+        }
 
-        int idx = source.IndexOf(mediaVm);
-        if (idx < 0) idx = 0;
-
-        var zoomWindow = new ImageZoomWindow(source.ToList(), idx);
-        var owner = Window.GetWindow(this);
-        if (owner != null) zoomWindow.Owner = owner;
-        zoomWindow.ShowDialog();
+        if (e.NewValue is SearchViewModel newVm)
+        {
+            newVm.DuplicatesRequested += OnDuplicatesRequested;
+            newVm.ExportRequested += OnExportRequested;
+            newVm.ImageZoomRequested += OnImageZoomRequested;
+            newVm.VideoZoomRequested += OnVideoZoomRequested;
+        }
     }
 
-    // Открывает окно дубликатов для выбранной персоны
-    private void DuplicatesPerson_Click(object sender, RoutedEventArgs e)
+    private void OnDuplicatesRequested(int personId)
     {
-        if (DataContext is not SearchViewModel vm || vm.SelectedPerson == null) return;
         var services = ((App)Application.Current).Services;
         if (services is null) return;
 
         var duplicateFinderService = services.GetRequiredService<IDuplicateFinderService>();
-
-        var window = new DuplicateFinderWindow(vm.SelectedPerson.Id, duplicateFinderService)
+        var window = new DuplicateFinderWindow(personId, duplicateFinderService)
         {
             Owner = Window.GetWindow(this)
         };
-        window.NavigateRequested += vm.NavigateToDuplicate;
+        window.NavigateRequested += ((SearchViewModel)DataContext)!.NavigateToDuplicate;
         window.ShowDialog();
     }
 
-    // Экспорт выбранной персоны
-    private async void ExportPerson_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedPerson == null) return;
-        var title = $"Личность: {vm.SelectedPerson.FullName ?? $"Аноним #{vm.SelectedPerson.Id}"}";
-        await ExportAsync(title, MediaOwnerType.Person, vm.SelectedPerson.Id);
-    }
-
-    // Экспорт выбранной организации
-    private async void ExportCompany_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedCompany == null) return;
-        await ExportAsync($"Организация: {vm.SelectedCompany.Name}", MediaOwnerType.Company, vm.SelectedCompany.Id);
-    }
-
-    // Экспорт выбранного события
-    private async void ExportEvent_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is not SearchViewModel vm || vm.SelectedEvent == null) return;
-        await ExportAsync($"Событие: {vm.SelectedEvent.Title}", MediaOwnerType.Event, vm.SelectedEvent.Id);
-    }
-
-    // Общая логика экспорта: диалог выбора медиа/формата/папки → вызов сервиса
-    private async Task ExportAsync(string title, MediaOwnerType ownerType, int ownerId)
+    private async void OnExportRequested(MediaOwnerType ownerType, int ownerId, string title)
     {
         var services = ((App)Application.Current).Services;
         if (services is null) return;
@@ -145,35 +108,66 @@ public partial class SearchView : UserControl
         }
     }
 
-    // Устанавливает флаг перетаскивания слайдера
-    private void Slider_DragStarted(object sender, DragStartedEventArgs e)
+    private void OnImageZoomRequested(MediaItemViewModel mediaVm)
     {
-        if ((sender as FrameworkElement)?.DataContext is MediaItemViewModel vm) vm.IsDragging = true;
-    }
-
-    // Применяет позицию слайдера после окончания перетаскивания
-    private void Slider_DragCompleted(object sender, DragCompletedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is MediaItemViewModel vm && sender is System.Windows.Controls.Slider slider)
+        if (mediaVm == null || mediaVm.ImageSource == null) return;
+        
+        // Determine which collection this media belongs to
+        var source = new List<MediaItemViewModel>();
+        
+        var vm = DataContext as SearchViewModel;
+        if (vm != null)
         {
-            vm.IsDragging = false;
-            vm.Position = slider.Value;
+            if (vm.PersonImages.Contains(mediaVm))
+                source = vm.PersonImages.ToList();
+            else if (vm.CompanyImages.Contains(mediaVm))
+                source = vm.CompanyImages.ToList();
+            else if (vm.EventImages.Contains(mediaVm))
+                source = vm.EventImages.ToList();
         }
+        
+        if (source.Count == 0)
+        {
+            source.Add(mediaVm);
+        }
+        
+        int idx = source.IndexOf(mediaVm);
+        if (idx < 0) idx = 0;
+        
+        var zoomWindow = new ImageZoomWindow(source, idx);
+        var owner = Window.GetWindow(this);
+        if (owner != null) zoomWindow.Owner = owner;
+        zoomWindow.ShowDialog();
     }
 
-    // Обрабатывает выделение и копирование текста (Ctrl+C) для read-only TextBlock'ов и TextBox'ов
-    private void SearchView_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void OnVideoZoomRequested(MediaItemViewModel mediaVm)
     {
-        if (e.Key != Key.C || Keyboard.Modifiers != ModifierKeys.Control) return;
+        if (mediaVm == null || string.IsNullOrEmpty(mediaVm.FilePath)) return;
 
-        var focused = Keyboard.FocusedElement;
-        string text = string.Empty;
-        if (focused is System.Windows.Controls.TextBox textBox) text = textBox.SelectedText;
-        else if (focused is System.Windows.Controls.TextBlock textBlock) text = textBlock.Text;
+        var source = new List<MediaItemViewModel>();
 
-        if (string.IsNullOrEmpty(text)) return;
+        var vm = DataContext as SearchViewModel;
+        if (vm != null)
+        {
+            if (vm.PersonVideos.Contains(mediaVm))
+                source = vm.PersonVideos.ToList();
+            else if (vm.CompanyVideos.Contains(mediaVm))
+                source = vm.CompanyVideos.ToList();
+            else if (vm.EventVideos.Contains(mediaVm))
+                source = vm.EventVideos.ToList();
+        }
 
-        Clipboard.SetText(text);
-        e.Handled = true;
+        if (source.Count == 0)
+        {
+            source.Add(mediaVm);
+        }
+
+        int idx = source.IndexOf(mediaVm);
+        if (idx < 0) idx = 0;
+
+        var zoomWindow = new VideoZoomWindow(source, idx);
+        var owner = Window.GetWindow(this);
+        if (owner != null) zoomWindow.Owner = owner;
+        zoomWindow.ShowDialog();
     }
 }
