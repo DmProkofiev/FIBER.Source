@@ -21,10 +21,10 @@ public partial class MediaSelectionWindow : Window
     public IReadOnlyList<int> SelectedMediaIds { get; private set; } = Array.Empty<int>();
 
     /// <summary>Создаёт диалог.</summary>
-    public MediaSelectionWindow(string title, IEnumerable<MediaItemViewModel> availableMedia)
+    public MediaSelectionWindow(string title, IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
     {
         InitializeComponent();
-        _vm = new MediaSelectionViewModel(title, availableMedia, OnClose);
+        _vm = new MediaSelectionViewModel(title, availableMedia, OnClose, alreadyAddedMediaIds);
         DataContext = _vm;
         AttachOwner();
     }

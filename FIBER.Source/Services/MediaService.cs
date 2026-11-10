@@ -92,6 +92,9 @@ public sealed class MediaService : IMediaService
         var result = new List<MediaItemViewModel>();
         if (filePaths is null) return result;
 
+        // Используем один контекст БД на все файлы для проверки существующих медиа по ContentHash
+        await using var context = await _contextFactory.CreateDbContextAsync();
+
         foreach (var path in filePaths)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) continue;
@@ -121,10 +124,24 @@ public sealed class MediaService : IMediaService
                     await src.CopyToAsync(dst);
                 }
 
+                var hash = await ComputeFileHashAsync(path);
                 var vm = new MediaItemViewModel(destPath, Path.GetFileName(path))
                 {
-                    ContentHash = await ComputeFileHashAsync(path)
+                    ContentHash = hash
                 };
+
+                // Проверяем, существует ли такой файл уже в БД (по ContentHash).
+                // Если да — заполняем MediaId, чтобы файл помечался как уже добавленный
+                // и не дублировался при повторном открытии диалога выбора медиа.
+                var existingMediaId = await context.MediaAttachments
+                    .Where(m => m.ContentHash == hash)
+                    .Select(m => (int?)m.Id)
+                    .FirstOrDefaultAsync();
+                if (existingMediaId.HasValue)
+                {
+                    vm.MediaId = existingMediaId.Value;
+                }
+
                 result.Add(vm);
             }
             catch (Exception ex)
@@ -173,42 +190,70 @@ public sealed class MediaService : IMediaService
             {
                 if (vm is null || !File.Exists(vm.FilePath)) continue;
 
-                var hash = await ComputeSha256HexAsync(vm.FilePath);
-
-                var existing = await context.MediaAttachments
-                    .FirstOrDefaultAsync(m => m.ContentHash == hash);
-
                 MediaAttachment media;
-                if (existing is not null)
+                var fileName = vm.FileName;
+
+                // 1. Если MediaId уже заполнен — ищем медиа по ID напрямую (избегаем дублей)
+                if (vm.MediaId is not null)
                 {
-                    media = existing;
+                    var mediaId = vm.MediaId.GetValueOrDefault();
+                    media = await context.MediaAttachments
+                        .FirstOrDefaultAsync(m => m.Id == mediaId);
+                    if (media is not null)
+                    {
+                        vm.MediaId = media.Id;
+                    }
+                    else
+                    {
+                        media = null;
+                    }
                 }
                 else
                 {
-                    var ext = Path.GetExtension(vm.FileName);
-                    if (string.IsNullOrEmpty(ext)) ext = Path.GetExtension(vm.FilePath);
-
-                    var data = await File.ReadAllBytesAsync(vm.FilePath);
-
-                    // Генерируем уникальное отображаемое имя, не совпадающее ни с одним существующим в БД.
-                    // Суффикс состоит только из цифр и латиницы (a-z, A-Z, 0-9).
-                    // После генерации имя добавляется в nameSet, чтобы файлы из этой же пакета
-                    // не получали одинаковое имя.
-                    var originalFileName = GenerateUniqueFileName(vm.FileName, ext, nameSet);
-
-                    media = new MediaAttachment
-                    {
-                        OriginalFileName = originalFileName,
-                        MimeType = GetMimeType(ext),
-                        SizeBytes = data.LongLength,
-                        ContentHash = hash,
-                        Data = data,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    context.MediaAttachments.Add(media);
-                    await context.SaveChangesAsync();
+                    media = null;
                 }
 
+                // 2. Если не найдено по ID — ищем по ContentHash (дедупликация по содержимому)
+                if (media is null)
+                {
+                    var hash = await ComputeSha256HexAsync(vm.FilePath);
+                    var existing = await context.MediaAttachments
+                        .FirstOrDefaultAsync(m => m.ContentHash == hash);
+
+                    if (existing is not null)
+                    {
+                        media = existing;
+                        vm.MediaId = media.Id;
+                    }
+                    else
+                    {
+                        var ext = Path.GetExtension(fileName);
+                        if (string.IsNullOrEmpty(ext)) ext = Path.GetExtension(vm.FilePath);
+
+                        var data = await File.ReadAllBytesAsync(vm.FilePath);
+
+                        // Генерируем уникальное отображаемое имя, не совпадающее ни с одним существующим в БД.
+                        // Суффикс состоит только из цифр и латиницы (a-z, A-Z, 0-9).
+                        // После генерации имя добавляется в nameSet, чтобы файлы из этой же пакета
+                        // не получали одинаковое имя.
+                        var originalFileName = GenerateUniqueFileName(fileName, ext, nameSet);
+
+                        media = new MediaAttachment
+                        {
+                            OriginalFileName = originalFileName,
+                            MimeType = GetMimeType(ext),
+                            SizeBytes = data.LongLength,
+                            ContentHash = hash,
+                            Data = data,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        context.MediaAttachments.Add(media);
+                        await context.SaveChangesAsync();
+                        vm.MediaId = media.Id;
+                    }
+                }
+
+                // 3. Проверяем, не привязан ли файл уже к этому владельцу (избегаем дубля ссылки)
                 var linkExists = await context.MediaAttachmentLinks
                     .AnyAsync(l => l.MediaAttachmentId == media.Id
                                 && l.OwnerType == ownerType
@@ -407,15 +452,16 @@ public sealed class MediaService : IMediaService
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var metaList = await context.MediaAttachmentLinks
-            .Select(l => new
+            .GroupBy(l => l.MediaAttachmentId)
+            .Select(g => new
             {
                 Meta = new MediaMeta(
-                    l.MediaAttachment.Id,
-                    l.MediaAttachment.OriginalFileName,
-                    l.MediaAttachment.MimeType,
-                    l.MediaAttachment.SizeBytes),
-                l.OwnerType,
-                l.OwnerId
+                    g.First().MediaAttachment.Id,
+                    g.First().MediaAttachment.OriginalFileName,
+                    g.First().MediaAttachment.MimeType,
+                    g.First().MediaAttachment.SizeBytes),
+                OwnerType = g.First().OwnerType,
+                OwnerId = g.First().OwnerId
             })
             .ToListAsync();
 
@@ -771,6 +817,18 @@ public sealed class MediaService : IMediaService
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             return Task.FromResult(string.Empty);
         return ComputeSha256HexAsync(filePath);
+    }
+
+    /// <summary>Ищет MediaId по ContentHash в БД. Возвращает null, если файл не найден.</summary>
+    public async Task<int?> GetMediaIdByContentHashAsync(string contentHash)
+    {
+        if (string.IsNullOrWhiteSpace(contentHash)) return null;
+
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.MediaAttachments
+            .Where(m => m.ContentHash == contentHash)
+            .Select(m => m.Id)
+            .FirstOrDefaultAsync();
     }
 
     /// <summary>Вычисляет SHA-256 hex содержимого файла.</summary>

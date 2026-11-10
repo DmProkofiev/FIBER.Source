@@ -46,6 +46,9 @@ public interface IMediaService
     /// <summary>Вычисляет SHA-256 hex содержимого файла (для защиты от дублей).</summary>
     Task<string> ComputeFileHashAsync(string filePath);
 
+    /// <summary>Ищет MediaId по ContentHash в БД. Возвращает null, если файл не найден.</summary>
+    Task<int?> GetMediaIdByContentHashAsync(string contentHash);
+
     /// <summary>Инвалидировать кэш списка «все медиа» (вызывать после изменения ссылок).</summary>
     void InvalidateAllMediaCache();
 

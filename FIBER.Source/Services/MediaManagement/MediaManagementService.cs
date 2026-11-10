@@ -52,11 +52,13 @@ public sealed class MediaManagementService : IMediaManagementService
         media.Audios.Clear();
     }
 
-    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
+    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
     /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
     /// а не прямую привязку к владельцу в БД.
-    /// Пустой список — диалог отменён или ничего не выбрано
-    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync()
+    /// Пустой список — диалог отменён или ничего не выбрано.
+    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (для Create-экранов),
+    /// они будут помечены галочкой и исключены из результата выбора.</summary>
+    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
         var items = allMedia.Where(m => m.Media is not null).Select(m => m.Media!).ToList();
@@ -67,11 +69,77 @@ public sealed class MediaManagementService : IMediaManagementService
             return Array.Empty<MediaItemViewModel>();
         }
 
-        var selectedIds = await _dialogService.ShowSelectMediaAsync(items);
+        var selectedIds = await _dialogService.ShowSelectMediaAsync(items, alreadyAddedMediaIds ?? Array.Empty<int>());
         if (selectedIds.Count == 0) return Array.Empty<MediaItemViewModel>();
 
         // Возвращаем выбранные медиа-элементы для добавления во TempFiles ViewModel
         return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
+    }
+
+    /// <summary>Открывает диалог выбора существующих медиафайлов для владельца.
+    /// Файлы, уже принадлежащие владельцу, помечаются галочкой — повторно добавлять их нельзя.</summary>
+    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
+        IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
+    {
+        var allMedia = await _mediaService.GetAllMediaAsync();
+        var items = allMedia.Where(m => m.Media is not null).Select(m => m.Media!).ToList();
+
+        if (items.Count == 0)
+        {
+            Notification.Show("Медиа", "В базе нет медиафайлов", FIBER.Source.Helpers.NotificationType.Info);
+            return Array.Empty<MediaItemViewModel>();
+        }
+
+        // Объединяем уже привязанные к владельцу (из БД) с уже добавленными во TempFiles (из Drag&Drop или предыдущего вызова)
+        var alreadyAdded = new HashSet<int>();
+        var ownerMedia = await _mediaService.GetMediaForOwnerAsync(ownerType, ownerId);
+        foreach (var m in ownerMedia)
+        {
+            if (m.MediaId is int id)
+                alreadyAdded.Add(id);
+        }
+        if (alreadyAddedMediaIds != null)
+        {
+            foreach (var id in alreadyAddedMediaIds)
+                alreadyAdded.Add(id);
+        }
+
+        var selectedIds = await _dialogService.ShowSelectMediaAsync(items, alreadyAdded);
+        if (selectedIds.Count == 0) return Array.Empty<MediaItemViewModel>();
+
+        return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
+    }
+
+    /// <summary>Добавляет медиа во временные файлы с защитой от дублей
+    /// (совпадение по MediaId, ContentHash или пути к файлу — один и тот же файл не попадает в список дважды).</summary>
+    public Task AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemViewModel> media)
+    {
+        var list = media?.Where(m => m is not null).ToList() ?? new List<MediaItemViewModel>();
+        foreach (var file in list)
+        {
+            if (tempFiles.Any(t => BelongsToSameMedia(t, file))) continue;
+            tempFiles.Add(file);
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Проверка «один и тот же медиа»: совпадение по идентификатору, контенту или пути к файлу.</summary>
+    private static bool BelongsToSameMedia(MediaItemViewModel a, MediaItemViewModel b)
+    {
+        if (a is null || b is null) return false;
+
+        // По идентификатору вложения в БД
+        if (a.MediaId.HasValue && b.MediaId.HasValue && a.MediaId == b.MediaId) return true;
+
+        // По SHA-256 содержимому (для файлов без MediaId, загруженных через Drag&Drop)
+        if (!string.IsNullOrEmpty(a.ContentHash) && !string.IsNullOrEmpty(b.ContentHash)
+            && a.ContentHash == b.ContentHash) return true;
+
+        // По пути к Temp-файлу (для файлов, скопированных из одного и того же источника)
+        if (!string.IsNullOrEmpty(a.FilePath) && !string.IsNullOrEmpty(b.FilePath)
+            && string.Equals(a.FilePath, b.FilePath, StringComparison.OrdinalIgnoreCase)) return true;
+
+        return false;
     }
 
     /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД
@@ -114,7 +182,7 @@ public sealed class MediaManagementService : IMediaManagementService
 
     /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
     /// Защита от дубля: один и тот же файл (по SHA-256 содержимому) не может быть
-    /// перетащен во временные файлы более одного раз
+    /// перетащен во временные файлы более одного раза
     public async Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
@@ -125,11 +193,20 @@ public sealed class MediaManagementService : IMediaManagementService
             if (file is null || string.IsNullOrEmpty(file.ContentHash)) continue;
 
             // Защита от дубля: такой же файл уже есть во временных файлах
-            if (tempFiles.Any(t => t.ContentHash == file.ContentHash))
+            if (tempFiles.Any(t => BelongsToSameMedia(t, file)))
             {
                 skipped++;
                 _mediaService.DeleteTempFiles(new[] { file }); // удаляем временную копию дубля
                 continue;
+            }
+
+            // Проверяем, существует ли такой файл уже в БД (по ContentHash).
+            // Если да — устанавливаем MediaId, чтобы файл помечался как уже добавленный
+            // и не дублировался при повторном открытии диалога выбора медиа.
+            var existingMediaId = await _mediaService.GetMediaIdByContentHashAsync(file.ContentHash);
+            if (existingMediaId.HasValue)
+            {
+                file.MediaId = existingMediaId.Value;
             }
 
             tempFiles.Add(file);

@@ -245,14 +245,13 @@ public partial class CreatePersonViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        // Передаём уже добавленные MediaId, чтобы они отмечались галочкой и не дублировались
+        var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
+        var selected = await _mediaManagement.SelectExistingMediaAsync(alreadyAdded);
         if (selected.Count == 0) return;
 
-        foreach (var media in selected)
-        {
-            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
-                TempFiles.Add(media);
-        }
+        // Добавление во временные файлы с защитой от дублей
+        await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
 
         Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }

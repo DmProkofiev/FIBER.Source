@@ -1,8 +1,9 @@
-<UserControl x:Class="FIBER.Source.Views.UpdateEventView"
+﻿<UserControl x:Class="FIBER.Source.Views.UpdateEventView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
-             xmlns:local="clr-namespace:FIBER.Source.Views">
+             xmlns:local="clr-namespace:FIBER.Source.Views"
+             xmlns:player="clr-namespace:FIBER.Source.Views.Search">
     <Border Background="#D8171717" CornerRadius="15" Margin="20" ClipToBounds="True">
         <Grid>
             <Grid.RowDefinitions>
@@ -341,24 +342,7 @@
                                                     </Grid.RowDefinitions>
 
                                                     <!-- Плеер видео -->
-                                                    <Border Grid.Row="0" Background="#000000" CornerRadius="4"
-                                                            ClipToBounds="True">
-                                                        <Grid>
-                                                            <MediaElement Source="{Binding FilePath}"
-                                                                          LoadedBehavior="Manual"
-                                                                          Stretch="Uniform"
-                                                                          Margin="0"/>
-                                                            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                                                                        Margin="6" Orientation="Horizontal">
-                                                                <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
-                                                                        Click="MediaPlay_Click"/>
-                                                                <Button Content="Пауза" Style="{StaticResource MediaPauseButtonStyle}"
-                                                                        Click="MediaPause_Click"/>
-                                                                <Button Content="Стоп" Style="{StaticResource MediaStopButtonStyle}"
-                                                                        Click="MediaStop_Click"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
+                                                    <player:VideoPlayerControl Grid.Row="0" FilePath="{Binding FilePath}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                                                     <!-- Имя + кнопка удаления -->
                                                     <Grid Grid.Row="1" Margin="0,8,0,0">
@@ -398,24 +382,7 @@
                                                     </Grid.RowDefinitions>
 
                                                     <!-- Плеер аудио -->
-                                                    <Border Grid.Row="0" Background="#2A2A2A" CornerRadius="4"
-                                                            ClipToBounds="True">
-                                                        <Grid>
-                                                            <MediaElement Source="{Binding FilePath}"
-                                                                          LoadedBehavior="Manual"
-                                                                          Stretch="None"
-                                                                          Margin="0"/>
-                                                            <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Right"
-                                                                        Margin="6" Orientation="Horizontal">
-                                                                <Button Content="Play" Style="{StaticResource MediaPlayButtonStyle}"
-                                                                        Click="MediaPlay_Click"/>
-                                                                <Button Content="Пауза" Style="{StaticResource MediaPauseButtonStyle}"
-                                                                        Click="MediaPause_Click"/>
-                                                                <Button Content="Стоп" Style="{StaticResource MediaStopButtonStyle}"
-                                                                        Click="MediaStop_Click"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
+                                                    <player:AudioPlayerControl Grid.Row="0" FilePath="{Binding FilePath}" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
 
                                                     <!-- Имя + кнопка удаления -->
                                                     <Grid Grid.Row="1" Margin="0,8,0,0">
@@ -526,6 +493,9 @@
         </Grid>
     </Border>
 </UserControl>
+
+
+
 
 
 

@@ -417,31 +417,25 @@ public partial class UpdatePersonViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        // Передаём уже добавленные MediaId из TempFiles, чтобы они отмечались галочкой и не дублировались
+        var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
+        var selected = await _mediaManagement.SelectExistingMediaAsync(MediaOwnerType.Person, PersonId, alreadyAdded);
         if (selected.Count == 0) return;
 
-        // Разделяем на существующие (уже в БД, есть MediaId) и новые (без MediaId, нужны в TempFiles)
+        // Все элементы из SelectExistingMediaAsync имеют MediaId (они загружены из БД),
+        // поэтому newMedia всегда пуст — упрощаем логику.
         var existingIds = selected
             .Where(m => m.MediaId.HasValue)
             .Select(m => m.MediaId!.Value)
             .ToList();
-        var newMedia = selected.Where(m => !m.MediaId.HasValue).ToList();
 
-        // Привязываем существующие медиа к владельцу в БД.
-        // Уже привязанные к этому объекту файлы пропускаются — о защите сообщаем пользователю.
+        // Уже привязанные к этой личности файлы пропускаются — о защите сообщаем пользователю.
         int skipped = 0;
         if (existingIds.Count > 0)
         {
             skipped = await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Person, PersonId);
             // Перезагружаем существующие медиа, чтобы отобразить их в UI
             await LoadExistingMediaAsync(PersonId);
-        }
-
-        // Новые медиа добавляем во TempFiles для последующего коммита при сохранении
-        foreach (var media in newMedia)
-        {
-            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
-                TempFiles.Add(media);
         }
 
         var added = existingIds.Count - skipped;
@@ -451,7 +445,10 @@ public partial class UpdatePersonViewModel : ObservableValidator
                 $"{skipped} файл(ов) уже привязаны к этой личности и не добавлены повторно.",
                 NotificationType.Warning);
         }
-        Notification.Show("Успех", $"Привязано существующих: {added}, добавлено новых: {newMedia.Count}", NotificationType.Success);
+        if (added > 0)
+        {
+            Notification.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
+        }
     }
 
     [RelayCommand]

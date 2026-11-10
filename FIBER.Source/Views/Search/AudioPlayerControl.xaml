@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.openxmlformats.org/markup-compatibility/2008"
              mc:Ignorable="d"
-             d:DesignHeight="120" Margin="10,0,10,0" >
-    <Border Background="#1F4E79" CornerRadius="8" Padding="15" MinWidth="500" HorizontalAlignment="Stretch">
+             d:DesignHeight="170">
+    <Border Background="#1F4E79" CornerRadius="8" Padding="10" HorizontalAlignment="Stretch">
         <StackPanel>
             <TextBlock Text="{Binding FileName, RelativeSource={RelativeSource AncestorType=UserControl}}"
                        Foreground="White" FontFamily="Times New Roman"

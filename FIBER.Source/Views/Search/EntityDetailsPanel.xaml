@@ -164,7 +164,7 @@
                             <TextBlock Text="Медиафайлы" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,10" Foreground="White"/>
                             <TabControl Style="{StaticResource MediaTabControlStyle}">
                                 <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}"
-                                         Visibility="{Binding Images.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                         Visibility="{Binding Images.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" Background="#7FF60808">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}">
                                         <ItemsControl ItemsSource="{Binding Images, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" HorizontalAlignment="Center" Foreground="{x:Null}">
                                             <ItemsControl.ItemsPanel>
@@ -223,8 +223,8 @@
                                     </ScrollViewer>
                                 </TabItem>
                                 <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}"
-                                         Visibility="{Binding Videos.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="White">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}" Background="#19FFFFFF">
+                                         Visibility="{Binding Videos.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" Foreground="White" Background="#7FFF0000">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}" Background="#00000000">
                                         <ItemsControl ItemsSource="{Binding Videos, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" HorizontalAlignment="Center" Foreground="{x:Null}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
@@ -255,9 +255,9 @@
                                     </ScrollViewer>
                                 </TabItem>
                                 <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}"
-                                         Visibility="{Binding Audio.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" BorderBrush="Red">
+                                         Visibility="{Binding Audio.Count, Converter={StaticResource PositiveCountToVisibilityConverter}, RelativeSource={RelativeSource AncestorType=UserControl}}" BorderBrush="#54000000" Background="#7FFF0000">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="150" Foreground="{x:Null}">
-                                        <ItemsControl ItemsSource="{Binding Audio, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" Foreground="{x:Null}">
+                                        <ItemsControl ItemsSource="{Binding Audio, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,5,0,0" Foreground="{x:Null}" Background="#00FFFDFD">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <UniformGrid Columns="1"/>

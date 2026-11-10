@@ -13,7 +13,7 @@ namespace FIBER.Source.Services.MediaSelection;
 /// Реализация диалога выбора медиа: открывает MediaSelectionWindow
 public sealed class MediaSelectionDialogService : IMediaSelectionDialogService
 {
-    public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia)
+    public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<int>>();
         var app = Application.Current;
@@ -30,7 +30,7 @@ public sealed class MediaSelectionDialogService : IMediaSelectionDialogService
         {
             try
             {
-                var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia)
+                var dialog = new MediaSelectionWindow("Добавить медиафайл", availableMedia, alreadyAddedMediaIds)
                 {
                     Owner = owner
                 };

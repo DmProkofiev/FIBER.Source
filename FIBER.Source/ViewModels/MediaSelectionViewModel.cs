@@ -37,6 +37,10 @@ public partial class MediaSelectionItem : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>Признак «уже добавлено к текущему владельцу» — отмечается галочкой и не подлежит повторному добавлению.</summary>
+    [ObservableProperty]
+    private bool _isAlreadyAdded;
+
     public MediaSelectionItem(MediaItemViewModel media)
     {
         _media = media;
@@ -73,6 +77,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 {
     private readonly Action<bool> _close;
     private bool _disposed;
+    private readonly HashSet<int> _alreadyAddedIds;
 
     public string Title { get; }
 
@@ -85,14 +90,19 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
     public bool HasVideos => VideoItems.Count > 0;
     public bool HasAudio => AudioItems.Count > 0;
 
-    public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close)
+    public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close, IEnumerable<int>? alreadyAddedMediaIds = null)
     {
         Title = title;
+        _alreadyAddedIds = alreadyAddedMediaIds?.ToHashSet() ?? new HashSet<int>();
 
         foreach (var m in media)
         {
             if (m is null) continue;
             var item = new MediaSelectionItem(m);
+            item.IsAlreadyAdded = _alreadyAddedIds.Contains(m.MediaId ?? 0);
+            // Уже добавленные файлы помечаются галочкой — они не подлежат повторному выбору.
+            if (item.IsAlreadyAdded)
+                item.IsSelected = true;
             if (m.IsImage) PhotoItems.Add(item);
             else if (m.IsVideo) VideoItems.Add(item);
             else if (m.IsAudio) AudioItems.Add(item);
@@ -130,19 +140,22 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         await Task.WhenAll(tasks);
     }
 
-    /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
+    /// <summary>Id выбранных медиа (пусто — ничего не выбрано).
+    /// Файлы, отмеченные как уже добавленные, не возвращаются — повторное добавление запрещено.</summary>
     public IReadOnlyList<int> GetSelectedMediaIds() =>
         PhotoItems.Concat(VideoItems).Concat(AudioItems)
-            .Where(m => m.IsSelected && m.MediaId > 0)
+            .Where(m => m.IsSelected && !m.IsAlreadyAdded && m.MediaId > 0)
             .Select(m => m.MediaId)
             .ToList();
 
     [RelayCommand]
     private void SelectAll()
     {
-        foreach (var m in PhotoItems) m.IsSelected = true;
-        foreach (var m in VideoItems) m.IsSelected = true;
-        foreach (var m in AudioItems) m.IsSelected = true;
+        // Не выделяем уже привязанные к владельцу медиа — они и так отмечены галочкой
+        // и не подлежат повторному добавлению.
+        foreach (var m in PhotoItems.Where(m => !m.IsAlreadyAdded)) m.IsSelected = true;
+        foreach (var m in VideoItems.Where(m => !m.IsAlreadyAdded)) m.IsSelected = true;
+        foreach (var m in AudioItems.Where(m => !m.IsAlreadyAdded)) m.IsSelected = true;
     }
 
     [RelayCommand]

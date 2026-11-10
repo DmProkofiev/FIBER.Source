@@ -29,7 +29,19 @@ public interface IMediaManagementService
     /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные
     /// Возвращает выбранные медиа-элементы (уже имеют MediaId, файл кэширован во Temp)
     /// Пустой список — диалог отменён или ничего не выбрано
-    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync();
+    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (для Create-экранов),
+    /// они будут помечены галочкой и исключены из результата выбора.
+    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null);
+
+    /// Открывает диалог выбора существующих медиафайлов для владельца:
+    /// уже добавленные к владельцу файлы помечаются галочкой и не подлежат повторному добавлению.
+    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (Drag&Drop или предыдущий вызов),
+    /// они также будут помечены галочкой и исключены из результата выбора.
+    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
+        IReadOnlyCollection<int>? alreadyAddedMediaIds = null);
+
+    /// Добавляет медиа во временные файлы с защитой от дублей
+    Task AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemViewModel> media);
 
     /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
     /// Уже привязанные к владельцу файлы пропускаются (без дублей).

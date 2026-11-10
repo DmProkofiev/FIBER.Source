@@ -11,5 +11,5 @@ namespace FIBER.Source.Services.MediaSelection;
 public interface IMediaSelectionDialogService
 {
     /// Показывает диалог выбора медиа и возвращает Id выбранных пусто — отмена/ничего не выбрано
-    Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia);
+    Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds);
 }

@@ -307,14 +307,17 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        var selected = await _mediaManagement.SelectExistingMediaAsync();
+        // Передаём уже добавленные MediaId из TempFiles, чтобы они отмечались галочкой и не дублировались
+        var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
+        var selected = await _mediaManagement.SelectExistingMediaAsync(MediaOwnerType.Company, CompanyId, alreadyAdded);
         if (selected.Count == 0) return;
 
+        // Все элементы из SelectExistingMediaAsync имеют MediaId (они загружены из БД),
+        // поэтому newMedia всегда пуст — упрощаем логику.
         var existingIds = selected
             .Where(m => m.MediaId.HasValue)
             .Select(m => m.MediaId!.Value)
             .ToList();
-        var newMedia = selected.Where(m => !m.MediaId.HasValue).ToList();
 
         // Уже привязанные к этой организации файлы пропускаются — о защите сообщаем пользователю.
         int skipped = 0;
@@ -324,12 +327,6 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             await LoadExistingMediaAsync(CompanyId);
         }
 
-        foreach (var media in newMedia)
-        {
-            if (!TempFiles.Any(t => t.MediaId == media.MediaId))
-                TempFiles.Add(media);
-        }
-
         var added = existingIds.Count - skipped;
         if (skipped > 0)
         {
@@ -337,7 +334,10 @@ public partial class UpdateCompanyViewModel : ObservableValidator
                 $"{skipped} файл(ов) уже привязаны к этой организации и не добавлены повторно.",
                 NotificationType.Warning);
         }
-        Notification.Show("Успех", $"Привязано существующих: {added}, добавлено новых: {newMedia.Count}", NotificationType.Success);
+        if (added > 0)
+        {
+            Notification.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
+        }
     }
 
     [RelayCommand]
