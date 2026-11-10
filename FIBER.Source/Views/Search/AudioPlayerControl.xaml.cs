@@ -40,10 +40,23 @@ namespace FIBER.Source.Views.Search
             DependencyProperty.Register(nameof(MediaService), typeof(IMediaPlayerService), typeof(AudioPlayerControl),
                 new PropertyMetadata(null, OnMediaServiceChanged));
 
+        public static readonly DependencyProperty FileNameProperty =
+            DependencyProperty.Register(nameof(FileName), typeof(string), typeof(AudioPlayerControl),
+                new PropertyMetadata(null));
+
         public string FilePath
         {
             get => (string)GetValue(FilePathProperty);
             set => SetValue(FilePathProperty, value);
+        }
+
+        /// <summary>
+        /// Имя файла для отображения в UI (извлекается из FilePath).
+        /// </summary>
+        public string FileName
+        {
+            get => (string)GetValue(FileNameProperty);
+            set => SetValue(FileNameProperty, value);
         }
 
         /// <summary>

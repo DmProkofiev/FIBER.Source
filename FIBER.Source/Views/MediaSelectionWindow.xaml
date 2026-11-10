@@ -203,6 +203,7 @@
                                                         HorizontalAlignment="Stretch" VerticalAlignment="Top">
                                                     <StackPanel VerticalAlignment="Top">
                                                         <local:AudioPlayerControl FilePath="{Binding FilePath}"
+                                                                                  FileName="{Binding DisplayName}"
                                                                                   HorizontalAlignment="Stretch"/>
                                                         <CheckBox IsChecked="{Binding IsSelected}"
                                                                   Width="20" Height="20"
