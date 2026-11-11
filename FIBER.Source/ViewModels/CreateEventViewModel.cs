@@ -22,6 +22,7 @@ public partial class CreateEventViewModel : ObservableValidator
     private readonly IRelationService _relationService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     public CreateEventViewModel(
         IEventService eventService,
@@ -29,7 +30,8 @@ public partial class CreateEventViewModel : ObservableValidator
         IPersonService personService,
         IRelationService relationService,
         IMediaService mediaService,
-        IMediaManagementService mediaManagement)
+        IMediaManagementService mediaManagement,
+        INotificationService notificationService)
     {
         _eventService = eventService;
         _companyService = companyService;
@@ -37,6 +39,7 @@ public partial class CreateEventViewModel : ObservableValidator
         _relationService = relationService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     public ObservableCollection<CompanySummary> Companies { get; } = new();
@@ -96,7 +99,7 @@ public partial class CreateEventViewModel : ObservableValidator
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item });
+        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
     }
 
     [RelayCommand]
@@ -166,21 +169,22 @@ public partial class CreateEventViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Event, ev.Id);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Event, ev.Id);
                 }
 
                 TempFiles.Clear();
             }
 
             CreatedOwnerId = ev.Id;
-            Notification.Show("Успех",
+            _notificationService.Show("Успех",
                 $"Создано событие\nId = {ev.Id}\nНазвание = {ev.Title}",
                 NotificationType.Success);
             ClearForm();
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка создания: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка создания: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
     }
@@ -196,7 +200,7 @@ public partial class CreateEventViewModel : ObservableValidator
         // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
 
-        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
+        _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     private bool CanCreate() => !IsBusy;
@@ -215,7 +219,7 @@ public partial class CreateEventViewModel : ObservableValidator
         SelectedTargetEventId = null;
         EventEvents.Clear();
         AvailableEvents.Clear();
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
     }
 
@@ -232,7 +236,7 @@ public partial class CreateEventViewModel : ObservableValidator
         // Защита от дубля
         if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }

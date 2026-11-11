@@ -1,3 +1,4 @@
+using FIBER.Source.Contracts;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.ViewModels;
 using System;
@@ -17,42 +18,41 @@ public sealed class OwnerMedia
     public int TotalCount => Images.Count + Videos.Count + Audios.Count;
 }
 
-/// Операции над медиа, общие для всех Update-экранов (человек, событие, организация)
+/// Операции над медиа, общие для всех Update-экранов (человек, событие, организация).
+/// Сервис не показывает UI-уведомлений — только возвращает результаты или выбрасывает исключения.
+/// Для передачи данных используются чистые DTO (MediaItemDto), а MediaItemViewModel
+/// используется только для манипуляции существующими UI-коллекциями.
 public interface IMediaManagementService
 {
     /// Загружает существующие медиа владельца, сгруппированные по типам
     Task<OwnerMedia> LoadOwnerMediaAsync(MediaOwnerType ownerType, int ownerId);
 
-    /// Очищает коллекции существующих медиа с утилизацией ресурсов
+    /// Очищает коллекции существующих медиа с утилизацией ресурсов VM
     void ClearMedia(OwnerMedia media);
 
-    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные
-    /// Возвращает выбранные медиа-элементы (уже имеют MediaId, файл кэширован во Temp)
-    /// Пустой список — диалог отменён или ничего не выбрано
-    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (для Create-экранов),
-    /// они будут помечены галочкой и исключены из результата выбора.
-    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null);
+    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
+    /// Пустой список — диалог отменён или ничего не выбрано (или в базе нет медиа).
+    Task<IReadOnlyList<MediaItemDto>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null);
 
-    /// Открывает диалог выбора существующих медиафайлов для владельца:
-    /// уже добавленные к владельцу файлы помечаются галочкой и не подлежат повторному добавлению.
-    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (Drag&Drop или предыдущий вызов),
-    /// они также будут помечены галочкой и исключены из результата выбора.
-    Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
+    /// Открывает диалог выбора существующих медиафайлов для владельца.
+    Task<IReadOnlyList<MediaItemDto>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
         IReadOnlyCollection<int>? alreadyAddedMediaIds = null);
 
-    /// Добавляет медиа во временные файлы с защитой от дублей
-    Task AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemViewModel> media);
+    /// Добавляет медиа во временные файлы с защитой от дублей.
+    /// Возвращает количество добавленных файлов.
+    Task<int> AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemDto> media);
 
     /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
-    /// Уже привязанные к владельцу файлы пропускаются (без дублей).
-    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя
+    /// Возвращает число пропущенных (уже привязанных) файлов.
     Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId);
 
-    /// Удаляет существующий медиафайл у владельца
-    Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media);
+    /// Удаляет существующий медиафайл у владельца.
+    /// Возвращает true, если файл удалён.
+    Task<bool> DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemDto media);
 
-    /// Обрабатывает перетаскивание файлов (добавляет во временные файлы)
-    Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths);
+    /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
+    /// Возвращает количество пропущенных дублей.
+    Task<int> HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths);
 
     /// Удаляет временный файл из коллекции и диска
     void RemoveTempFile(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item);

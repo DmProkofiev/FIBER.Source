@@ -61,7 +61,8 @@ public partial class App : Application
             return;
         }
 
-        _databaseService = new DatabaseService();
+        var databaseService = new DatabaseService();
+        _databaseService = databaseService;
 
         var authWindow = new IdentificationWindow(_databaseService);
         if (authWindow.ShowDialog() != true)
@@ -79,7 +80,8 @@ public partial class App : Application
 
         var builder = Host.CreateApplicationBuilder();
 
-        builder.Services.AddSingleton(_databaseService);
+        // Регистрируем созданный экземпляр как singleton в DI.
+        builder.Services.AddSingleton<IDatabaseService>(databaseService);
 
         // VM создаются DI-контейнером вместе со всеми зависимостями (сервисы, DbContextFactory).
         builder.Services.AddSingleton<MenuViewModel>();
@@ -131,6 +133,8 @@ public partial class App : Application
         builder.Services.AddSingleton<ISeedDataService, SeedDataService>();
 
         builder.Services.AddSingleton<ITrayService, TrayService>();
+
+        builder.Services.AddSingleton<INotificationService, NotificationService>();
 
         builder.Services.AddSingleton<IMediaSelectionDialogService, MediaSelectionDialogService>();
         builder.Services.AddSingleton<IMediaManagementService, MediaManagementService>();

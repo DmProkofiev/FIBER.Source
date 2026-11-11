@@ -33,6 +33,8 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IDatabaseService _databaseService;
     /// <summary>Сервис сидинга тестовых данных.</summary>
     private readonly ISeedDataService _seedDataService;
+    /// <summary>Сервис уведомлений.</summary>
+    private readonly INotificationService _notificationService;
 
     /// <summary>Запрос на редактирование организации.</summary>
     public event Action<int>? UpdateCompanyRequested;
@@ -47,7 +49,8 @@ public partial class SettingsViewModel : ObservableObject
         ICompanyService companyService,
         IEventService eventService,
         IDatabaseService databaseService,
-        ISeedDataService seedDataService)
+        ISeedDataService seedDataService,
+        INotificationService notificationService)
     {
         _auditLogService = auditLogService;
         _contextFactory = contextFactory;
@@ -56,6 +59,7 @@ public partial class SettingsViewModel : ObservableObject
         _eventService = eventService;
         _databaseService = databaseService;
         _seedDataService = seedDataService;
+        _notificationService = notificationService;
     }
 
     /// <summary>Люди.</summary>
@@ -175,7 +179,8 @@ public partial class SettingsViewModel : ObservableObject
                 MediaOwnerType.Event => eventsDict.GetValueOrDefault(item.OwnerId, "Удалён"),
                 _ => "Неизвестно"
             };
-            var vm = new SettingsMediaItemViewModel(item.Media, item.OwnerType, item.OwnerId, ownerName);
+            var mediaVm = item.Media.ToViewModel(_mediaService);
+            var vm = new SettingsMediaItemViewModel(mediaVm, item.OwnerType, item.OwnerId, ownerName);
             AllMedia.Add(vm);
 
             // Декодируем изображение в фоне, чтобы не блокировать GUI.
@@ -205,30 +210,30 @@ public partial class SettingsViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(OldPassword) || string.IsNullOrWhiteSpace(NewPassword))
         {
-            Notification.Show("Внимание", "Заполните все поля паролей.", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Заполните все поля паролей.", NotificationType.Warning);
             return;
         }
         if (NewPassword != ConfirmPassword)
         {
-            Notification.Show("Ошибка", "Новый пароль и подтверждение не совпадают.", NotificationType.Error);
+            _notificationService.Show("Ошибка", "Новый пароль и подтверждение не совпадают.", NotificationType.Error);
             return;
         }
         try
         {
             await _databaseService.ChangePasswordAsync(OldPassword, NewPassword);
             await _auditLogService.LogAsync("Auth.ChangePassword", string.Empty);
-            Notification.Show("Успех", "Пароль успешно изменён!", NotificationType.Success);
+            _notificationService.Show("Успех", "Пароль успешно изменён!", NotificationType.Success);
             OldPassword = string.Empty;
             NewPassword = string.Empty;
             ConfirmPassword = string.Empty;
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("пароль"))
         {
-            Notification.Show("Ошибка", "Неверный текущий пароль.", NotificationType.Error);
+            _notificationService.Show("Ошибка", "Неверный текущий пароль.", NotificationType.Error);
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка смены пароля", ex.Message, NotificationType.Error);
+            _notificationService.Show("Ошибка смены пароля", ex.Message, NotificationType.Error);
         }
     }
 
@@ -255,7 +260,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             await _databaseService.ExportAsync(dialog.FileName, encrypted);
             await _auditLogService.LogAsync("Database.Export", $"Path={dialog.FileName}, Encrypted={encrypted}");
-            Notification.Show("Экспорт завершён",
+            _notificationService.Show("Экспорт завершён",
                 encrypted
                     ? $"Зашифрованная копия сохранена:\n{dialog.FileName}"
                     : $"БД экспортирована в открытом виде:\n{dialog.FileName}",
@@ -263,7 +268,7 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка экспорта", ex.Message, NotificationType.Error);
+            _notificationService.Show("Ошибка экспорта", ex.Message, NotificationType.Error);
         }
     }
 
@@ -277,7 +282,7 @@ public partial class SettingsViewModel : ObservableObject
             if (result.Skipped)
             {
                 SeedResult = "В БД уже есть данные — сидинг пропущен.";
-                Notification.Show("Информация", SeedResult, NotificationType.Warning);
+                _notificationService.Show("Информация", SeedResult, NotificationType.Warning);
             }
             else
             {
@@ -285,13 +290,13 @@ public partial class SettingsViewModel : ObservableObject
                     $"Создано: персон {result.PersonsCreated}, организаций {result.CompaniesCreated}, " +
                     $"событий {result.EventsCreated}, связей {result.RelationshipsCreated}.";
                 await _auditLogService.LogAsync("Database.Seed", SeedResult);
-                Notification.Show("Сидинг завершён", SeedResult, NotificationType.Success);
+                _notificationService.Show("Сидинг завершён", SeedResult, NotificationType.Success);
                 await LoadDataAsync();
             }
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка сидинга", ex.Message, NotificationType.Error);
+            _notificationService.Show("Ошибка сидинга", ex.Message, NotificationType.Error);
         }
     }
 
@@ -304,13 +309,13 @@ public partial class SettingsViewModel : ObservableObject
     private async Task DeleteCompanyAsync(CompanySummary summary)
     {
         if (summary == null) return;
-        if (!Notification.Confirm("Удаление организации", $"Удалить организацию?\n\n{summary.Name}")) return;
+        if (!_notificationService.Confirm("Удаление организации", $"Удалить организацию?\n\n{summary.Name}")) return;
         try
         {
             await _companyService.DeleteAsync(summary.Id);
             await LoadDataAsync();
         }
-        catch (Exception ex) { Notification.Show("Ошибка", ex.Message, NotificationType.Error); }
+        catch (Exception ex) { _notificationService.Show("Ошибка", ex.Message, NotificationType.Error); }
     }
 
     /// <summary>Открыть редактирование события.</summary>
@@ -322,12 +327,12 @@ public partial class SettingsViewModel : ObservableObject
     private async Task DeleteEventAsync(EventSummary summary)
     {
         if (summary == null) return;
-        if (!Notification.Confirm("Удаление события", $"Удалить событие?\n\n{summary.Title}")) return;
+        if (!_notificationService.Confirm("Удаление события", $"Удалить событие?\n\n{summary.Title}")) return;
         try
         {
             await _eventService.DeleteAsync(summary.Id);
             await LoadDataAsync();
         }
-        catch (Exception ex) { Notification.Show("Ошибка", ex.Message, NotificationType.Error); }
+        catch (Exception ex) { _notificationService.Show("Ошибка", ex.Message, NotificationType.Error); }
     }
 }

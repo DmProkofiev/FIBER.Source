@@ -25,6 +25,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     private readonly IRelationService _relationService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     public event Action? Saved;
     public event Action? Cancelled;
@@ -35,7 +36,8 @@ public partial class UpdateEventViewModel : ObservableValidator
         IPersonService personService,
         IRelationService relationService,
         IMediaService mediaService,
-        IMediaManagementService mediaManagement)
+        IMediaManagementService mediaManagement,
+        INotificationService notificationService)
     {
         _eventService = eventService;
         _companyService = companyService;
@@ -43,6 +45,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         _relationService = relationService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     // ----- Коллекции для UI -----
@@ -89,7 +92,7 @@ public partial class UpdateEventViewModel : ObservableValidator
 
     public async Task LoadAsync(int eventId)
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Participants.Clear();
@@ -110,7 +113,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         var ev = await _eventService.GetByIdAsync(eventId);
         if (ev == null)
         {
-            Notification.Show("Ошибка", $"Событие Id = {eventId} не найдено", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Событие Id = {eventId} не найдено", NotificationType.Error);
             Cancelled?.Invoke();
             return;
         }
@@ -200,7 +203,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     [RelayCommand]
     private async Task DeleteExistingMediaAsync(MediaItemViewModel media)
     {
-        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Event, EventId, media);
+        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Event, EventId, media.ToDto());
         ExistingImages.Remove(media);
         ExistingVideos.Remove(media);
         ExistingAudio.Remove(media);
@@ -217,7 +220,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         // Защита от дубля: такой участник уже в списке.
         if (Participants.Any(p => p.PersonId == person.Id))
         {
-            Notification.Show("Внимание", "Этот участник уже добавлен", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Этот участник уже добавлен", NotificationType.Warning);
             SelectedPersonId = null;
             return;
         }
@@ -235,7 +238,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         // Защита от дубля: такой участник уже в списке.
         if (Participants.Any(p => p.CompanyId == company.Id))
         {
-            Notification.Show("Внимание", "Эта организация уже добавлена как участник", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Эта организация уже добавлена как участник", NotificationType.Warning);
             SelectedCompanyId = null;
             return;
         }
@@ -263,7 +266,7 @@ public partial class UpdateEventViewModel : ObservableValidator
 
         if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
@@ -318,13 +321,13 @@ public partial class UpdateEventViewModel : ObservableValidator
         var added = existingIds.Count - skipped;
         if (skipped > 0)
         {
-            Notification.Show("Внимание",
+            _notificationService.Show("Внимание",
                 $"{skipped} файл(ов) уже привязаны к этому событию и не добавлены повторно.",
                 NotificationType.Warning);
         }
         if (added > 0)
         {
-            Notification.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
+            _notificationService.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
         }
     }
 
@@ -368,18 +371,19 @@ public partial class UpdateEventViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Event, EventId);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Event, EventId);
                 }
 
                 TempFiles.Clear();
             }
 
-            Notification.Show("Успех", "Изменения сохранены", NotificationType.Success);
+            _notificationService.Show("Успех", "Изменения сохранены", NotificationType.Success);
             Saved?.Invoke();
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
     }
@@ -387,7 +391,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Cancelled?.Invoke();

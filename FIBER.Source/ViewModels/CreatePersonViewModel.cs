@@ -24,6 +24,7 @@ public partial class CreatePersonViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     public CreatePersonViewModel(
         IPersonService personService,
@@ -31,7 +32,8 @@ public partial class CreatePersonViewModel : ObservableValidator
         ICompanyService companyService,
         IEventService eventService,
         IMediaService mediaService,
-        IMediaManagementService mediaManagement)
+        IMediaManagementService mediaManagement,
+        INotificationService notificationService)
     {
         _personService = personService;
         _countryService = countryService;
@@ -39,6 +41,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     public ObservableCollection<Country> Countries { get; } = new();
@@ -125,7 +128,7 @@ public partial class CreatePersonViewModel : ObservableValidator
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item });
+        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
     }
 
     [RelayCommand(CanExecute = nameof(CanCreate))]
@@ -141,7 +144,7 @@ public partial class CreatePersonViewModel : ObservableValidator
             {
                 if (string.IsNullOrWhiteSpace(PrimaryAlias))
                 {
-                    Notification.Show("Ошибка", "Укажите хотя бы один псевдоним", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Укажите хотя бы один псевдоним", NotificationType.Warning);
                     return;
                 }
 
@@ -164,7 +167,7 @@ public partial class CreatePersonViewModel : ObservableValidator
 
                 var person = await _personService.CreateAnonymousAsync(input);
                 personId = person.Id;
-                Notification.Show("Успех",
+                _notificationService.Show("Успех",
                     $"Создана неидентифицированная личность\nId = {person.Id}\nПсевдоним = {PrimaryAlias}",
                     NotificationType.Success);
             }
@@ -172,7 +175,7 @@ public partial class CreatePersonViewModel : ObservableValidator
             {
                 if (string.IsNullOrWhiteSpace(FullName))
                 {
-                    Notification.Show("Ошибка", "Для идентифицированной личности ФИО обязательно", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Для идентифицированной личности ФИО обязательно", NotificationType.Warning);
                     return;
                 }
 
@@ -203,7 +206,7 @@ public partial class CreatePersonViewModel : ObservableValidator
 
                 var person = await _personService.CreateIdentifiedAsync(input);
                 personId = person.Id;
-                Notification.Show("Успех",
+                _notificationService.Show("Успех",
                     $"Создана идентифицированная личность\nId = {person.Id}\nФИО = {FullName}",
                     NotificationType.Success);
             }
@@ -224,7 +227,8 @@ public partial class CreatePersonViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Person, personId);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Person, personId);
                 }
 
                 TempFiles.Clear();
@@ -235,7 +239,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка создания: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка создания: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
     }
@@ -253,7 +257,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
 
-        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
+        _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     // ----- Связи «персона ↔ персона» при создании -----
@@ -269,7 +273,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         // Защита от дубля: такая цель уже есть в списке связей.
         if (Relationships.Any(r => r.RelatedPersonId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
             SelectedRelatedPersonId = null;
             return;
         }
@@ -309,7 +313,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         // Защита от дубля: такая организация уже есть в списке связей.
         if (CompanyPeople.Any(cp => cp.CompanyId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
             SelectedTargetCompanyId = null;
             return;
         }
@@ -349,7 +353,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
@@ -396,7 +400,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         Address = string.Empty;
         Notes = string.Empty;
 
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         Relationships.Clear();
         CompanyPeople.Clear();

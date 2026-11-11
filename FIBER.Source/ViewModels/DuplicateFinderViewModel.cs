@@ -23,12 +23,14 @@ public partial class DuplicateFinderViewModel : ObservableObject
     private readonly IDuplicateFinderService _duplicateFinderService;
     private readonly int _sourcePersonId;
     private readonly int _sourceCompanyId;
+    private readonly INotificationService _notificationService;
 
-    public DuplicateFinderViewModel(int personId, IDuplicateFinderService duplicateFinderService)
+    public DuplicateFinderViewModel(int personId, IDuplicateFinderService duplicateFinderService, INotificationService notificationService)
     {
         _sourcePersonId = personId;
         _sourceCompanyId = 0;
         _duplicateFinderService = duplicateFinderService;
+        _notificationService = notificationService;
         Strategies = new ObservableCollection<IComparisonStrategy>(duplicateFinderService.Strategies);
         _selectedStrategy = Strategies.FirstOrDefault();
         _threshold = DefaultThreshold;
@@ -38,12 +40,14 @@ public partial class DuplicateFinderViewModel : ObservableObject
     public DuplicateFinderViewModel(
         int sourceCompanyId,
         bool isCompanyMode,
-        IDuplicateFinderService duplicateFinderService)
+        IDuplicateFinderService duplicateFinderService,
+        INotificationService notificationService)
     {
         _sourceCompanyId = sourceCompanyId;
         _sourcePersonId = 0;
         IsCompanyMode = isCompanyMode;
         _duplicateFinderService = duplicateFinderService;
+        _notificationService = notificationService;
         Strategies = new ObservableCollection<IComparisonStrategy>(duplicateFinderService.Strategies);
         _threshold = DefaultThreshold;
     }
@@ -91,13 +95,13 @@ public partial class DuplicateFinderViewModel : ObservableObject
                 _sourcePersonId, SelectedStrategy?.Name, Threshold);
             if (result is null)
             {
-                Notification.Show("Ошибка", $"Личность Id={_sourcePersonId} не найдена", NotificationType.Error);
+                _notificationService.Show("Ошибка", $"Личность Id={_sourcePersonId} не найдена", NotificationType.Error);
                 return;
             }
             SourceName = result.Source.FullName ?? $"Аноним #{result.Source.Id}";
             foreach (var c in result.Candidates) Candidates.Add(c);
         }
-        catch (Exception ex) { Notification.Show("Ошибка", ex.Message, NotificationType.Error); }
+        catch (Exception ex) { _notificationService.Show("Ошибка", ex.Message, NotificationType.Error); }
     }
 
     [RelayCommand]
@@ -122,7 +126,7 @@ public partial class DuplicateFinderViewModel : ObservableObject
                 foreach (var c in result.Candidates) Candidates.Add(c);
             }
         }
-        catch (Exception ex) { Notification.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
+        catch (Exception ex) { _notificationService.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
         finally { IsBusy = false; }
     }
 
@@ -137,14 +141,14 @@ public partial class DuplicateFinderViewModel : ObservableObject
             CompanyCandidates.Clear();
             if (result is null)
             {
-                Notification.Show("Ошибка", $"Организация Id={_sourceCompanyId} не найдена", NotificationType.Error);
+                _notificationService.Show("Ошибка", $"Организация Id={_sourceCompanyId} не найдена", NotificationType.Error);
                 return;
             }
 
             SourceName = result.Source.Name;
             foreach (var c in result.Candidates) CompanyCandidates.Add(c);
         }
-        catch (Exception ex) { Notification.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
+        catch (Exception ex) { _notificationService.Show("Ошибка поиска", ex.Message, NotificationType.Error); }
         finally { IsBusy = false; }
     }
 

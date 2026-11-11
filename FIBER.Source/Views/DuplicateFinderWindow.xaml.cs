@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using FIBER.Source.Interfaces;
 using FIBER.Source.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using ListViewItem = System.Windows.Controls.ListViewItem;
 
 namespace FIBER.Source.Views;
@@ -19,7 +20,8 @@ public partial class DuplicateFinderWindow : Window
         IDuplicateFinderService duplicateFinderService)
     {
         InitializeComponent();
-        var vm = new DuplicateFinderViewModel(personId, duplicateFinderService);
+        var notificationService = ((App)System.Windows.Application.Current).Services!.GetRequiredService<INotificationService>();
+        var vm = new DuplicateFinderViewModel(personId, duplicateFinderService, notificationService);
         DataContext = vm;
         vm.NavigateRequested += (type, id) => { NavigateRequested?.Invoke(type, id); };
         vm.CloseRequested += () => Close();
@@ -33,7 +35,8 @@ public partial class DuplicateFinderWindow : Window
         IDuplicateFinderService duplicateFinderService)
     {
         InitializeComponent();
-        var vm = new DuplicateFinderViewModel(companyId, isCompanyMode, duplicateFinderService);
+        var notificationService = ((App)System.Windows.Application.Current).Services!.GetRequiredService<INotificationService>();
+        var vm = new DuplicateFinderViewModel(companyId, isCompanyMode, duplicateFinderService, notificationService);
         DataContext = vm;
         vm.NavigateRequested += (type, id) => { NavigateRequested?.Invoke(type, id); };
         vm.CloseRequested += () => Close();

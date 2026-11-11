@@ -168,6 +168,7 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         // Не помечаем как неудачные — загрузка произойдёт по требованию.
         _mediaService = mediaService;
         _mediaIdForLazyLoad = mediaId;
+        MediaId = mediaId;
     }
 
     /// <summary>Ограничение параллельной декодировки изображений, чтобы не перегрузить GUI поток.</summary>

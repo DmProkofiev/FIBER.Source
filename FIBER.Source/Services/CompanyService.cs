@@ -156,14 +156,15 @@ public sealed class CompanyService : BaseService, ICompanyService
         if (inputs is null) return; // null — не трогать связи; пустой список — удалить все.
 
         // DELETE: исходящие связи, отсутствующие во входных данных.
+        var inputIds = inputs
+            .Where(i => i.Id.HasValue)
+            .Select(i => i.Id!.Value)
+            .ToHashSet();
         foreach (var existing in company.OutgoingInteractions.ToList())
         {
-            var keep = inputs.Any(i => i.TargetCompanyId == existing.TargetCompanyId);
-            if (!keep)
-            {
-                company.OutgoingInteractions.Remove(existing);
-                context.CompanyInteractions.Remove(existing);
-            }
+            if (inputIds.Contains(existing.Id)) continue;
+            company.OutgoingInteractions.Remove(existing);
+            context.CompanyInteractions.Remove(existing);
         }
 
         // UPDATE + CREATE.
@@ -171,7 +172,7 @@ public sealed class CompanyService : BaseService, ICompanyService
         {
             var targetId = input.TargetCompanyId!.Value;
             if (targetId == company.Id)
-                throw new InvalidOperationException("Связь организации сама с собой невозможна");
+                throw new InvalidOperationException("Связь организации самой с собой невозможна");
 
             if (!await context.Companies.AnyAsync(c => c.Id == targetId))
                 throw new InvalidOperationException($"Организация Id={targetId} не найдена");
@@ -179,7 +180,9 @@ public sealed class CompanyService : BaseService, ICompanyService
             var type = (input.InteractionType ?? string.Empty).Trim();
             var notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
 
-            var link = company.OutgoingInteractions.FirstOrDefault(ci => ci.TargetCompanyId == targetId);
+            var link = input.Id is not null
+                ? company.OutgoingInteractions.FirstOrDefault(ci => ci.Id == input.Id.Value)
+                : null;
             if (link is not null)
             {
                 // Существующая связь — обновляем тип/заметки.
@@ -297,6 +300,12 @@ public sealed class CompanyService : BaseService, ICompanyService
                     .Where(ci => ci.SourceCompanyId == id || ci.TargetCompanyId == id)
                     .ToListAsync();
                 context.CompanyInteractions.RemoveRange(interactions);
+
+                // Удаляем участие организации в событиях.
+                var companyEventParticipations = await context.EventParticipants
+                    .Where(ep => ep.CompanyId == id)
+                    .ToListAsync();
+                context.EventParticipants.RemoveRange(companyEventParticipations);
 
                 // Удаляем связи «организация ↔ персона».
                 var companyPeople = await context.CompanyPeople

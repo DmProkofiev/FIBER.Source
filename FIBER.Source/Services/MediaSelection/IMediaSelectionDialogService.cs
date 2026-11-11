@@ -1,9 +1,7 @@
+using FIBER.Source.Contracts;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Threading.Tasks;
-using FIBER.Source.Models.Enums;
-using FIBER.Source.ViewModels;
 
 namespace FIBER.Source.Services.MediaSelection;
 
@@ -11,5 +9,5 @@ namespace FIBER.Source.Services.MediaSelection;
 public interface IMediaSelectionDialogService
 {
     /// Показывает диалог выбора медиа и возвращает Id выбранных пусто — отмена/ничего не выбрано
-    Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds);
+    Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemDto> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds);
 }

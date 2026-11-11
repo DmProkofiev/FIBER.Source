@@ -384,10 +384,8 @@ namespace FIBER.Source.Migrations
 
             modelBuilder.Entity("FIBER.Source.Models.Joins.CompanyInteraction", b =>
                 {
-                    b.Property<int>("SourceCompanyId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("TargetCompanyId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("InteractionType")
@@ -399,10 +397,20 @@ namespace FIBER.Source.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.HasKey("SourceCompanyId", "TargetCompanyId");
+                    b.Property<int>("SourceCompanyId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TargetCompanyId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
 
                     b.HasIndex("TargetCompanyId")
                         .HasDatabaseName("IX_CompanyInteraction_TargetCompanyId");
+
+                    b.HasIndex("SourceCompanyId", "TargetCompanyId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_CompanyInteraction_Natural");
 
                     b.ToTable("CompanyInteractions", (string)null);
                 });

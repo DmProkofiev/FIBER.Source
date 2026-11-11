@@ -787,6 +787,18 @@ public sealed class PersonService : BaseService, IPersonService
                 var person = await context.People.FirstOrDefaultAsync(p => p.Id == id);
                 if (person is not null)
                 {
+                    // Удаляем связи «персона ↔ персона» (прямые и обратные).
+                    var relationships = await context.PersonRelationships
+                        .Where(r => r.PersonId == id || r.RelatedPersonId == id)
+                        .ToListAsync();
+                    context.PersonRelationships.RemoveRange(relationships);
+
+                    // Удаляем участие персоны в событиях.
+                    var participations = await context.EventParticipants
+                        .Where(ep => ep.PersonId == id)
+                        .ToListAsync();
+                    context.EventParticipants.RemoveRange(participations);
+
                     // Удаляем связи «персона ↔ организация».
                     var companyPeople = await context.CompanyPeople
                         .Where(cp => cp.PersonId == id)

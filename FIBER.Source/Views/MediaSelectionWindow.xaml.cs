@@ -4,7 +4,9 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using FIBER.Source.Interfaces;
 using FIBER.Source.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
@@ -24,7 +26,8 @@ public partial class MediaSelectionWindow : Window
     public MediaSelectionWindow(string title, IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
     {
         InitializeComponent();
-        _vm = new MediaSelectionViewModel(title, availableMedia, OnClose, alreadyAddedMediaIds);
+        var notificationService = ((App)System.Windows.Application.Current).Services!.GetRequiredService<INotificationService>();
+        _vm = new MediaSelectionViewModel(title, availableMedia, OnClose, notificationService, alreadyAddedMediaIds);
         DataContext = _vm;
         AttachOwner();
     }

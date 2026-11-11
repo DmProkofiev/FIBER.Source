@@ -25,6 +25,7 @@ public partial class SearchViewModel : ObservableObject
     private readonly ISearchStrategyFactory _strategyFactory;
     private readonly IDuplicateFinderService _duplicateFinderService;
     private readonly IExportService _exportService;
+    private readonly INotificationService _notificationService;
 
     public event Action<int>? UpdatePersonRequested;
     public event Action<int>? UpdateCompanyRequested;
@@ -53,7 +54,8 @@ public partial class SearchViewModel : ObservableObject
         IRelationService relationService,
         ISearchStrategyFactory strategyFactory,
         IDuplicateFinderService duplicateFinderService,
-        IExportService exportService)
+        IExportService exportService,
+        INotificationService notificationService)
     {
         _personService = personService;
         _companyService = companyService;
@@ -64,6 +66,7 @@ public partial class SearchViewModel : ObservableObject
         _strategyFactory = strategyFactory;
         _duplicateFinderService = duplicateFinderService;
         _exportService = exportService;
+        _notificationService = notificationService;
 
         _selectedStatusFilter = StatusFilters.First();
     }
@@ -227,7 +230,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
         }
         finally { IsPersonBusy = false; }
     }
@@ -248,7 +251,7 @@ public partial class SearchViewModel : ObservableObject
             if (SelectedPerson == null)
             {
                 ClearPersonSelection();
-                Notification.Show("Запись не найдена",
+                _notificationService.Show("Запись не найдена",
                     $"Личность Id={personId} не найдена или была удалена",
                     NotificationType.Warning);
                 return;
@@ -260,18 +263,17 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
         }
     }
 
     [RelayCommand]
-    private void ClearPersonSelection()
+    private void ClearPersonSelection() => ClearSelection(() =>
     {
         DisposeMedia(PersonImages, PersonVideos, PersonAudio);
         PersonRelations.Clear();
         SelectedPerson = null;
-        ClearEntityFields();
-    }
+    });
 
     [RelayCommand]
     private void UpdatePerson() { if (SelectedPerson != null) UpdatePersonRequested?.Invoke(SelectedPerson.Id); }
@@ -280,7 +282,7 @@ public partial class SearchViewModel : ObservableObject
     private async Task DeleteAliasAsync(PersonAlias? alias)
     {
         if (alias == null || SelectedPerson == null) return;
-        if (!Notification.Confirm("Подтверждение", $"Удалить псевдоним «{alias.Value}»?")) return;
+        if (!_notificationService.Confirm("Подтверждение", $"Удалить псевдоним «{alias.Value}»?")) return;
 
         try
         {
@@ -290,7 +292,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
     }
 
@@ -298,7 +300,7 @@ public partial class SearchViewModel : ObservableObject
     private async Task DeletePersonAsync()
     {
         if (SelectedPerson == null) return;
-        if (!Notification.Confirm("Подтверждение", $"Удалить запись?\n\n{SelectedPersonDisplayName}")) return;
+        if (!_notificationService.Confirm("Подтверждение", $"Удалить запись?\n\n{SelectedPersonDisplayName}")) return;
 
         IsPersonBusy = true;
         try
@@ -310,7 +312,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
         finally { IsPersonBusy = false; }
     }
@@ -331,7 +333,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
         }
         finally { IsCompanyBusy = false; }
     }
@@ -352,7 +354,7 @@ public partial class SearchViewModel : ObservableObject
             if (SelectedCompany == null)
             {
                 ClearCompanySelection();
-                Notification.Show("Запись не найдена",
+                _notificationService.Show("Запись не найдена",
                     $"Организация Id={companyId} не найдена или была удалена",
                     NotificationType.Warning);
                 return;
@@ -364,18 +366,17 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
         }
     }
 
     [RelayCommand]
-    private void ClearCompanySelection()
+    private void ClearCompanySelection() => ClearSelection(() =>
     {
         DisposeMedia(CompanyImages, CompanyVideos, CompanyAudio);
         CompanyRelations.Clear();
         SelectedCompany = null;
-        ClearEntityFields();
-    }
+    });
 
     [RelayCommand]
     private void UpdateCompany() { if (SelectedCompany != null) UpdateCompanyRequested?.Invoke(SelectedCompany.Id); }
@@ -384,7 +385,7 @@ public partial class SearchViewModel : ObservableObject
     private async Task DeleteCompanyAsync()
     {
         if (SelectedCompany == null) return;
-        if (!Notification.Confirm("Подтверждение", $"Удалить организацию?\n\n{SelectedCompanyDisplayName}")) return;
+        if (!_notificationService.Confirm("Подтверждение", $"Удалить организацию?\n\n{SelectedCompanyDisplayName}")) return;
 
         IsCompanyBusy = true;
         try
@@ -395,7 +396,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
         finally { IsCompanyBusy = false; }
     }
@@ -416,7 +417,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка поиска: {ex.Message}", NotificationType.Error);
         }
         finally { IsEventBusy = false; }
     }
@@ -437,7 +438,7 @@ public partial class SearchViewModel : ObservableObject
             if (SelectedEvent == null)
             {
                 ClearEventSelection();
-                Notification.Show("Запись не найдена",
+                _notificationService.Show("Запись не найдена",
                     $"Событие Id={eventId} не найдено или было удалено",
                     NotificationType.Warning);
                 return;
@@ -449,18 +450,17 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка загрузки: {ex.Message}", NotificationType.Error);
         }
     }
 
     [RelayCommand]
-    private void ClearEventSelection()
+    private void ClearEventSelection() => ClearSelection(() =>
     {
         DisposeMedia(EventImages, EventVideos, EventAudio);
         EventRelations.Clear();
         SelectedEvent = null;
-        ClearEntityFields();
-    }
+    });
 
     [RelayCommand]
     private void UpdateEvent() { if (SelectedEvent != null) UpdateEventRequested?.Invoke(SelectedEvent.Id); }
@@ -469,7 +469,7 @@ public partial class SearchViewModel : ObservableObject
     private async Task DeleteEventAsync()
     {
         if (SelectedEvent == null) return;
-        if (!Notification.Confirm("Подтверждение", $"Удалить событие?\n\n{SelectedEventDisplayName}")) return;
+        if (!_notificationService.Confirm("Подтверждение", $"Удалить событие?\n\n{SelectedEventDisplayName}")) return;
 
         IsEventBusy = true;
         try
@@ -480,7 +480,7 @@ public partial class SearchViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
         }
         finally { IsEventBusy = false; }
     }
@@ -852,18 +852,20 @@ public partial class SearchViewModel : ObservableObject
 
         if (!stillRelevant)
         {
-            foreach (var vm in mediaList) vm.Dispose();
+            foreach (var dto in mediaList)
+                dto.ToViewModel(_mediaService).Dispose();
             return;
         }
 
-        foreach (var vm in mediaList)
+        foreach (var dto in mediaList)
         {
-            if (vm.IsImage) images.Add(vm);
-            else if (vm.IsVideo) videos.Add(vm);
-            else if (vm.IsAudio) audio.Add(vm);
+            var vm = dto.ToViewModel(_mediaService);
+            if (dto.IsImage) images.Add(vm);
+            else if (dto.IsVideo) videos.Add(vm);
+            else if (dto.IsAudio) audio.Add(vm);
 
             // Декодируем изображение в фоне, не блокируя GUI.
-            if (vm.IsImage)
+            if (dto.IsImage)
                 _ = vm.LoadImageAsync();
         }
     }
@@ -879,6 +881,13 @@ public partial class SearchViewModel : ObservableObject
         images.Clear(); videos.Clear(); audio.Clear();
     }
 
+    /// <summary>Общая логика очистки выделения для любой вкладки.</summary>
+    private void ClearSelection(Action clearSpecific)
+    {
+        clearSpecific();
+        ClearEntityFields();
+    }
+
     // ===== Унифицированные поля для EntityDetailsPanel =====
 
     private void ClearEntityFields()
@@ -892,12 +901,7 @@ public partial class SearchViewModel : ObservableObject
 
     private void BuildEntityFieldsForPerson(Person person)
     {
-        SelectedEntityType = EntityType.Person;
-        SelectedEntityDisplayName = SelectedPersonDisplayName;
-        SelectedEntityFields.Clear();
-        SelectedEntityRelations.Clear();
-
-        foreach (var r in PersonRelations) SelectedEntityRelations.Add(r);
+        BeginEntityFields(EntityType.Person, SelectedPersonDisplayName, PersonRelations);
 
         AddField("ID", person.Id.ToString());
         AddField("Фамилия", person.LastName);
@@ -922,17 +926,12 @@ public partial class SearchViewModel : ObservableObject
             AddField("Псевдонимы", string.Join(", ", person.Aliases.Select(a => $"{(a.IsPrimary ? "*" : "")}{a.Value}")));
         }
 
-        OnPropertyChanged(nameof(HasEntitySelection));
+        EndEntityFields();
     }
 
     private void BuildEntityFieldsForCompany(Company company)
     {
-        SelectedEntityType = EntityType.Company;
-        SelectedEntityDisplayName = SelectedCompanyDisplayName;
-        SelectedEntityFields.Clear();
-        SelectedEntityRelations.Clear();
-
-        foreach (var r in CompanyRelations) SelectedEntityRelations.Add(r);
+        BeginEntityFields(EntityType.Company, SelectedCompanyDisplayName, CompanyRelations);
 
         AddField("ID", company.Id.ToString());
         AddField("Название", company.Name);
@@ -943,17 +942,12 @@ public partial class SearchViewModel : ObservableObject
         AddField("Сайт", company.Website);
         AddField("Заметки", company.Notes);
 
-        OnPropertyChanged(nameof(HasEntitySelection));
+        EndEntityFields();
     }
 
     private void BuildEntityFieldsForEvent(Event evt)
     {
-        SelectedEntityType = EntityType.Event;
-        SelectedEntityDisplayName = SelectedEventDisplayName;
-        SelectedEntityFields.Clear();
-        SelectedEntityRelations.Clear();
-
-        foreach (var r in EventRelations) SelectedEntityRelations.Add(r);
+        BeginEntityFields(EntityType.Event, SelectedEventDisplayName, EventRelations);
 
         AddField("ID", evt.Id.ToString());
         AddField("Название", evt.Title);
@@ -962,6 +956,20 @@ public partial class SearchViewModel : ObservableObject
         AddField("Описание", evt.Description);
         AddField("Заметки", evt.Notes);
 
+        EndEntityFields();
+    }
+
+    private void BeginEntityFields(EntityType type, string displayName, IEnumerable<RelationItemViewModel> relations)
+    {
+        SelectedEntityType = type;
+        SelectedEntityDisplayName = displayName;
+        SelectedEntityFields.Clear();
+        SelectedEntityRelations.Clear();
+        foreach (var r in relations) SelectedEntityRelations.Add(r);
+    }
+
+    private void EndEntityFields()
+    {
         OnPropertyChanged(nameof(HasEntitySelection));
     }
 

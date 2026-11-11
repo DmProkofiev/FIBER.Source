@@ -23,15 +23,17 @@ public partial class CreateCompanyViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     // Внедряет сервисы
-    public CreateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement)
+    public CreateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement, INotificationService notificationService)
     {
         _companyService = companyService;
         _personService = personService;
         _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     public async Task InitializeAsync()
@@ -96,7 +98,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item });
+        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
     }
 
     // Создаёт организацию и коммитит медиа
@@ -135,14 +137,15 @@ public partial class CreateCompanyViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Company, company.Id);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Company, company.Id);
                 }
 
                 TempFiles.Clear();
             }
 
             CreatedOwnerId = company.Id;
-            Notification.Show("Успех",
+            _notificationService.Show("Успех",
                 $"Создана организация\nId = {company.Id}\nНазвание = {company.Name}",
                 NotificationType.Success);
             ClearForm();
@@ -167,7 +170,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
 
-        Notification.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
+        _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
     // ----- Взаимодействия «компания → компания» при создании -----
@@ -305,7 +308,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         Mail = string.Empty;
         Website = string.Empty;
         Notes = string.Empty;
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         Interactions.Clear();
         CompanyPeople.Clear();

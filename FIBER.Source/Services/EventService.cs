@@ -467,6 +467,12 @@ public sealed class EventService : BaseService, IEventService
             "Event.Delete",
             async context =>
             {
+                // Удаляем участие в событии (людей и организаций).
+                var participants = await context.EventParticipants
+                    .Where(ep => ep.EventId == id)
+                    .ToListAsync();
+                context.EventParticipants.RemoveRange(participants);
+
                 // Удаляем связи «событие ↔ событие» (и исходящие, и обратные).
                 var eventEvents = await context.EventEvents
                     .Where(ee => ee.SourceEventId == id || ee.TargetEventId == id)

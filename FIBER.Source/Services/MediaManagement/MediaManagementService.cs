@@ -1,5 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using FIBER.Source.Helpers;
+using FIBER.Source.Contracts;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services.MediaSelection;
@@ -12,7 +11,9 @@ using System.Threading.Tasks;
 
 namespace FIBER.Source.Services.MediaManagement;
 
-/// Реализация общих операций с медиа для Update-экранов
+/// Реализация общих операций с медиа для Update-экранов.
+/// Не показывает UI-уведомлений — только возвращает результаты или выбрасывает исключения.
+/// Работает с чистыми DTO (MediaItemDto), не завися от слоя представления.
 public sealed class MediaManagementService : IMediaManagementService
 {
     private readonly IMediaService _mediaService;
@@ -28,74 +29,64 @@ public sealed class MediaManagementService : IMediaManagementService
     public async Task<OwnerMedia> LoadOwnerMediaAsync(MediaOwnerType ownerType, int ownerId)
     {
         var media = new OwnerMedia();
-        var mediaList = await _mediaService.GetMediaForOwnerAsync(ownerType, ownerId);
+        var dtoList = await _mediaService.GetMediaForOwnerAsync(ownerType, ownerId);
 
-        foreach (var m in mediaList)
+        foreach (var dto in dtoList)
         {
-            if (m.IsImage) media.Images.Add(m);
-            else if (m.IsVideo) media.Videos.Add(m);
-            else if (m.IsAudio) media.Audios.Add(m);
+            var vm = DtoToVm(dto);
+            if (dto.IsImage) media.Images.Add(vm);
+            else if (dto.IsVideo) media.Videos.Add(vm);
+            else if (dto.IsAudio) media.Audios.Add(vm);
 
-            if (m.IsImage)
-                _ = m.LoadImageAsync();
+            if (dto.IsImage)
+                _ = vm.LoadImageAsync();
         }
 
         return media;
     }
 
-    /// Очищает коллекции существующих медиа.
-    /// Не утилизирует VM — они belong к общему кэшу MediaService и используются повторно
+    /// Очищает коллекции существующих медиа с утилизацией ресурсов VM
     public void ClearMedia(OwnerMedia media)
     {
+        foreach (var vm in media.Images) vm.Dispose();
+        foreach (var vm in media.Videos) vm.Dispose();
+        foreach (var vm in media.Audios) vm.Dispose();
         media.Images.Clear();
         media.Videos.Clear();
         media.Audios.Clear();
     }
 
     /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
-    /// Возвращает выбранные медиа для добавления во TempFiles (ручное добавление),
-    /// а не прямую привязку к владельцу в БД.
-    /// Пустой список — диалог отменён или ничего не выбрано.
-    /// alreadyAddedMediaIds — медиа, уже добавленные в TempFiles (для Create-экранов),
-    /// они будут помечены галочкой и исключены из результата выбора.</summary>
-    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
+    /// Пустой список — диалог отменён или ничего не выбрано (или в базе нет медиа).</summary>
+    public async Task<IReadOnlyList<MediaItemDto>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
-        var items = allMedia.Where(m => m.Media is not null).Select(m => m.Media!).ToList();
+        var items = allMedia.Select(m => m.Media).ToList();
 
         if (items.Count == 0)
-        {
-            Notification.Show("Медиа", "В базе нет медиафайлов", FIBER.Source.Helpers.NotificationType.Info);
-            return Array.Empty<MediaItemViewModel>();
-        }
+            return Array.Empty<MediaItemDto>();
 
         var selectedIds = await _dialogService.ShowSelectMediaAsync(items, alreadyAddedMediaIds ?? Array.Empty<int>());
-        if (selectedIds.Count == 0) return Array.Empty<MediaItemViewModel>();
+        if (selectedIds.Count == 0) return Array.Empty<MediaItemDto>();
 
-        // Возвращаем выбранные медиа-элементы для добавления во TempFiles ViewModel
         return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
     }
 
-    /// <summary>Открывает диалог выбора существующих медиафайлов для владельца.
-    /// Файлы, уже принадлежащие владельцу, помечаются галочкой — повторно добавлять их нельзя.</summary>
-    public async Task<IReadOnlyList<MediaItemViewModel>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
+    /// <summary>Открывает диалог выбора существующих медиафайлов для владельца.</summary>
+    public async Task<IReadOnlyList<MediaItemDto>> SelectExistingMediaAsync(MediaOwnerType ownerType, int ownerId,
         IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
-        var items = allMedia.Where(m => m.Media is not null).Select(m => m.Media!).ToList();
+        var items = allMedia.Select(m => m.Media).ToList();
 
         if (items.Count == 0)
-        {
-            Notification.Show("Медиа", "В базе нет медиафайлов", FIBER.Source.Helpers.NotificationType.Info);
-            return Array.Empty<MediaItemViewModel>();
-        }
+            return Array.Empty<MediaItemDto>();
 
-        // Объединяем уже привязанные к владельцу (из БД) с уже добавленными во TempFiles (из Drag&Drop или предыдущего вызова)
         var alreadyAdded = new HashSet<int>();
         var ownerMedia = await _mediaService.GetMediaForOwnerAsync(ownerType, ownerId);
-        foreach (var m in ownerMedia)
+        foreach (var dto in ownerMedia)
         {
-            if (m.MediaId is int id)
+            if (dto.MediaId is int id)
                 alreadyAdded.Add(id);
         }
         if (alreadyAddedMediaIds != null)
@@ -105,31 +96,33 @@ public sealed class MediaManagementService : IMediaManagementService
         }
 
         var selectedIds = await _dialogService.ShowSelectMediaAsync(items, alreadyAdded);
-        if (selectedIds.Count == 0) return Array.Empty<MediaItemViewModel>();
+        if (selectedIds.Count == 0) return Array.Empty<MediaItemDto>();
 
         return items.Where(m => selectedIds.Contains(m.MediaId ?? 0)).ToList();
     }
 
-    /// <summary>Добавляет медиа во временные файлы с защитой от дублей
-    /// (совпадение по MediaId, ContentHash или пути к файлу — один и тот же файл не попадает в список дважды).</summary>
-    public Task AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemViewModel> media)
+    /// <summary>Добавляет медиа во временные файлы с защитой от дублей.
+    /// Возвращает количество добавленных файлов.</summary>
+    public async Task<int> AddToTempFilesAsync(ObservableCollection<MediaItemViewModel> tempFiles, IEnumerable<MediaItemDto> media)
     {
-        var list = media?.Where(m => m is not null).ToList() ?? new List<MediaItemViewModel>();
-        foreach (var file in list)
+        var list = media?.Where(m => m is not null).ToList() ?? new List<MediaItemDto>();
+        int added = 0;
+        foreach (var dto in list)
         {
-            if (tempFiles.Any(t => BelongsToSameMedia(t, file))) continue;
-            tempFiles.Add(file);
+            if (tempFiles.Any(t => BelongsToSameMedia(t, dto))) continue;
+            tempFiles.Add(DtoToVm(dto));
+            added++;
         }
-        return Task.CompletedTask;
+        return added;
     }
 
     /// <summary>Проверка «один и тот же медиа»: совпадение по идентификатору, контенту или пути к файлу.</summary>
-    private static bool BelongsToSameMedia(MediaItemViewModel a, MediaItemViewModel b)
+    private static bool BelongsToSameMedia(MediaItemViewModel a, MediaItemDto b)
     {
         if (a is null || b is null) return false;
 
         // По идентификатору вложения в БД
-        if (a.MediaId.HasValue && b.MediaId.HasValue && a.MediaId == b.MediaId) return true;
+        if (a.MediaId.HasValue && b.MediaId.HasValue && a.MediaId == b.MediaId.Value) return true;
 
         // По SHA-256 содержимому (для файлов без MediaId, загруженных через Drag&Drop)
         if (!string.IsNullOrEmpty(a.ContentHash) && !string.IsNullOrEmpty(b.ContentHash)
@@ -142,9 +135,8 @@ public sealed class MediaManagementService : IMediaManagementService
         return false;
     }
 
-    /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД
-    /// Уже привязанные к владельцу файлы пропускаются (без дублей)
-    /// Возвращает число пропущенных (уже привязанных) файлов — для уведомления пользователя
+    /// Привязывает существующие медиафайлы (по MediaId) к владельцу в БД.
+    /// Возвращает число пропущенных (уже привязанных) файлов.
     public async Task<int> LinkExistingMediaAsync(IEnumerable<int> mediaIds, MediaOwnerType ownerType, int ownerId)
     {
         var ids = mediaIds is null ? new List<int>() : mediaIds.Where(id => id > 0).Distinct().ToList();
@@ -163,61 +155,59 @@ public sealed class MediaManagementService : IMediaManagementService
         return skipped;
     }
 
-    /// Удаляет существующий медиафайл у владельца
-    public async Task DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemViewModel media)
+    /// Удаляет существующий медиафайл у владельца.
+    /// Возвращает true, если файл удалён.
+    public async Task<bool> DeleteExistingMediaAsync(MediaOwnerType ownerType, int ownerId, MediaItemDto media)
     {
-        if (media == null || media.MediaId is null) return;
-        if (!FIBER.Source.Helpers.Notification.Confirm("Подтверждение", $"Удалить файл {media.FileName}?")) return;
+        if (media.MediaId is null) return false;
 
         try
         {
             await _mediaService.RemoveLinkAsync(media.MediaId.Value, ownerType, ownerId);
-            media.Dispose();
+            return true;
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка удаления: {ex.Message}", FIBER.Source.Helpers.NotificationType.Error);
+            throw new InvalidOperationException($"Ошибка удаления медиафайла: {ex.Message}", ex);
         }
     }
 
     /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
-    /// Защита от дубля: один и тот же файл (по SHA-256 содержимому) не может быть
-    /// перетащен во временные файлы более одного раза
-    public async Task HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
+    /// Возвращает количество пропущенных дублей.
+    public async Task<int> HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
         int skipped = 0;
 
-        foreach (var file in newFiles)
+        foreach (var dto in newFiles)
         {
-            if (file is null || string.IsNullOrEmpty(file.ContentHash)) continue;
+            if (dto is null || string.IsNullOrEmpty(dto.ContentHash)) continue;
 
             // Защита от дубля: такой же файл уже есть во временных файлах
-            if (tempFiles.Any(t => BelongsToSameMedia(t, file)))
+            if (tempFiles.Any(t => BelongsToSameMedia(t, dto)))
             {
                 skipped++;
-                _mediaService.DeleteTempFiles(new[] { file }); // удаляем временную копию дубля
+                _mediaService.DeleteTempFiles(new[] { dto }); // удаляем временную копию дубля
                 continue;
             }
 
             // Проверяем, существует ли такой файл уже в БД (по ContentHash).
-            // Если да — устанавливаем MediaId, чтобы файл помечался как уже добавленный
-            // и не дублировался при повторном открытии диалога выбора медиа.
-            var existingMediaId = await _mediaService.GetMediaIdByContentHashAsync(file.ContentHash);
+            var existingMediaId = await _mediaService.GetMediaIdByContentHashAsync(dto.ContentHash);
             if (existingMediaId.HasValue)
             {
-                file.MediaId = existingMediaId.Value;
+                // dto.MediaId — init-only, не можем установить. Создаём новый DTO с MediaId.
+                // Но tempFiles — это MediaItemViewModel, так что просто добавляем VM с MediaId.
+                var vm = DtoToVm(dto);
+                vm.MediaId = existingMediaId.Value;
+                tempFiles.Add(vm);
             }
-
-            tempFiles.Add(file);
+            else
+            {
+                tempFiles.Add(DtoToVm(dto));
+            }
         }
 
-        if (skipped > 0)
-        {
-            Notification.Show("Внимание",
-                $"{skipped} уже добавлен",
-                NotificationType.Warning);
-        }
+        return skipped;
     }
 
     /// Удаляет временный файл из коллекции и диска
@@ -225,6 +215,44 @@ public sealed class MediaManagementService : IMediaManagementService
     {
         if (item == null) return;
         tempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item });
+        _mediaService.DeleteTempFiles(new[] { DtoFromVm(item) });
+    }
+
+    /// <summary>Конвертирует DTO в VM.</summary>
+    private MediaItemViewModel DtoToVm(MediaItemDto dto)
+    {
+        if (!string.IsNullOrEmpty(dto.FilePath))
+        {
+            var vm = new MediaItemViewModel(dto.FilePath, dto.OriginalFileName);
+            if (dto.MediaId is int id) vm.MediaId = id;
+            if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
+            return vm;
+        }
+
+        // Ленивая загрузка из БД через IMediaService.
+        if (dto.MediaId is int mediaId)
+        {
+            return new MediaItemViewModel(_mediaService, mediaId, dto.OriginalFileName)
+            {
+                ContentHash = dto.ContentHash ?? string.Empty
+            };
+        }
+
+        return new MediaItemViewModel(string.Empty, dto.OriginalFileName);
+    }
+
+    /// <summary>Конвертирует VM в DTO (для удаления Temp-файла).</summary>
+    private static MediaItemDto DtoFromVm(MediaItemViewModel vm)
+    {
+        return new MediaItemDto(
+            MediaId: vm.MediaId,
+            FilePath: vm.FilePath,
+            OriginalFileName: vm.FileName,
+            MimeType: string.Empty,
+            SizeBytes: 0,
+            ContentHash: vm.ContentHash ?? string.Empty,
+            IsImage: vm.IsImage,
+            IsVideo: vm.IsVideo,
+            IsAudio: vm.IsAudio);
     }
 }

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Helpers;
+using FIBER.Source.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -78,6 +79,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
     private readonly Action<bool> _close;
     private bool _disposed;
     private readonly HashSet<int> _alreadyAddedIds;
+    private readonly INotificationService _notificationService;
 
     public string Title { get; }
 
@@ -90,10 +92,11 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
     public bool HasVideos => VideoItems.Count > 0;
     public bool HasAudio => AudioItems.Count > 0;
 
-    public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close, IEnumerable<int>? alreadyAddedMediaIds = null)
+    public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close, INotificationService notificationService, IEnumerable<int>? alreadyAddedMediaIds = null)
     {
         Title = title;
         _alreadyAddedIds = alreadyAddedMediaIds?.ToHashSet() ?? new HashSet<int>();
+        _notificationService = notificationService;
 
         foreach (var m in media)
         {
@@ -171,7 +174,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
     {
         if (GetSelectedMediaIds().Count == 0)
         {
-            Notification.Show("Внимание", "Выберите медиафайл", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Выберите медиафайл", NotificationType.Warning);
             return;
         }
         _close(true);

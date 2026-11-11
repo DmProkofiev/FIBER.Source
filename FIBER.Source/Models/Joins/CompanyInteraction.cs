@@ -4,8 +4,11 @@ using System.Text;
 
 namespace FIBER.Source.Models.Joins
 {
+    /// <summary>Взаимодействие между организациями (источник → цель).</summary>
     public class CompanyInteraction
     {
+        public int Id { get; set; }
+
         public int SourceCompanyId { get; set; }
         public int TargetCompanyId { get; set; }
 

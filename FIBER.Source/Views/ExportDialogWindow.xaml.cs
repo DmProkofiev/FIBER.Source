@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using FIBER.Source.Interfaces;
 using FIBER.Source.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FIBER.Source.Views;
 
@@ -24,7 +25,8 @@ public partial class ExportDialogWindow : Window
     public ExportDialogWindow(string objectTitle, IEnumerable<MediaItemViewModel> availableMedia)
     {
         InitializeComponent();
-        _vm = new ExportDialogViewModel(objectTitle, availableMedia, OnClose);
+        var notificationService = ((App)System.Windows.Application.Current).Services!.GetRequiredService<INotificationService>();
+        _vm = new ExportDialogViewModel(objectTitle, availableMedia, OnClose, notificationService);
         DataContext = _vm;
     }
 

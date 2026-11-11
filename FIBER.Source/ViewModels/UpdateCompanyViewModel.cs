@@ -23,17 +23,19 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     public event Action? Saved;
     public event Action? Cancelled;
 
-    public UpdateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement)
+    public UpdateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement, INotificationService notificationService)
     {
         _companyService = companyService;
         _personService = personService;
         _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     public ObservableCollection<MediaItemViewModel> TempFiles { get; } = new();
@@ -76,7 +78,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
 
     public async Task LoadAsync(int companyId)
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Interactions.Clear();
@@ -85,7 +87,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         var company = await _companyService.GetByIdAsync(companyId);
         if (company == null)
         {
-            Notification.Show("Ошибка", $"Организация Id = {companyId} не найдена", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Организация Id = {companyId} не найдена", NotificationType.Error);
             Cancelled?.Invoke();
             return;
         }
@@ -175,7 +177,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         // Защита от дубля на уровне UI: такая цель уже есть в списке связей.
         if (Interactions.Any(i => i.TargetCompanyId == target.Id))
         {
-            Notification.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
             SelectedTargetCompanyId = null;
             return;
         }
@@ -214,7 +216,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
 
         if (CompanyPeople.Any(cp => cp.PersonId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
             SelectedTargetPersonId = null;
             return;
         }
@@ -255,7 +257,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
@@ -298,7 +300,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private async Task DeleteExistingMediaAsync(MediaItemViewModel media)
     {
-        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Company, CompanyId, media);
+        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Company, CompanyId, media.ToDto());
         ExistingImages.Remove(media);
         ExistingVideos.Remove(media);
         ExistingAudio.Remove(media);
@@ -330,13 +332,13 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         var added = existingIds.Count - skipped;
         if (skipped > 0)
         {
-            Notification.Show("Внимание",
+            _notificationService.Show("Внимание",
                 $"{skipped} файл(ов) уже привязаны к этой организации и не добавлены повторно.",
                 NotificationType.Warning);
         }
         if (added > 0)
         {
-            Notification.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
+            _notificationService.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
         }
     }
 
@@ -374,18 +376,19 @@ public partial class UpdateCompanyViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Company, CompanyId);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Company, CompanyId);
                 }
 
                 TempFiles.Clear();
             }
 
-            Notification.Show("Успех", "Изменения сохранены", NotificationType.Success);
+            _notificationService.Show("Успех", "Изменения сохранены", NotificationType.Success);
             Saved?.Invoke();
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
     }
@@ -393,7 +396,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Cancelled?.Invoke();

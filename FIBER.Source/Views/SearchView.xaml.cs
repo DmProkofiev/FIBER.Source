@@ -59,7 +59,9 @@ public partial class SearchView : UserControl
         List<MediaItemViewModel> media;
         try
         {
-            media = await mediaService.GetMediaForOwnerAsync(ownerType, ownerId);
+            media = (await mediaService.GetMediaForOwnerAsync(ownerType, ownerId))
+                .Select(dto => dto.ToViewModel(mediaService))
+                .ToList();
         }
         catch (Exception ex)
         {

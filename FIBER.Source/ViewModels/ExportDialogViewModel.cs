@@ -34,6 +34,7 @@ public partial class ExportMediaItem : ObservableObject
 public partial class ExportDialogViewModel : ObservableObject
 {
     private readonly Action<bool> _close;
+    private readonly INotificationService _notificationService;
 
     public string ObjectTitle { get; }
     public ObservableCollection<ExportMediaItem> MediaItems { get; }
@@ -66,11 +67,12 @@ public partial class ExportDialogViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTxtFormat));
     }
 
-    public ExportDialogViewModel(string objectTitle, IEnumerable<MediaItemViewModel> media, Action<bool> close)
+    public ExportDialogViewModel(string objectTitle, IEnumerable<MediaItemViewModel> media, Action<bool> close, INotificationService notificationService)
     {
         ObjectTitle = objectTitle;
         MediaItems = new ObservableCollection<ExportMediaItem>(media.Select(m => new ExportMediaItem(m)));
         _close = close;
+        _notificationService = notificationService;
     }
 
     [RelayCommand]
@@ -102,7 +104,7 @@ public partial class ExportDialogViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(TargetFolder))
         {
-            Notification.Show("Внимание", "Выберите папку для экспорта", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Выберите папку для экспорта", NotificationType.Warning);
             return;
         }
         _close(true);

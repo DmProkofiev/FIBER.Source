@@ -12,10 +12,14 @@ namespace FIBER.Source.Infrastructure.Data.Configurations
         public void Configure(EntityTypeBuilder<CompanyInteraction> entity)
         {
             entity.ToTable("CompanyInteractions");
-            entity.HasKey(e => new { e.SourceCompanyId, e.TargetCompanyId });
+            entity.HasKey(e => e.Id);
 
             entity.Property(e => e.InteractionType).HasMaxLength(100);
             entity.Property(e => e.Notes).HasColumnType("TEXT");
+
+            entity.HasIndex(e => new { e.SourceCompanyId, e.TargetCompanyId })
+                .IsUnique()
+                .HasDatabaseName("UQ_CompanyInteraction_Natural");
 
             entity.HasIndex(e => e.TargetCompanyId).HasDatabaseName("IX_CompanyInteraction_TargetCompanyId");
 

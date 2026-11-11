@@ -26,6 +26,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
     private readonly IEventService _eventService;
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
+    private readonly INotificationService _notificationService;
 
     public event Action? Saved;
     public event Action? Cancelled;
@@ -36,7 +37,8 @@ public partial class UpdatePersonViewModel : ObservableValidator
         ICompanyService companyService,
         IEventService eventService,
         IMediaService mediaService,
-        IMediaManagementService mediaManagement)
+        IMediaManagementService mediaManagement,
+        INotificationService notificationService)
     {
         _personService = personService;
         _countryService = countryService;
@@ -44,6 +46,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
         _eventService = eventService;
         _mediaService = mediaService;
         _mediaManagement = mediaManagement;
+        _notificationService = notificationService;
     }
 
     public ObservableCollection<Country> Countries { get; } = new();
@@ -131,7 +134,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
     public async Task LoadAsync(int personId)
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Aliases.Clear();
@@ -153,7 +156,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
         var person = await _personService.GetByIdAsync(personId);
         if (person == null)
         {
-            Notification.Show("Ошибка", $"Личность Id = {personId} не найдена", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Личность Id = {personId} не найдена", NotificationType.Error);
             Cancelled?.Invoke();
             return;
         }
@@ -271,7 +274,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
         // Защита от дубля на уровне UI: такая цель уже есть в списке связей.
         if (Relationships.Any(r => r.RelatedPersonId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
             SelectedRelatedPersonId = null;
             return;
         }
@@ -310,7 +313,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
 
         if (CompanyPeople.Any(cp => cp.CompanyId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
             SelectedTargetCompanyId = null;
             return;
         }
@@ -351,7 +354,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
         // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
@@ -408,10 +411,23 @@ public partial class UpdatePersonViewModel : ObservableValidator
     [RelayCommand]
     private async Task DeleteExistingMediaAsync(MediaItemViewModel media)
     {
-        await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Person, PersonId, media);
-        ExistingImages.Remove(media);
-        ExistingVideos.Remove(media);
-        ExistingAudio.Remove(media);
+        if (media == null) return;
+        if (!_notificationService.Confirm("Подтверждение", $"Удалить файл {media.FileName}?")) return;
+
+        try
+        {
+            bool deleted = await _mediaManagement.DeleteExistingMediaAsync(MediaOwnerType.Person, PersonId, media.ToDto());
+            if (deleted)
+            {
+                ExistingImages.Remove(media);
+                ExistingVideos.Remove(media);
+                ExistingAudio.Remove(media);
+            }
+        }
+        catch (Exception ex)
+        {
+            _notificationService.Show("Ошибка", $"Ошибка удаления: {ex.Message}", NotificationType.Error);
+        }
     }
 
     [RelayCommand]
@@ -441,13 +457,13 @@ public partial class UpdatePersonViewModel : ObservableValidator
         var added = existingIds.Count - skipped;
         if (skipped > 0)
         {
-            Notification.Show("Внимание",
+            _notificationService.Show("Внимание",
                 $"{skipped} файл(ов) уже привязаны к этой личности и не добавлены повторно.",
                 NotificationType.Warning);
         }
         if (added > 0)
         {
-            Notification.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
+            _notificationService.Show("Успех", $"Привязано существующих медиа: {added}", NotificationType.Success);
         }
     }
 
@@ -466,7 +482,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
             {
                 if (string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(FirstName))
                 {
-                    Notification.Show("Ошибка", "Укажите фамилию и имя для идентификации", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Укажите фамилию и имя для идентификации", NotificationType.Warning);
                     return;
                 }
 
@@ -504,7 +520,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
             {
                 if (string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(FirstName))
                 {
-                    Notification.Show("Ошибка", "Фамилия и имя обязательны", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Фамилия и имя обязательны", NotificationType.Warning);
                     return;
                 }
 
@@ -526,7 +542,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
             {
                 if (string.IsNullOrWhiteSpace(PrimaryAlias))
                 {
-                    Notification.Show("Ошибка", "Псевдоним обязателен", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Псевдоним обязателен", NotificationType.Warning);
                     return;
                 }
 
@@ -561,18 +577,19 @@ public partial class UpdatePersonViewModel : ObservableValidator
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
-                    await _mediaService.CommitTempFilesAsync(newMedia, MediaOwnerType.Person, PersonId);
+                    await _mediaService.CommitTempFilesAsync(
+                        newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Person, PersonId);
                 }
 
                 TempFiles.Clear();
             }
 
-            Notification.Show("Успех", "Изменения сохранены", NotificationType.Success);
+            _notificationService.Show("Успех", "Изменения сохранены", NotificationType.Success);
             Saved?.Invoke();
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
+            _notificationService.Show("Ошибка", $"Ошибка сохранения: {ex.Message}", NotificationType.Error);
         }
         finally { IsBusy = false; }
     }
@@ -580,7 +597,7 @@ public partial class UpdatePersonViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _mediaService.DeleteTempFiles(TempFiles);
+        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
         TempFiles.Clear();
         ClearExistingMedia();
         Cancelled?.Invoke();
