@@ -275,7 +275,6 @@ public partial class UpdateEventViewModel : ObservableValidator
         {
             TargetEventId = target.Id,
             TargetEventTitle = target.Title,
-            RelationshipType = "Связано с"
         });
         SelectedTargetEventId = null;
     }

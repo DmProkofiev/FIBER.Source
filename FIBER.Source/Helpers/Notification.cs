@@ -16,9 +16,6 @@ public enum NotificationType
     Error
 }
 
-/// <summary>
-/// Статический помощник для показа кастомных уведомлений и диалогов подтверждения
-/// </summary>
 public static class Notification
 {
     /// <summary>Показывает модальное уведомление с кнопкой OK</summary>

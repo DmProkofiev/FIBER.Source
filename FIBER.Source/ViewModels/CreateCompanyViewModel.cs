@@ -152,7 +152,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         }
         catch (Exception ex)
         {
-            Notification.Show("Ошибка",
+            _notificationService.Show("Ошибка",
                 $"Ошибка создания: {ex.Message}",
                 NotificationType.Error);
         }
@@ -186,7 +186,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         // Защита от дубля: такое взаимодействие уже есть в списке.
         if (Interactions.Any(i => i.TargetCompanyId == target.Id))
         {
-            Notification.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
             SelectedTargetCompanyId = null;
             return;
         }
@@ -195,7 +195,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
         {
             TargetCompanyId = target.Id,
             DisplayName = target.Name,
-            InteractionType = "Партнёр"
         });
         SelectedTargetCompanyId = null;
     }
@@ -226,7 +225,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         // Защита от дубля: такая персона уже есть в списке связей.
         if (CompanyPeople.Any(cp => cp.PersonId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
             SelectedTargetPersonId = null;
             return;
         }
@@ -266,17 +265,16 @@ public partial class CreateCompanyViewModel : ObservableValidator
         // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
-            Notification.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
 
         EventParticipations.Add(new EventParticipantEditVM
         {
-            CompanyId = null, // Будет установлено при создании организации в сервисе
+            CompanyId = null,
             EventId = target.Id,
             DisplayName = target.Title,
-            Role = EventParticipantRole.Participant,
             Notes = string.Empty
         });
         SelectedTargetEventId = null;

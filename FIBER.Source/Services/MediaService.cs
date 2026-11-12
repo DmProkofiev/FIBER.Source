@@ -99,6 +99,13 @@ public sealed class MediaService : IMediaService
         // Используем один контекст БД на все файлы для проверки существующих медиа по ContentHash
         await using var context = await _contextFactory.CreateDbContextAsync();
 
+        // Загружаем существующие наименования из БД, чтобы генерировать уникальные имена
+        // уже при добавлении файла (Drag&Drop), а не только при коммите.
+        var existingNames = await context.MediaAttachments
+            .Select(m => m.OriginalFileName)
+            .ToListAsync();
+        var nameSet = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+
         foreach (var path in filePaths)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) continue;
@@ -130,6 +137,10 @@ public sealed class MediaService : IMediaService
 
                 var hash = await ComputeFileHashAsync(path);
 
+                // Генерируем уникальное отображаемое имя уже при добавлении файла,
+                // чтобы не было дублей наименований в списке временных файлов.
+                var uniqueFileName = GenerateUniqueFileName(Path.GetFileName(path), ext, nameSet);
+
                 // Проверяем, существует ли такой файл уже в БД (по ContentHash).
                 var existingMediaId = await context.MediaAttachments
                     .Where(m => m.ContentHash == hash)
@@ -139,7 +150,7 @@ public sealed class MediaService : IMediaService
                 result.Add(new MediaItemDto(
                     MediaId: existingMediaId,
                     FilePath: destPath,
-                    OriginalFileName: Path.GetFileName(path),
+                    OriginalFileName: uniqueFileName,
                     MimeType: GetMimeType(ext),
                     SizeBytes: info.Length,
                     ContentHash: hash,
@@ -174,75 +185,23 @@ public sealed class MediaService : IMediaService
         if (tempFiles is null || tempFiles.Count == 0) return;
 
         await using var context = await _contextFactory.CreateDbContextAsync();
-        await using var tx = await context.Database.BeginTransactionAsync();
 
         var deletedTempFiles = new List<string>();
-        int addedLinks = 0;
 
-        try
+        foreach (var dto in tempFiles)
         {
-            // Загружаем ВСЕ существующие наименования медиа из БД один раз,
-            // чтобы проверять новые имена против них (включая файлы из этой же пакета).
-            var existingNames = await context.MediaAttachments
-                .Select(m => m.OriginalFileName)
-                .ToListAsync();
-            var nameSet = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
+            if (dto is null || !File.Exists(dto.FilePath)) continue;
 
-            foreach (var dto in tempFiles)
+            // Проверяем дедупликацию по ContentHash
+            var hash = await ComputeSha256HexAsync(dto.FilePath);
+            var existing = await context.MediaAttachments
+                .FirstOrDefaultAsync(m => m.ContentHash == hash);
+
+            if (existing is not null)
             {
-                if (dto is null || !File.Exists(dto.FilePath)) continue;
-
-                MediaAttachment? media;
-
-                // 1. Если MediaId уже заполнен — ищем медиа по ID напрямую (избегаем дублей)
-                if (dto.MediaId is not null)
-                {
-                    media = await context.MediaAttachments
-                        .FirstOrDefaultAsync(m => m.Id == dto.MediaId.Value);
-                }
-                else
-                {
-                    media = null;
-                }
-
-                // 2. Если не найдено по ID — ищем по ContentHash (дедупликация по содержимому)
-                if (media is null)
-                {
-                    var hash = await ComputeSha256HexAsync(dto.FilePath);
-                    var existing = await context.MediaAttachments
-                        .FirstOrDefaultAsync(m => m.ContentHash == hash);
-
-                    if (existing is not null)
-                    {
-                        media = existing;
-                    }
-                    else
-                    {
-                        var ext = Path.GetExtension(dto.OriginalFileName);
-                        if (string.IsNullOrEmpty(ext)) ext = Path.GetExtension(dto.FilePath);
-
-                        var data = await File.ReadAllBytesAsync(dto.FilePath);
-
-                        // Генерируем уникальное отображаемое имя, не совпадающее ни с одним существующим в БД.
-                        var originalFileName = GenerateUniqueFileName(dto.OriginalFileName, ext, nameSet);
-
-                        media = new MediaAttachment
-                        {
-                            OriginalFileName = originalFileName,
-                            MimeType = GetMimeType(ext),
-                            SizeBytes = data.LongLength,
-                            ContentHash = hash,
-                            Data = data,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        context.MediaAttachments.Add(media);
-                        await context.SaveChangesAsync();
-                    }
-                }
-
-                // 3. Проверяем, не привязан ли файл уже к этому владельцу (избегаем дубля ссылки)
+                // Файл уже есть в БД — создаём только ссылку
                 var linkExists = await context.MediaAttachmentLinks
-                    .AnyAsync(l => l.MediaAttachmentId == media.Id
+                    .AnyAsync(l => l.MediaAttachmentId == existing.Id
                                     && l.OwnerType == ownerType
                                     && l.OwnerId == ownerId);
 
@@ -250,31 +209,54 @@ public sealed class MediaService : IMediaService
                 {
                     context.MediaAttachmentLinks.Add(new MediaAttachmentLink
                     {
-                        MediaAttachmentId = media.Id,
+                        MediaAttachmentId = existing.Id,
                         OwnerType = ownerType,
                         OwnerId = ownerId
                     });
-                    addedLinks++;
                 }
 
                 deletedTempFiles.Add(dto.FilePath);
+                continue;
             }
 
+            // Создаём новую запись медиа
+            var ext = Path.GetExtension(dto.OriginalFileName);
+            if (string.IsNullOrEmpty(ext)) ext = Path.GetExtension(dto.FilePath);
+
+            var data = await File.ReadAllBytesAsync(dto.FilePath);
+
+            var media = new MediaAttachment
+            {
+                OriginalFileName = dto.OriginalFileName,
+                MimeType = GetMimeType(ext),
+                SizeBytes = data.LongLength,
+                ContentHash = hash,
+                Data = data,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.MediaAttachments.Add(media);
+
+            // Сохраняем медиа, чтобы получить реальный ID
             await context.SaveChangesAsync();
-            await tx.CommitAsync();
 
-            foreach (var path in deletedTempFiles) TryDeleteFile(path);
+            // Создаём ссылку
+            context.MediaAttachmentLinks.Add(new MediaAttachmentLink
+            {
+                MediaAttachmentId = media.Id,
+                OwnerType = ownerType,
+                OwnerId = ownerId
+            });
 
-            await _auditLog.LogAsync("Media.Commit",
-                $"Owner={ownerType}:{ownerId}, Files={tempFiles.Count}, Links={addedLinks}");
-            InvalidateAllMediaCache();
+            deletedTempFiles.Add(dto.FilePath);
         }
-        catch (Exception ex)
-        {
-            await tx.RollbackAsync();
-            _logger.LogError(ex, "Ошибка коммита медиа для {Owner}:{OwnerId}", ownerType, ownerId);
-            throw;
-        }
+
+        await context.SaveChangesAsync();
+
+        foreach (var path in deletedTempFiles) TryDeleteFile(path);
+
+        await _auditLog.LogAsync("Media.Commit",
+            $"Owner={ownerType}:{ownerId}, Files={tempFiles.Count}");
+        InvalidateAllMediaCache();
     }
 
     /// <summary>Добавляет существующий медиафайл к владельцу; при существующей связи ничего не делает.</summary>
@@ -618,7 +600,7 @@ public sealed class MediaService : IMediaService
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.MediaAttachments
             .Where(m => m.ContentHash == contentHash)
-            .Select(m => m.Id)
+            .Select(m => (int?)m.Id)
             .FirstOrDefaultAsync();
     }
 
@@ -648,21 +630,18 @@ public sealed class MediaService : IMediaService
         _ => "application/octet-stream"
     };
 
-    /// <summary>Генерирует уникальное отображаемое имя медиафайла, не совпадающее ни с одним существующим в БД.</summary>
+    /// <summary>Генерирует уникальное отображаемое имя медиафайла, не совпадающее ни с одним существующим в БД.
+    /// Имя генерируется полностью со случайным суффиксом, без использования исходного имени файла.</summary>
     private static string GenerateUniqueFileName(
         string proposedFileName,
         string extension,
         HashSet<string> nameSet)
     {
-        var nameWithoutExt = Path.GetFileNameWithoutExtension(proposedFileName);
-        if (string.IsNullOrWhiteSpace(nameWithoutExt))
-            nameWithoutExt = "media";
-
         string candidate;
         do
         {
             var suffix = GenerateRandomSuffix(12);
-            candidate = $"{nameWithoutExt}_{suffix}{extension}";
+            candidate = $"{suffix}{extension}";
         }
         while (nameSet.Contains(candidate));
 

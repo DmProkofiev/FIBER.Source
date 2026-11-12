@@ -11,38 +11,6 @@
         <converters:PositiveCountToVisibilityConverter x:Key="PositiveCountToVisibilityConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <!-- Медиа-стили -->
-        <Style x:Key="MediaButtonStyle" TargetType="Button">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="Margin" Value="6,0"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="PlayButtonStyle" TargetType="Button" BasedOn="{StaticResource MediaButtonStyle}">
-            <Setter Property="Background" Value="#27AE60"/>
-        </Style>
-        <Style x:Key="PauseButtonStyle" TargetType="Button" BasedOn="{StaticResource MediaButtonStyle}">
-            <Setter Property="Background" Value="#F39C12"/>
-        </Style>
-        <Style x:Key="StopButtonStyle" TargetType="Button" BasedOn="{StaticResource MediaButtonStyle}">
-            <Setter Property="Background" Value="#E74C3C"/>
-        </Style>
-        <Style x:Key="MediaBorderStyle" TargetType="Border">
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Background" Value="#2A2A2A"/>
-            <Setter Property="Padding" Value="15"/>
-            <Setter Property="Margin" Value="0,10,0,10"/>
-        </Style>
-        <Style x:Key="TimeTextStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="15,0,0,0"/>
-        </Style>
-
         <!-- Общий шаблон кнопки закрытия -->
         <ControlTemplate x:Key="CloseButtonTemplate" TargetType="Button">
             <Border Background="{TemplateBinding Background}" CornerRadius="11">
@@ -329,13 +297,6 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
-        <Style x:Key="FieldValueStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="Black"/>
-            <Setter Property="FontFamily" Value="Times New Roman"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="Margin" Value="0,3,0,0"/>
         </Style>
         <Style x:Key="ReadOnlyFieldValueTextBoxStyle" TargetType="TextBox">
             <Setter Property="IsReadOnly" Value="True"/>

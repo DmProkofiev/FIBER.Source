@@ -11,9 +11,7 @@ using System.Threading.Tasks;
 
 namespace FIBER.Source.Services.MediaManagement;
 
-/// Реализация общих операций с медиа для Update-экранов.
-/// Не показывает UI-уведомлений — только возвращает результаты или выбрасывает исключения.
-/// Работает с чистыми DTO (MediaItemDto), не завися от слоя представления.
+/// Реализация общих операций с медиа для Update-экранов
 public sealed class MediaManagementService : IMediaManagementService
 {
     private readonly IMediaService _mediaService;
@@ -56,8 +54,7 @@ public sealed class MediaManagementService : IMediaManagementService
         media.Audios.Clear();
     }
 
-    /// <summary>Открывает диалог выбора существующих медиафайлов и возвращает выбранные.
-    /// Пустой список — диалог отменён или ничего не выбрано (или в базе нет медиа).</summary>
+    /// Открывает диалог выбора существующих медиафайлов и возвращает выбранные
     public async Task<IReadOnlyList<MediaItemDto>> SelectExistingMediaAsync(IReadOnlyCollection<int>? alreadyAddedMediaIds = null)
     {
         var allMedia = await _mediaService.GetAllMediaAsync();
@@ -173,7 +170,6 @@ public sealed class MediaManagementService : IMediaManagementService
     }
 
     /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
-    /// Возвращает количество пропущенных дублей.
     public async Task<int> HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
@@ -191,12 +187,9 @@ public sealed class MediaManagementService : IMediaManagementService
                 continue;
             }
 
-            // Проверяем, существует ли такой файл уже в БД (по ContentHash).
             var existingMediaId = await _mediaService.GetMediaIdByContentHashAsync(dto.ContentHash);
             if (existingMediaId.HasValue)
             {
-                // dto.MediaId — init-only, не можем установить. Создаём новый DTO с MediaId.
-                // Но tempFiles — это MediaItemViewModel, так что просто добавляем VM с MediaId.
                 var vm = DtoToVm(dto);
                 vm.MediaId = existingMediaId.Value;
                 tempFiles.Add(vm);
@@ -215,7 +208,7 @@ public sealed class MediaManagementService : IMediaManagementService
     {
         if (item == null) return;
         tempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { DtoFromVm(item) });
+        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
     }
 
     /// <summary>Конвертирует DTO в VM.</summary>
@@ -239,20 +232,5 @@ public sealed class MediaManagementService : IMediaManagementService
         }
 
         return new MediaItemViewModel(string.Empty, dto.OriginalFileName);
-    }
-
-    /// <summary>Конвертирует VM в DTO (для удаления Temp-файла).</summary>
-    private static MediaItemDto DtoFromVm(MediaItemViewModel vm)
-    {
-        return new MediaItemDto(
-            MediaId: vm.MediaId,
-            FilePath: vm.FilePath,
-            OriginalFileName: vm.FileName,
-            MimeType: string.Empty,
-            SizeBytes: 0,
-            ContentHash: vm.ContentHash ?? string.Empty,
-            IsImage: vm.IsImage,
-            IsVideo: vm.IsVideo,
-            IsAudio: vm.IsAudio);
     }
 }

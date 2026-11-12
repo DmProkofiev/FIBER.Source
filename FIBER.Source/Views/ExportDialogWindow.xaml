@@ -33,11 +33,11 @@
                     <TextBlock Text="Формат:" Foreground="White" FontFamily="Times New Roman"
                                FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,12,0"/>
                     <RadioButton Content="Word (.docx)" GroupName="fmt"
-                                 IsChecked="{Binding IsWordFormat}"
+                                 IsChecked="{Binding IsWordFormat, Mode=OneWay}"
                                  Foreground="White" FontFamily="Times New Roman" FontSize="14"
                                  VerticalAlignment="Center" Margin="0,0,20,0"/>
                     <RadioButton Content="Текст (.txt)" GroupName="fmt"
-                                 IsChecked="{Binding IsTxtFormat}"
+                                 IsChecked="{Binding IsTxtFormat, Mode=OneWay}"
                                  Foreground="White" FontFamily="Times New Roman" FontSize="14"
                                  VerticalAlignment="Center"/>
                 </StackPanel>

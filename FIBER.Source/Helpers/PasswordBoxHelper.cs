@@ -3,10 +3,6 @@ using System.Windows.Controls;
 
 namespace FIBER.Source.Helpers;
 
-/// <summary>
-/// Присоединённое свойство для привязки <see cref="PasswordBox.Password"/> к свойству ViewModel.
-/// Использование: <c>PasswordBox helpers:PasswordBoxHelper.BindPassword="True" helpers:PasswordBoxHelper.BoundPassword="{Binding Password}"</c>
-/// </summary>
 public static class PasswordBoxHelper
 {
     public static readonly DependencyProperty BindPasswordProperty =

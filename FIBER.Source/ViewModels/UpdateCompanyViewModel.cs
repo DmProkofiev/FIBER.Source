@@ -226,7 +226,6 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             PersonId = target.Id,
             PersonName = target.DisplayName,
             CompanyId = CompanyId,  // Текущая организация
-            Role = "Сотрудник"
         });
         SelectedTargetPersonId = null;
     }
@@ -267,7 +266,6 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             CompanyId = CompanyId,  // Текущая организация
             EventId = target.Id,
             DisplayName = target.Title,
-            Role = EventParticipantRole.Participant,
             Notes = string.Empty
         });
         SelectedTargetEventId = null;

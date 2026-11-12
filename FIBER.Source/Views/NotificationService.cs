@@ -7,10 +7,6 @@ using Application = System.Windows.Application;
 
 namespace FIBER.Source.Views;
 
-/// <summary>
-/// Реализация <see cref="INotificationService"/>, показывающая уведомления через NotificationWindow.
-/// Живет в слое Views, чтобы сервисы и ViewModels не зависели от конкретного окна уведомлений.
-/// </summary>
 public sealed class NotificationService : INotificationService, IDisposable
 {
     private bool _disposed;

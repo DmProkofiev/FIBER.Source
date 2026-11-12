@@ -49,17 +49,9 @@ public partial class ExportDialogViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
-    public bool IsWordFormat
-    {
-        get => SelectedFormat == ExportFormat.Word;
-        set { if (value) SelectedFormat = ExportFormat.Word; }
-    }
+    public bool IsWordFormat => SelectedFormat == ExportFormat.Word;
 
-    public bool IsTxtFormat
-    {
-        get => SelectedFormat == ExportFormat.Txt;
-        set { if (value) SelectedFormat = ExportFormat.Txt; }
-    }
+    public bool IsTxtFormat => SelectedFormat == ExportFormat.Txt;
 
     partial void OnSelectedFormatChanged(ExportFormat value)
     {

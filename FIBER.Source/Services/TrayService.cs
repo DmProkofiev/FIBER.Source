@@ -67,7 +67,6 @@ public class TrayService : ITrayService
         if (_notifyIcon != null)
         {
             _notifyIcon.Visible = false;
-            _notifyIcon.DoubleClick -= (_, _) => { }; // нет необходимости отписывать анонимные лямбды, но Dispose очистит
             _notifyIcon.Dispose();
             _notifyIcon = null;
         }

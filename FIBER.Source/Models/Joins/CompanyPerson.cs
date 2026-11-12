@@ -3,7 +3,7 @@ using FIBER.Source.Models.Enums;
 
 namespace FIBER.Source.Models.Joins;
 
-/// <summary>Прямая связь «организация ↔ личность» (человек работает/состоит в организации).</summary>
+/// <summary>Прямая связь «организация личность» (человек работает/состоит в организации).</summary>
 public class CompanyPerson
 {
     public int Id { get; set; }

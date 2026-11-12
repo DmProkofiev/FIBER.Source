@@ -283,7 +283,6 @@ public partial class UpdatePersonViewModel : ObservableValidator
         {
             RelatedPersonId = target.Id,
             DisplayName = target.DisplayName,
-            Kind = PersonRelationKind.Friend
         });
         SelectedRelatedPersonId = null;
     }
@@ -323,7 +322,6 @@ public partial class UpdatePersonViewModel : ObservableValidator
             CompanyId = target.Id,
             CompanyName = target.Name,
             PersonId = PersonId,  // Текущая персона
-            Role = "Сотрудник"
         });
         SelectedTargetCompanyId = null;
     }
@@ -364,7 +362,6 @@ public partial class UpdatePersonViewModel : ObservableValidator
             PersonId = PersonId,  // Текущая персона
             EventId = target.Id,
             DisplayName = target.Title,
-            Role = EventParticipantRole.Participant,
             Notes = string.Empty
         });
         SelectedTargetEventId = null;

@@ -93,6 +93,8 @@ public sealed class LinkSynchronizer
                 throw new InvalidOperationException($"Целевой объект Id={targetId} указан во связях дважды");
 
             var newLink = createLink(targetId);
+            setLinkFields(newLink, getInputRole(input) ?? string.Empty,
+                getInputNotes(input) ?? string.Empty);
             _context.Add(newLink);
         }
     }

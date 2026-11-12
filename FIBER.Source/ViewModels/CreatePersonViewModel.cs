@@ -65,8 +65,6 @@ public partial class CreatePersonViewModel : ObservableValidator
     private bool _isAnonymousMode;
 
     public bool IsIdentifiedMode => !IsAnonymousMode;
-
-    /// <summary>Варианты выбора пола.</summary>
     public IReadOnlyList<GenderOption> GenderChoices { get; } = GenderOptions.All;
 
     [ObservableProperty] private Gender _selectedGender = Gender.Unknown;
@@ -83,7 +81,13 @@ public partial class CreatePersonViewModel : ObservableValidator
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
-    private string _fullName = string.Empty;
+    private string _lastName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
+    private string _firstName = string.Empty;
+
+    [ObservableProperty] private string _secondName = string.Empty;
 
     [ObservableProperty] private DateTime? _birthDate;
     [ObservableProperty] private string _passport = string.Empty;
@@ -173,19 +177,16 @@ public partial class CreatePersonViewModel : ObservableValidator
             }
             else
             {
-                if (string.IsNullOrWhiteSpace(FullName))
+                if (string.IsNullOrWhiteSpace(LastName) || string.IsNullOrWhiteSpace(FirstName))
                 {
-                    _notificationService.Show("Ошибка", "Для идентифицированной личности ФИО обязательно", NotificationType.Warning);
+                    _notificationService.Show("Ошибка", "Для идентифицированной личности фамилия и имя обязательны", NotificationType.Warning);
                     return;
                 }
 
-                PersonService.SplitFullName(FullName.Trim(),
-                    out string lastName, out string firstName, out string? secondName);
-
                 var input = new PersonInput(
-                    LastName: lastName,
-                    FirstName: firstName,
-                    SecondName: secondName,
+                    LastName: LastName.Trim(),
+                    FirstName: FirstName.Trim(),
+                    SecondName: string.IsNullOrWhiteSpace(SecondName) ? null : SecondName.Trim(),
                     Gender: SelectedGender,
                     BirthDate: BirthDate,
                     Passport: Passport.Trim(),
@@ -207,7 +208,7 @@ public partial class CreatePersonViewModel : ObservableValidator
                 var person = await _personService.CreateIdentifiedAsync(input);
                 personId = person.Id;
                 _notificationService.Show("Успех",
-                    $"Создана идентифицированная личность\nId = {person.Id}\nФИО = {FullName}",
+                    $"Создана идентифицированная личность\nId = {person.Id}\nФИО = {LastName} {FirstName} {SecondName}",
                     NotificationType.Success);
             }
 
@@ -282,7 +283,6 @@ public partial class CreatePersonViewModel : ObservableValidator
         {
             RelatedPersonId = target.Id,
             DisplayName = target.DisplayName,
-            Kind = PersonRelationKind.Friend
         });
         SelectedRelatedPersonId = null;
     }
@@ -322,7 +322,6 @@ public partial class CreatePersonViewModel : ObservableValidator
         {
             CompanyId = target.Id,
             CompanyName = target.Name,
-            Role = "Сотрудник"
         });
         SelectedTargetCompanyId = null;
     }
@@ -363,7 +362,6 @@ public partial class CreatePersonViewModel : ObservableValidator
             PersonId = null, // Будет установлено при создании персоны в сервисе
             EventId = target.Id,
             DisplayName = target.Title,
-            Role = EventParticipantRole.Participant,
             Notes = string.Empty
         });
         SelectedTargetEventId = null;
@@ -385,7 +383,9 @@ public partial class CreatePersonViewModel : ObservableValidator
     public void ClearForm()
     {
         IsAnonymousMode = false;
-        FullName = string.Empty;
+        LastName = string.Empty;
+        FirstName = string.Empty;
+        SecondName = string.Empty;
         BirthDate = null;
         Passport = string.Empty;
         PrimaryAlias = string.Empty;

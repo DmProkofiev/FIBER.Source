@@ -185,7 +185,16 @@ public sealed class CompanyService : BaseService, ICompanyService
                 : null;
             if (link is not null)
             {
-                // Существующая связь — обновляем тип/заметки.
+                // Существующая связь — обновляем цель, тип/заметки.
+                if (link.TargetCompanyId != targetId)
+                {
+                    var reverseExistsForNewTarget = await context.CompanyInteractions.AnyAsync(ci =>
+                        ci.SourceCompanyId == targetId && ci.TargetCompanyId == company.Id && ci.Id != link.Id);
+                    if (reverseExistsForNewTarget)
+                        throw new InvalidOperationException(
+                            "Взаимодействие между этими организациями уже существует (обратная связь)");
+                    link.TargetCompanyId = targetId;
+                }
                 link.InteractionType = type;
                 link.Notes = notes;
                 continue;
