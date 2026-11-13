@@ -713,8 +713,8 @@ public partial class SearchViewModel : ObservableObject
                 company.Name, cp.CompanyRole,
                 PersonDisplayName(person), cp.PersonRole,
                 NotesDetails(cp.Notes),
-                RelationTargetType.Company, company.Id,
-                RelationTargetType.Person, person.Id));
+                RelationTargetType.Person, person.Id,
+                RelationTargetType.Company, company.Id));
         }
 
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
@@ -769,8 +769,8 @@ public partial class SearchViewModel : ObservableObject
                 company.Name, cp.CompanyRole,
                 PersonDisplayName(person), cp.PersonRole,
                 NotesDetails(cp.Notes),
-                RelationTargetType.Company, company.Id,
-                RelationTargetType.Person, person.Id));
+                RelationTargetType.Person, person.Id,
+                RelationTargetType.Company, company.Id));
         }
 
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
