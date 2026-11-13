@@ -195,10 +195,23 @@ public partial class UpdatePersonViewModel : ObservableValidator
             Aliases.Add(PersonAliasEditVM.FromModel(a));
 
         // Связи: сначала исходящие (редактируемые), затем обратные (только просмотр).
+        var sourceName = person.FullName
+            ?? person.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
+            ?? $"Аноним #{person.Id}";
         foreach (var r in person.Relationships)
-            Relationships.Add(PersonRelationshipEditVM.FromModel(r));
+        {
+            var vm = PersonRelationshipEditVM.FromModel(r);
+            vm.SourceDisplayName = sourceName;
+            Relationships.Add(vm);
+        }
         foreach (var r in person.ReverseRelationships)
-            Relationships.Add(PersonRelationshipEditVM.FromReverse(r));
+        {
+            var vm = PersonRelationshipEditVM.FromReverse(r);
+            vm.SourceDisplayName = r.Person?.FullName
+                ?? r.Person?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
+                ?? $"Аноним #{r.PersonId}";
+            Relationships.Add(vm);
+        }
 
         // Справочник организаций для связи «персона ↔ организация».
         AvailableCompanies.Clear();

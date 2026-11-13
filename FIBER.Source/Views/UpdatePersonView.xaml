@@ -289,14 +289,14 @@
                                                 <TextBox Text="{Binding DisplayName, Mode=OneWay}" IsReadOnly="True"
                                                          Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
                                                 
-                                                <TextBlock Text="Роль (вы)" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="{Binding SourceDisplayName, StringFormat='Роль ({0})'}" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <ComboBox Style="{StaticResource ModernComboBoxStyle}"
                                                           ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
                                                           SelectedValue="{Binding KindFrom}"
                                                           SelectedValuePath="Value"
                                                           DisplayMemberPath="Display"
                                                           Margin="0,0,0,6"/>
-                                                <TextBlock Text="Роль (связанный)" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="{Binding DisplayName, StringFormat='Роль ({0})'}" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <ComboBox Style="{StaticResource ModernComboBoxStyle}"
                                                           ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
                                                           SelectedValue="{Binding KindTo}"
