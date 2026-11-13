@@ -22,6 +22,9 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
     /// <summary>Таймер обновления позиции.</summary>
     private DispatcherTimer? _timer;
 
+    /// <summary>Таймер дебаунса для Seek при изменении слайдера.</summary>
+    private DispatcherTimer? _debounceTimer;
+
     /// <summary>Признак готовности плеера (MediaOpened).</summary>
     private bool _playerReady;
 
@@ -301,15 +304,32 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Обновляет позицию плеера при перетаскивании слайдера.</summary>
+    /// <summary>Обновляет позицию плеера при изменении слайдера.</summary>
     partial void OnPositionChanged(double value)
     {
-        if (_player != null && _playerReady && _player.NaturalDuration.HasTimeSpan && IsDragging)
+        if (_player == null || !_playerReady || !_player.NaturalDuration.HasTimeSpan)
+            return;
+
+        // Дебаунс Seek: отменяем предыдущий отложенный вызов и запускаем новый.
+        // Seek выполняется только после паузы в изменении позиции (300 мс),
+        // чтобы не спамить событиями плеера и не блокировать GUI при быстрых обновлениях.
+        _debounceTimer?.Stop();
+        _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _debounceTimer.Tick += (_, _) =>
         {
-            var total = _player.NaturalDuration.TimeSpan.TotalSeconds;
-            _player.Position = TimeSpan.FromSeconds(total * value / 100.0);
-            CurrentTime = FormatTime(_player.Position);
-        }
+            _debounceTimer?.Stop();
+            _debounceTimer = null;
+            if (_player != null && _playerReady && _player.NaturalDuration.HasTimeSpan)
+            {
+                var total = _player.NaturalDuration.TimeSpan.TotalSeconds;
+                if (total > 0)
+                {
+                    _player.Position = TimeSpan.FromSeconds(total * value / 100.0);
+                    CurrentTime = FormatTime(_player.Position);
+                }
+            }
+        };
+        _debounceTimer.Start();
     }
 
     /// <summary>Запуск или отложенный запуск воспроизведения.</summary>
@@ -372,6 +392,10 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         _timer?.Stop();
         _player?.Close();
+
+        // Очищаем дебаунс-таймер, если он ещё активен.
+        _debounceTimer?.Stop();
+        _debounceTimer = null;
 
         if (!string.IsNullOrEmpty(FilePath))
         {
