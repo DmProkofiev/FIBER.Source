@@ -326,9 +326,18 @@ public sealed class MediaService : IMediaService
         foreach (var m in metas)
         {
             var ext = Path.GetExtension(m.OriginalFileName).ToLowerInvariant();
+
+            // Видео и аудио хранятся в БД как BLOB — для воспроизведения им обязателен
+            // путь к временному файлу. Без него плеер и окно зума не работают.
+            var filePath = string.Empty;
+            if (IsVideoExtension(ext) || IsAudioExtension(ext))
+            {
+                filePath = await GetTempFilePathForAsync(m.Id, ext);
+            }
+
             result.Add(new MediaItemDto(
                 MediaId: m.Id,
-                FilePath: string.Empty,
+                FilePath: filePath,
                 OriginalFileName: m.OriginalFileName,
                 MimeType: m.MimeType,
                 SizeBytes: m.SizeBytes,
@@ -349,17 +358,26 @@ public sealed class MediaService : IMediaService
         var result = new List<MediaForOwner>(metaList.Count);
         foreach (var (meta, ownerType, ownerId) in metaList)
         {
+            var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
+
+            // Видео/аудио должны иметь путь к временному файлу — см. GetMediaForOwnerAsync.
+            var filePath = string.Empty;
+            if (IsVideoExtension(ext) || IsAudioExtension(ext))
+            {
+                filePath = await GetTempFilePathForAsync(meta.Id, ext);
+            }
+
             result.Add(new MediaForOwner(
                 new MediaItemDto(
                     MediaId: meta.Id,
-                    FilePath: string.Empty,
+                    FilePath: filePath,
                     OriginalFileName: meta.OriginalFileName,
                     MimeType: meta.MimeType,
                     SizeBytes: meta.SizeBytes,
                     ContentHash: string.Empty,
-                    IsImage: IsImageExtension(Path.GetExtension(meta.OriginalFileName)),
-                    IsVideo: IsVideoExtension(Path.GetExtension(meta.OriginalFileName)),
-                    IsAudio: IsAudioExtension(Path.GetExtension(meta.OriginalFileName))),
+                    IsImage: IsImageExtension(ext),
+                    IsVideo: IsVideoExtension(ext),
+                    IsAudio: IsAudioExtension(ext)),
                 ownerType,
                 ownerId));
         }
@@ -611,6 +629,27 @@ public sealed class MediaService : IMediaService
         using var sha = SHA256.Create();
         var hash = await sha.ComputeHashAsync(fs);
         return Convert.ToHexString(hash);
+    }
+
+    /// <summary>Возвращает путь к временному файлу видео/аудио по MediaId (из кэша или извлечение из BLOB).</summary>
+    private async Task<string> GetTempFilePathForAsync(int mediaId, string extension)
+    {
+        string? cachedPath = null;
+        await _cacheLock.WaitAsync();
+        try
+        {
+            cachedPath = _tempFileCache is not null && _tempFileCache.TryGetValue(mediaId, out var cached)
+                ? cached
+                : null;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+
+        if (!string.IsNullOrEmpty(cachedPath)) return cachedPath;
+
+        return await StreamDataToTempAsync(mediaId, extension) ?? string.Empty;
     }
 
     /// <summary>Возвращает MIME-тип по расширению.</summary>
