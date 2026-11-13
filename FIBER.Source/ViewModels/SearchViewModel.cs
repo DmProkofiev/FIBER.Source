@@ -834,22 +834,27 @@ public partial class SearchViewModel : ObservableObject
 
         foreach (var ep in await _relationService.ListParticipantsByEventAsync(evt.Id))
         {
+            // Объект связи: событие ↔ участник (с данными участника).
             if (ep.Person != null)
             {
                 var personName = ep.Person.FullName ?? ep.Person.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value ?? $"Аноним #{ep.Person.Id}";
                 EventRelations.Add(new RelationItemViewModel(
+                    evt.Title, null,
                     personName, ep.RoleDisplay,
-                    string.Empty, null,
                     NotesDetails(ep.Notes),
-                    RelationTargetType.Person, ep.Person.Id));
+                    RelationTargetType.Person, ep.Person.Id,
+                    RelationTargetType.Event, evt.Id,
+                    isEventParticipant: true));
             }
             else if (ep.Company != null)
             {
                 EventRelations.Add(new RelationItemViewModel(
+                    evt.Title, null,
                     ep.Company.Name, ep.RoleDisplay,
-                    string.Empty, null,
                     NotesDetails(ep.Notes),
-                    RelationTargetType.Company, ep.Company.Id));
+                    RelationTargetType.Company, ep.Company.Id,
+                    RelationTargetType.Event, evt.Id,
+                    isEventParticipant: true));
             }
         }
 

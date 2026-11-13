@@ -12,7 +12,8 @@ public sealed class RelationItemViewModel
         string targetDisplayName, string? targetRole,
         string? notes,
         RelationTargetType? targetType = null, int? targetId = null,
-        RelationTargetType? sourceType = null, int? sourceId = null)
+        RelationTargetType? sourceType = null, int? sourceId = null,
+        bool isEventParticipant = false)
     {
         SourceDisplayName = sourceDisplayName;
         SourceRole = sourceRole;
@@ -23,6 +24,7 @@ public sealed class RelationItemViewModel
         TargetId = targetId;
         SourceType = sourceType;
         SourceId = sourceId;
+        IsEventParticipant = isEventParticipant;
     }
 
     public string SourceDisplayName { get; }
@@ -50,6 +52,9 @@ public sealed class RelationItemViewModel
 
     public bool CanNavigateTarget => TargetType.HasValue && TargetId.HasValue;
     public bool CanNavigateSource => SourceType.HasValue && SourceId.HasValue;
+
+    /// <summary>Признак: связь представляет событие и его участника (используется для выбора разметки).</summary>
+    public bool IsEventParticipant { get; }
 }
 
 // Тип целевого объекта связи.
