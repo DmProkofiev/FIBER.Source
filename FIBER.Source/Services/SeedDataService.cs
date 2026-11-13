@@ -153,7 +153,7 @@ public sealed class SeedDataService : ISeedDataService
             var kind = relationKinds[Rng.Next(relationKinds.Length)];
             try
             {
-                await _relationService.AddPersonRelationshipAsync(a, b, kind, "Тестовая связь из сидинга.");
+                await _relationService.AddPersonRelationshipAsync(a, b, kind, kind, "Тестовая связь из сидинга.");
                 relationshipsCreated++;
             }
             catch { /* дубликат или self-link — пропускаем */ }

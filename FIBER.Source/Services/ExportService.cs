@@ -248,7 +248,7 @@ public sealed class ExportService : IExportService
         {
             AddHeading(body, "Связи с людьми", 2);
             foreach (var r in relationships)
-                AddBullet(body, $"{r.RelatedPerson?.FullName ?? "?"}: {r.KindDisplay}");
+                AddBullet(body, $"{r.RelatedPerson?.FullName ?? "?"}: {r.KindFromDisplay} ↔ {r.KindToDisplay}");
         }
 
         mainPart.Document.Save();
@@ -305,7 +305,7 @@ public sealed class ExportService : IExportService
             await w.WriteLineAsync();
             await w.WriteLineAsync("--- Связи с людьми ---");
             foreach (var r in relationships)
-                await w.WriteLineAsync($"  - {r.RelatedPerson?.FullName ?? "?"}: {r.KindDisplay}");
+                await w.WriteLineAsync($"  - {r.RelatedPerson?.FullName ?? "?"}: {r.KindFromDisplay} ↔ {r.KindToDisplay}");
         }
     }
 

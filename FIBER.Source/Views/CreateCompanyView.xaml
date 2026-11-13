@@ -98,7 +98,8 @@
                                              <Grid>
                                                  <Grid.ColumnDefinitions>
                                                      <ColumnDefinition Width="170"/>
-                                                     <ColumnDefinition Width="150"/>
+                                                     <ColumnDefinition Width="130"/>
+                                                     <ColumnDefinition Width="130"/>
                                                      <ColumnDefinition Width="*"/>
                                                      <ColumnDefinition Width="Auto"/>
                                                  </Grid.ColumnDefinitions>
@@ -108,18 +109,13 @@
                                                        
                                                        Text="{Binding InteractionType, UpdateSourceTrigger=PropertyChanged}"
                                                        Margin="0,0,6,0"/>
-                                                     
-                                                     
-                                                     
-                                                     
-                                                     
-                                                     
-                                                     
-                                                 
-                                                 <TextBox Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
-                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
-                                                          Margin="0,0,6,0"/>
-                                                 <Button Grid.Column="3" Content="×" Width="26" Height="26"
+                                                  <TextBox Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
+                                                         Text="{Binding InteractionTypeTo, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,0,6,0"/>
+                                                  <TextBox Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}"
+                                                           Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                           Margin="0,0,6,0"/>
+                                                  <Button Grid.Column="4" Content="×" Width="26" Height="26"
                                                          Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                          Command="{Binding DataContext.RemoveInteractionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                          CommandParameter="{Binding}"/>
@@ -244,19 +240,23 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox Grid.Column="0" Text="{Binding PersonName, Mode=OneWay}" IsReadOnly="True"
                                                          Margin="0,0,6,0"/>
                                                 <ComboBox Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
-                                                         Text="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding PersonRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
-                                                <TextBox Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
+                                                <ComboBox Grid.Column="2" Style="{StaticResource ModernComboBoxStyle}"
+                                                         Text="{Binding CompanyRole, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,0,6,0"/>
+                                                <TextBox Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}"
                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
-                                                <Button Grid.Column="3" Content="×" Width="26" Height="26"
+                                                <Button Grid.Column="4" Content="×" Width="26" Height="26"
                                                     Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                     Command="{Binding DataContext.RemovePersonCompanyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"/>

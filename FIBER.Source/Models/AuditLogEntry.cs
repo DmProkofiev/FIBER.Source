@@ -46,7 +46,7 @@ public class AuditLogEntry
         "Media.RemoveAllForOwner" => "Удалены все медиафайлы владельца",
         "Media.ExtractFailed" => "Ошибка извлечения медиа",
         "Auth.Startup" => "Запуск приложения",
-        "Auth.ChangePassword" => "Смена мастер-пароля",
+        "Auth.ChangePassword" => "Смена пароля",
         "Database.Export" => "Экспорт файла БД",
         "Storage.Maintenance" => "Обслуживание хранилища",
         _ => Action

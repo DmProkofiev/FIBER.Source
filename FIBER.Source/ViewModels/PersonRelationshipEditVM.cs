@@ -8,24 +8,21 @@ using FIBER.Source.Models.Joins;
 
 namespace FIBER.Source.ViewModels;
 
-// Редактируемая строка связи «персона ↔ персона» в форме редактирования личности.
 public partial class PersonRelationshipEditVM : ObservableObject
 {
-    // Id существующей записи PersonRelationship; null — новая связь.
     public int? Id { get; set; }
 
     [ObservableProperty] private int? _relatedPersonId;
     [ObservableProperty] private string _displayName = string.Empty;
-    [ObservableProperty] private PersonRelationKind? _kind;
+    [ObservableProperty] private PersonRelationKind _kindFrom;
+    [ObservableProperty] private PersonRelationKind _kindTo;
     [ObservableProperty] private string _notes = string.Empty;
 
-    // Только для отображения: связь пришла от другой персоны (обратная сторона).
-    // Такие строки не отправляются в input.Relationships (их зеркало управляется со стороны инициатора).
     public bool IsReverseOnly { get; set; }
 
     public static IReadOnlyList<PersonRelationKindOption> AvailableKinds => PersonRelationKinds.AllOptions;
 
-    public PersonRelationshipEditInput ToInput() => new(Id, RelatedPersonId!.Value, Kind.GetValueOrDefault(), Notes);
+    public PersonRelationshipEditInput ToInput() => new(Id, RelatedPersonId!.Value, KindFrom, KindTo, Notes);
 
     public static PersonRelationshipEditVM FromModel(PersonRelationship r) => new()
     {
@@ -34,20 +31,21 @@ public partial class PersonRelationshipEditVM : ObservableObject
         DisplayName = r.RelatedPerson?.FullName
             ?? r.RelatedPerson?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
             ?? $"Аноним #{r.RelatedPersonId}",
-        Kind = r.Kind,
+        KindFrom = r.KindFrom,
+        KindTo = r.KindTo,
         Notes = r.Notes,
         IsReverseOnly = false
     };
 
     public static PersonRelationshipEditVM FromReverse(PersonRelationship r) => new()
     {
-        // Id не пробрасываем: обратная связь редактируется только со стороны инициатора.
-        Id = null,
+        Id = r.Id,
         RelatedPersonId = r.PersonId,
         DisplayName = r.Person?.FullName
             ?? r.Person?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
             ?? $"Аноним #{r.PersonId}",
-        Kind = r.Kind,
+        KindFrom = r.KindTo,
+        KindTo = r.KindFrom,
         Notes = r.Notes,
         IsReverseOnly = true
     };

@@ -98,7 +98,8 @@
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
@@ -225,10 +226,14 @@
                                                 <TextBox Text="{Binding PersonName, Mode=OneWay}" IsReadOnly="True"
                                                          Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
                                                 
-                                                <TextBlock Text="Роль" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Роль человека" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <TextBox Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding PersonRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,0,6"/>
+                                                <TextBlock Text="Роль организации" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Style="{StaticResource ModernTextBoxStyle}"
+                                                         Text="{Binding CompanyRole, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,0,0,6" VerticalAlignment="Stretch"/>
                                                 
                                                 <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <TextBox Style="{StaticResource ModernTextBoxStyle}"
@@ -291,7 +296,8 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>

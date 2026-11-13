@@ -67,7 +67,10 @@ public class TrayService : ITrayService
         if (_notifyIcon != null)
         {
             _notifyIcon.Visible = false;
+            var menu = _notifyIcon.ContextMenuStrip;
+            _notifyIcon.ContextMenuStrip = null;
             _notifyIcon.Dispose();
+            menu?.Dispose();
             _notifyIcon = null;
         }
 

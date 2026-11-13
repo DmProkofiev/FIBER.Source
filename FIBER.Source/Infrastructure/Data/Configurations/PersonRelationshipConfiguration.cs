@@ -11,10 +11,11 @@ public class PersonRelationshipConfiguration : IEntityTypeConfiguration<PersonRe
         entity.ToTable("PersonRelationships");
         entity.HasKey(e => e.Id);
 
-        entity.Property(e => e.Kind).HasConversion<int>();
+        entity.Property(e => e.KindFrom).HasConversion<int>();
+        entity.Property(e => e.KindTo).HasConversion<int>();
         entity.Property(e => e.Notes).HasColumnType("TEXT");
 
-        entity.HasIndex(e => new { e.PersonId, e.RelatedPersonId, e.Kind })
+        entity.HasIndex(e => new { e.PersonId, e.RelatedPersonId })
             .IsUnique()
             .HasDatabaseName("UQ_PersonRelationship_Natural");
 

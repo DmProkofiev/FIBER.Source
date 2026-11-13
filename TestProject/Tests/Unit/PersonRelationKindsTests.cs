@@ -6,62 +6,6 @@ namespace FIBER.Source.Tests.Unit;
 public class PersonRelationKindsTests
 {
     [Fact]
-    public void InverseOf_Parent_ReturnsChild()
-    {
-        Assert.Equal(PersonRelationKind.Child, PersonRelationKinds.InverseOf(PersonRelationKind.Parent));
-    }
-
-    [Fact]
-    public void InverseOf_Child_ReturnsParent()
-    {
-        Assert.Equal(PersonRelationKind.Parent, PersonRelationKinds.InverseOf(PersonRelationKind.Child));
-    }
-
-    [Fact]
-    public void InverseOf_Symmetric_ReturnsSame()
-    {
-        Assert.Equal(PersonRelationKind.Sibling, PersonRelationKinds.InverseOf(PersonRelationKind.Sibling));
-        Assert.Equal(PersonRelationKind.Spouse, PersonRelationKinds.InverseOf(PersonRelationKind.Spouse));
-        Assert.Equal(PersonRelationKind.Friend, PersonRelationKinds.InverseOf(PersonRelationKind.Friend));
-        Assert.Equal(PersonRelationKind.Colleague, PersonRelationKinds.InverseOf(PersonRelationKind.Colleague));
-        Assert.Equal(PersonRelationKind.BusinessPartner, PersonRelationKinds.InverseOf(PersonRelationKind.BusinessPartner));
-    }
-
-    [Fact]
-    public void InverseOf_Employer_ReturnsEmployeeOf()
-    {
-        Assert.Equal(PersonRelationKind.EmployeeOf, PersonRelationKinds.InverseOf(PersonRelationKind.Employer));
-        Assert.Equal(PersonRelationKind.Employer, PersonRelationKinds.InverseOf(PersonRelationKind.EmployeeOf));
-    }
-
-    [Fact]
-    public void InverseOf_Mentor_ReturnsMentee()
-    {
-        Assert.Equal(PersonRelationKind.Mentee, PersonRelationKinds.InverseOf(PersonRelationKind.Mentor));
-        Assert.Equal(PersonRelationKind.Mentor, PersonRelationKinds.InverseOf(PersonRelationKind.Mentee));
-    }
-
-    [Fact]
-    public void InverseOf_Grandparent_ReturnsGrandchild()
-    {
-        Assert.Equal(PersonRelationKind.Grandchild, PersonRelationKinds.InverseOf(PersonRelationKind.Grandparent));
-        Assert.Equal(PersonRelationKind.Grandparent, PersonRelationKinds.InverseOf(PersonRelationKind.Grandchild));
-    }
-
-    [Fact]
-    public void InverseOf_UncleAunt_ReturnsNephewNiece()
-    {
-        Assert.Equal(PersonRelationKind.NephewNiece, PersonRelationKinds.InverseOf(PersonRelationKind.UncleAunt));
-        Assert.Equal(PersonRelationKind.UncleAunt, PersonRelationKinds.InverseOf(PersonRelationKind.NephewNiece));
-    }
-
-    [Fact]
-    public void InverseOf_Other_ReturnsOther()
-    {
-        Assert.Equal(PersonRelationKind.Other, PersonRelationKinds.InverseOf(PersonRelationKind.Other));
-    }
-
-    [Fact]
     public void DisplayNameOfKind_AllKinds_ReturnNonEmpty()
     {
         foreach (var kind in Enum.GetValues<PersonRelationKind>())
@@ -72,33 +16,45 @@ public class PersonRelationKindsTests
     }
 
     [Fact]
-    public void DisplayNameForRelated_ParentMale_ReturnsОтец()
+    public void DisplayNameForRelated_FatherMale_ReturnsОтец()
     {
-        Assert.Equal("Отец", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Parent, Gender.Male));
+        Assert.Equal("Отец", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Father, Gender.Male));
     }
 
     [Fact]
-    public void DisplayNameForRelated_ParentFemale_ReturnsМать()
+    public void DisplayNameForRelated_FatherFemale_ReturnsОтец()
     {
-        Assert.Equal("Мать", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Parent, Gender.Female));
+        Assert.Equal("Отец", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Father, Gender.Female));
     }
 
     [Fact]
-    public void DisplayNameForRelated_ParentUnknown_ReturnsРодитель()
+    public void DisplayNameForRelated_MotherFemale_ReturnsМать()
     {
-        Assert.Equal("Родитель", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Parent, Gender.Unknown));
+        Assert.Equal("Мать", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Mother, Gender.Female));
     }
 
     [Fact]
-    public void DisplayNameForRelated_SpouseFemale_ReturnsЖена()
+    public void DisplayNameForRelated_SonMale_ReturnsСын()
     {
-        Assert.Equal("Жена", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Spouse, Gender.Female));
+        Assert.Equal("Сын", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Son, Gender.Male));
     }
 
     [Fact]
-    public void DisplayNameForRelated_FriendFemale_ReturnsПодруга()
+    public void DisplayNameForRelated_DaughterFemale_ReturnsДочь()
     {
-        Assert.Equal("Подруга", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Friend, Gender.Female));
+        Assert.Equal("Дочь", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Daughter, Gender.Female));
+    }
+
+    [Fact]
+    public void DisplayNameForRelated_HusbandMale_ReturnsМуж()
+    {
+        Assert.Equal("Муж", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Husband, Gender.Male));
+    }
+
+    [Fact]
+    public void DisplayNameForRelated_WifeFemale_ReturnsЖена()
+    {
+        Assert.Equal("Жена", PersonRelationKinds.DisplayNameForRelated(PersonRelationKind.Wife, Gender.Female));
     }
 
     [Fact]

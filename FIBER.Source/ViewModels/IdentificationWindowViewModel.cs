@@ -59,7 +59,7 @@ public partial class IdentificationWindowViewModel : ObservableObject
         }
 
         IsBusy = true;
-        ErrorMessage = "Подготовка...";
+        ErrorMessage = "Проверка пароля";
 
         try
         {
@@ -67,7 +67,7 @@ public partial class IdentificationWindowViewModel : ObservableObject
             {
                 if (!await _databaseService.TryUnlockAsync(Password))
                 {
-                    ErrorMessage = "Неверный мастер-пароль";
+                    ErrorMessage = "Неверный пароль";
                     return;
                 }
             }

@@ -202,7 +202,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _trayService?.Dispose();
+        CleanupHost();
 
         try
         {
@@ -213,7 +213,6 @@ public partial class App : Application
         catch { }
 
         SqliteConnection.ClearAllPools();
-        CleanupHost();
         CleanupMutex();
         base.OnExit(e);
     }
@@ -222,7 +221,6 @@ public partial class App : Application
     {
         _isExiting = true;
         CleanupHost();
-        CleanupMutex();
         Shutdown();
     }
 
@@ -262,22 +260,27 @@ public partial class App : Application
         if (_isExiting) return;
         _isExiting = true;
         CleanupHost();
-        CleanupMutex();
         Shutdown();
     }
 
-    private async Task CleanupHostAsync()
+    private static async Task CleanupHostAsync(IHost host)
     {
-        if (_host is null) return;
-        try { await _host.StopAsync(); } catch { }
-        try { _host.Dispose(); } catch { }
-        _host = null;
+        try { await host.StopAsync(); } catch { }
+        try { host.Dispose(); } catch { }
     }
 
     private void CleanupHost()
     {
-        // OnExit не支持 async — запускаем остановку хоста на пуле потоков, не блокируя UI-поток.
-        _ = Task.Run(async () => await CleanupHostAsync());
+        // NotifyIcon должен быть удалён в UI-потоке до освобождения DI-контейнера.
+        _trayService?.Dispose();
+        _trayService = null;
+
+        var host = _host;
+        _host = null;
+        if (host is null) return;
+
+        // Передаём конкретный экземпляр: повторный вызов очистки не остановит его второй раз.
+        _ = Task.Run(() => CleanupHostAsync(host));
     }
 
     private void CleanupMutex()

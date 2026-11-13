@@ -178,6 +178,7 @@ public sealed class CompanyService : BaseService, ICompanyService
                 throw new InvalidOperationException($"Организация Id={targetId} не найдена");
 
             var type = (input.InteractionType ?? string.Empty).Trim();
+            var typeTo = (input.InteractionTypeTo ?? string.Empty).Trim();
             var notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
 
             var link = input.Id is not null
@@ -185,7 +186,7 @@ public sealed class CompanyService : BaseService, ICompanyService
                 : null;
             if (link is not null)
             {
-                // Существующая связь — обновляем цель, тип/заметки.
+                // Существующая связь — обновляем цель, типы/заметки.
                 if (link.TargetCompanyId != targetId)
                 {
                     var reverseExistsForNewTarget = await context.CompanyInteractions.AnyAsync(ci =>
@@ -196,6 +197,7 @@ public sealed class CompanyService : BaseService, ICompanyService
                     link.TargetCompanyId = targetId;
                 }
                 link.InteractionType = type;
+                link.InteractionTypeTo = typeTo;
                 link.Notes = notes;
                 continue;
             }
@@ -217,6 +219,7 @@ public sealed class CompanyService : BaseService, ICompanyService
                 SourceCompanyId = company.Id,
                 TargetCompanyId = targetId,
                 InteractionType = type,
+                InteractionTypeTo = typeTo,
                 Notes = notes
             });
         }
@@ -236,11 +239,13 @@ public sealed class CompanyService : BaseService, ICompanyService
             ownerId: company.Id,
             getInputId: i => i.Id,
             getInputTargetId: i => i.PersonId,
-            getInputRole: i => i.Role,
+            getInputRole: i => i.PersonRole,
+            getInputRole2: i => i.CompanyRole,
             getInputNotes: i => i.Notes,
-            setLinkFields: (link, role, notes) =>
+            setLinkFields: (link, role1, role2, notes) =>
             {
-                link.Role = role;
+                link.PersonRole = role1;
+                link.CompanyRole = role2;
                 link.Notes = notes;
             },
             targetExists: id => context.People.AnyAsync(p => p.Id == id),

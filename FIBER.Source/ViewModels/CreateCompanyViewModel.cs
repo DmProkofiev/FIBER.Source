@@ -234,7 +234,8 @@ public partial class CreateCompanyViewModel : ObservableValidator
         {
             PersonId = target.Id,
             PersonName = target.DisplayName,
-            Role = string.Empty
+            PersonRole = string.Empty,
+            CompanyRole = string.Empty
         });
         SelectedTargetPersonId = null;
     }

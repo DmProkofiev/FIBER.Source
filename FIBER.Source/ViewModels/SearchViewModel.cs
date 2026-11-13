@@ -668,34 +668,80 @@ public partial class SearchViewModel : ObservableObject
     private static string NotesDetails(string? notes) =>
         string.IsNullOrWhiteSpace(notes) ? string.Empty : $"Заметки: {notes.Trim()}";
 
+    // Формирует строку связи для PersonRelationship: "Имя (Роль) - Имя (Роль)".
+    // Если роль == Other, часть с ролью не отображается.
+    private static string FormatPersonRelationship(
+        string sourceName, PersonRelationKind sourceRole,
+        string targetName, PersonRelationKind targetRole,
+        string? notes)
+    {
+        var sourceRoleStr = sourceRole == PersonRelationKind.Other ? null : PersonRelationKinds.DisplayNameOfKind(sourceRole);
+        var targetRoleStr = targetRole == PersonRelationKind.Other ? null : PersonRelationKinds.DisplayNameOfKind(targetRole);
+
+        var sourcePart = string.IsNullOrWhiteSpace(sourceRoleStr)
+            ? sourceName
+            : $"{sourceName} ({sourceRoleStr})";
+        var targetPart = string.IsNullOrWhiteSpace(targetRoleStr)
+            ? targetName
+            : $"{targetName} ({targetRoleStr})";
+
+        var result = $"{sourcePart} - {targetPart}";
+        if (!string.IsNullOrWhiteSpace(notes))
+            result += $" • {NotesDetails(notes)}";
+        return result;
+    }
+
+    // Формирует строку связи со строковыми ролями: "Имя (Роль) - Имя (Роль)".
+    private static string FormatStringRelationship(
+        string sourceName, string? sourceRole,
+        string targetName, string? targetRole,
+        string? notes)
+    {
+        var sourcePart = string.IsNullOrWhiteSpace(sourceRole)
+            ? sourceName
+            : $"{sourceName} ({sourceRole})";
+        var targetPart = string.IsNullOrWhiteSpace(targetRole)
+            ? targetName
+            : $"{targetName} ({targetRole})";
+
+        var result = $"{sourcePart} - {targetPart}";
+        if (!string.IsNullOrWhiteSpace(notes))
+            result += $" • {NotesDetails(notes)}";
+        return result;
+    }
+
     private async Task LoadPersonRelationsAsync(Person person)
     {
         PersonRelations.Clear();
 
-        // Исходящие связи (персона — инициатор).
+        // Исходящие связи (персона — инициатор записи).
         foreach (var r in await _relationService.ListRelationshipsAsync(person.Id))
         {
             var related = r.RelatedPerson;
             if (related is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                r.KindDisplay,
+                FormatPersonRelationship(
+                    PersonDisplayName(person), r.KindFrom,
+                    PersonDisplayName(related), r.KindTo,
+                    r.Notes),
                 PersonDisplayName(related),
                 RelationTargetType.Person,
-                related.Id,
-                NotesDetails(r.Notes)));
+                related.Id));
         }
 
-        // Обратные связи (другая персона — инициатор, эта персона — цель).
+        // Обратные связи (другая персона — iniciатор записи, эта персона — цель).
         foreach (var r in await _relationService.ListReverseRelationshipsAsync(person.Id))
         {
             var source = r.Person;
             if (source is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                PersonRelationKinds.DisplayNameOfKind(r.Kind),
+                FormatPersonRelationship(
+                    PersonDisplayName(source), r.KindFrom,
+                    PersonDisplayName(person), r.KindTo,
+                    r.Notes),
                 PersonDisplayName(source),
                 RelationTargetType.Person,
-                source.Id,
-                NotesDetails(r.Notes)));
+                source.Id));
         }
 
         // Связи персоны с организациями.
@@ -704,11 +750,13 @@ public partial class SearchViewModel : ObservableObject
             var company = cp.Company;
             if (company is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                cp.RoleDisplay,
-                company.Name,
-                RelationTargetType.Company,
-                company.Id,
-                NotesDetails(cp.Notes)));
+                FormatStringRelationship(
+                    company.Name, cp.CompanyRole,
+                    PersonDisplayName(person), cp.PersonRole,
+                    cp.Notes),
+                PersonDisplayName(person),
+                RelationTargetType.Person,
+                person.Id));
         }
 
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
@@ -716,11 +764,13 @@ public partial class SearchViewModel : ObservableObject
             var evt = ep.Event;
             if (evt is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                "Участие в событии",
+                FormatStringRelationship(
+                    evt.Title, ep.RoleDisplay,
+                    string.Empty, null,
+                    ep.Notes),
                 evt.Title,
                 RelationTargetType.Event,
-                evt.Id,
-                RelationDetails($"Роль: {ep.RoleDisplay}", NotesDetails(ep.Notes))));
+                evt.Id));
         }
 
     }
@@ -729,29 +779,34 @@ public partial class SearchViewModel : ObservableObject
     {
         CompanyRelations.Clear();
 
-        // Взаимодействия «компания ↔ компания»: прямые и обратные (из навигационных свойств GetByIdAsync).
+        // Взаимодействия «компания ↔ компания»: прямые.
         foreach (var ci in company.OutgoingInteractions)
         {
             var target = ci.TargetCompany;
             if (target is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
-                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие" : ci.InteractionType,
+                FormatStringRelationship(
+                    company.Name, ci.InteractionType,
+                    target.Name, ci.InteractionTypeTo,
+                    ci.Notes),
                 target.Name,
                 RelationTargetType.Company,
-                target.Id,
-                NotesDetails(ci.Notes)));
+                target.Id));
         }
 
+        // Взаимодействия «компания ↔ компания»: обратные (другая компания — источник).
         foreach (var ci in company.IncomingInteractions)
         {
             var source = ci.SourceCompany;
             if (source is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
-                string.IsNullOrWhiteSpace(ci.InteractionType) ? "Взаимодействие (обратная)" : ci.InteractionType + " (обратная)",
+                FormatStringRelationship(
+                    source.Name, ci.InteractionType,
+                    company.Name, ci.InteractionTypeTo,
+                    ci.Notes),
                 source.Name,
                 RelationTargetType.Company,
-                source.Id,
-                NotesDetails(ci.Notes)));
+                source.Id));
         }
 
         // Связи организации с персонами.
@@ -760,22 +815,27 @@ public partial class SearchViewModel : ObservableObject
             var person = cp.Person;
             if (person is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
-                cp.RoleDisplay,
+                FormatStringRelationship(
+                    company.Name, cp.CompanyRole,
+                    PersonDisplayName(person), cp.PersonRole,
+                    cp.Notes),
                 PersonDisplayName(person),
                 RelationTargetType.Person,
-                person.Id,
-                NotesDetails(cp.Notes)));
+                person.Id));
         }
 
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
         {
             var evt = ep.Event;
             if (evt is null) continue;
-            CompanyRelations.Add(new RelationItemViewModel($"Событие: {ep.RoleDisplay}",
+            CompanyRelations.Add(new RelationItemViewModel(
+                FormatStringRelationship(
+                    evt.Title, ep.RoleDisplay,
+                    string.Empty, null,
+                    ep.Notes),
                 evt.Title,
                 RelationTargetType.Event,
-                evt.Id,
-                NotesDetails(ep.Notes)));
+                evt.Id));
         }
 
     }
@@ -797,11 +857,13 @@ public partial class SearchViewModel : ObservableObject
             var target = ee.TargetEvent;
             if (target is null) continue;
             EventRelations.Add(new RelationItemViewModel(
-                string.IsNullOrWhiteSpace(ee.RelationshipType) ? "Связано с" : ee.RelationshipType,
+                FormatStringRelationship(
+                    evt.Title, ee.RelationshipType,
+                    target.Title, string.Empty,
+                    ee.Notes),
                 target.Title,
                 RelationTargetType.Event,
-                target.Id,
-                NotesDetails(ee.Notes)));
+                target.Id));
         }
 
         // Связи события с другими событиями (обратные).
@@ -810,24 +872,40 @@ public partial class SearchViewModel : ObservableObject
             var source = ee.SourceEvent;
             if (source is null) continue;
             EventRelations.Add(new RelationItemViewModel(
-                string.IsNullOrWhiteSpace(ee.RelationshipType) ? "Связано с (обратная)" : ee.RelationshipType + " (обратная)",
+                FormatStringRelationship(
+                    source.Title, ee.RelationshipType,
+                    evt.Title, string.Empty,
+                    ee.Notes),
                 source.Title,
                 RelationTargetType.Event,
-                source.Id,
-                NotesDetails(ee.Notes)));
+                source.Id));
         }
 
         foreach (var ep in await _relationService.ListParticipantsByEventAsync(evt.Id))
         {
             if (ep.Person != null)
             {
-                EventRelations.Add(new RelationItemViewModel($"Роль: {ep.RoleDisplay}", PersonDisplayName(ep.Person),
-                    RelationTargetType.Person, ep.Person.Id, NotesDetails(ep.Notes)));
+                EventRelations.Add(new RelationItemViewModel(
+                    FormatStringRelationship(
+                        ep.Person.FullName ?? ep.Person.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value ?? $"Аноним #{ep.Person.Id}",
+                        ep.RoleDisplay,
+                        string.Empty, null,
+                        ep.Notes),
+                    PersonDisplayName(ep.Person),
+                    RelationTargetType.Person,
+                    ep.Person.Id));
             }
             else if (ep.Company != null)
             {
-                EventRelations.Add(new RelationItemViewModel($"Роль: {ep.RoleDisplay}", ep.Company.Name,
-                    RelationTargetType.Company, ep.Company.Id, NotesDetails(ep.Notes)));
+                EventRelations.Add(new RelationItemViewModel(
+                    FormatStringRelationship(
+                        ep.Company.Name,
+                        ep.RoleDisplay,
+                        string.Empty, null,
+                        ep.Notes),
+                    ep.Company.Name,
+                    RelationTargetType.Company,
+                    ep.Company.Id));
             }
         }
 
