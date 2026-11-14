@@ -710,22 +710,25 @@ public partial class SearchViewModel : ObservableObject
             var company = cp.Company;
             if (company is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                company.Name, cp.CompanyRole,
                 PersonDisplayName(person), cp.PersonRole,
+                company.Name, cp.CompanyRole,
                 NotesDetails(cp.Notes),
-                RelationTargetType.Person, person.Id,
-                RelationTargetType.Company, company.Id));
+                RelationTargetType.Company, company.Id,
+                RelationTargetType.Person, person.Id));
         }
 
+        // Участия персоны в событиях.
         foreach (var ep in await _relationService.ListEventParticipantsAsync(person.Id))
         {
             var evt = ep.Event;
             if (evt is null) continue;
             PersonRelations.Add(new RelationItemViewModel(
-                evt.Title, ep.RoleDisplay,
-                string.Empty, null,
+                PersonDisplayName(person), ep.RoleDisplay,
+                evt.Title, null,
                 NotesDetails(ep.Notes),
-                RelationTargetType.Event, evt.Id));
+                RelationTargetType.Event, evt.Id,
+                RelationTargetType.Person, person.Id,
+                isEventParticipant: true));
         }
 
     }
@@ -773,15 +776,18 @@ public partial class SearchViewModel : ObservableObject
                 RelationTargetType.Company, company.Id));
         }
 
+        // Участия организации в событиях.
         foreach (var ep in await _relationService.ListParticipantsByCompanyAsync(company.Id))
         {
             var evt = ep.Event;
             if (evt is null) continue;
             CompanyRelations.Add(new RelationItemViewModel(
+                company.Name, null,
                 evt.Title, ep.RoleDisplay,
-                string.Empty, null,
                 NotesDetails(ep.Notes),
-                RelationTargetType.Event, evt.Id));
+                RelationTargetType.Event, evt.Id,
+                RelationTargetType.Company, company.Id,
+                isEventParticipant: true));
         }
 
     }
