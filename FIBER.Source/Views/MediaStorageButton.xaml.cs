@@ -18,10 +18,23 @@ public partial class MediaStorageButton : UserControl
             typeof(MediaStorageButton),
             new PropertyMetadata(null));
 
+    public static readonly DependencyProperty FileNameProperty =
+        DependencyProperty.Register(
+            nameof(FileName),
+            typeof(string),
+            typeof(MediaStorageButton),
+            new PropertyMetadata(string.Empty));
+
     public ICommand? Command
     {
         get => (ICommand?)GetValue(CommandProperty);
         set => SetValue(CommandProperty, value);
+    }
+
+    public string? FileName
+    {
+        get => (string?)GetValue(FileNameProperty);
+        set => SetValue(FileNameProperty, value);
     }
 
     public MediaStorageButton()

@@ -21,6 +21,7 @@ namespace FIBER.Source.Views.Search
     {
         private IMediaPlayerService _mediaPlayerService;
         private readonly DispatcherTimer _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        private DispatcherTimer? _debounceTimer;
         private bool _isUpdatingSlider;
 
         public static readonly DependencyProperty FilePathProperty =
@@ -135,7 +136,29 @@ namespace FIBER.Source.Views.Search
             if (_isUpdatingSlider || _mediaPlayerService == null)
                 return;
 
-            _mediaPlayerService.Position = VideoSlider.Value;
+            // Дебаунс Seek: отменяем предыдущий отложенный вызов и запускаем новый.
+            // Перемотка выполняется только после паузы в изменении позиции (300 мс),
+            // чтобы не спамить событиями MediaElement и не блокировать GUI при быстром скроллинге слайдера.
+            _debounceTimer?.Stop();
+            _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _debounceTimer.Tick += (_, _) =>
+            {
+                _debounceTimer?.Stop();
+                _debounceTimer = null;
+                if (_mediaPlayerService != null)
+                {
+                    _isUpdatingSlider = true;
+                    try
+                    {
+                        _mediaPlayerService.Position = VideoSlider.Value;
+                    }
+                    finally
+                    {
+                        _isUpdatingSlider = false;
+                    }
+                }
+            };
+            _debounceTimer.Start();
         }
 
         private void VideoMedia_MediaOpened(object sender, RoutedEventArgs e)

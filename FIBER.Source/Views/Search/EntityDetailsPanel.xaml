@@ -268,7 +268,7 @@
                                                 <DataTemplate>
                                                     <Border Style="{StaticResource AudioContainerStyle}">
                                                         <StackPanel Margin="25,10,25,0">
-                                                            <TextBlock Text="{Binding FileName, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            <TextBlock Text="{Binding FileName}"
            Foreground="White" FontFamily="Times New Roman"
            FontSize="14" FontWeight="Bold"
            TextTrimming="CharacterEllipsis"
