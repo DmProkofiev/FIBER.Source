@@ -18,7 +18,6 @@ using DragCompletedEventArgs = System.Windows.Controls.Primitives.DragCompletedE
 
 namespace FIBER.Source.Views
 {
-    /// Окно просмотра видео с зумом, перемещением, листаиванием и элементами управления.
     public partial class VideoZoomWindow : Window
     {
         private double _zoom = 1.0;
@@ -31,11 +30,8 @@ namespace FIBER.Source.Views
         private bool _isDragging;
         private Point _lastMousePosition;
 
-        // Флаг: пользователь тащит ползунок (чтобы таймер не перезаписывал Value)
-        private bool _isSliderDragging;
-
-        // Таймер обновления положения ползунка
-        private readonly DispatcherTimer _positionTimer;
+        private readonly MediaControlPlayback _playback;
+        private bool _closed;
 
         public VideoZoomWindow(List<MediaItemViewModel> videos, int startIndex)
         {
@@ -43,28 +39,25 @@ namespace FIBER.Source.Views
             _videos = videos;
             _currentIndex = startIndex;
 
-            // Создаём MediaElement-сервис для этого окна
             _mediaPlayerService = new MediaPlayerService(ZoomMediaElement);
 
-            _positionTimer = new DispatcherTimer
+            _playback = new MediaControlPlayback(ZoomMediaElement, PositionSlider, _mediaPlayerService);
+            ZoomMediaElement.MediaEnded += (_, _) =>
             {
-                Interval = TimeSpan.FromMilliseconds(200)
+                if (_currentIndex < _videos.Count - 1) Next_Click(this, new RoutedEventArgs());
             };
-            _positionTimer.Tick += PositionTimer_Tick;
 
             LoadCurrentVideo();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Фокус для обработки клавиш
             Keyboard.Focus(this);
         }
 
         private void Window_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Гарантированно освобождаем ресурсы MediaElement при выгрузке окна
-            _positionTimer?.Stop();
+            _playback.Unload();
             _mediaPlayerService?.Stop();
             if (ZoomMediaElement != null)
             {
@@ -75,10 +68,10 @@ namespace FIBER.Source.Views
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            _positionTimer.Stop();
+            _closed = true;
+            _playback.Unload();
             _mediaPlayerService.Stop();
 
-            // Освобождаем ресурсы MediaElement, чтобы не оставались висячие иконки в трее
             if (ZoomMediaElement != null)
             {
                 ZoomMediaElement.Source = null;
@@ -86,23 +79,23 @@ namespace FIBER.Source.Views
             }
         }
 
-        private void LoadCurrentVideo()
+        private async void LoadCurrentVideo()
         {
             if (_videos == null || _currentIndex < 0 || _currentIndex >= _videos.Count) return;
 
             var current = _videos[_currentIndex];
+            _playback.Stop();
+            await current.LoadPlaybackFileAsync();
+            if (_closed || !ReferenceEquals(current, _videos[_currentIndex])) return;
             TitleText.Text = $"{current.FileName} ({_currentIndex + 1} из {_videos.Count})";
 
-            // Сброс масштаба и позиции при переключении
             _zoom = 1.0;
             VideoScale.ScaleX = 1.0;
             VideoScale.ScaleY = 1.0;
             VideoTranslate.X = 0;
             VideoTranslate.Y = 0;
 
-            // Останавливаем предыдущее видео и загружаем новое
-            _mediaPlayerService.Stop();
-            _mediaPlayerService.FilePath = current.FilePath;
+            _playback.SetFile(current.FilePath);
 
             PrevButton.Visibility = _currentIndex > 0 ? Visibility.Visible : Visibility.Hidden;
             NextButton.Visibility = _currentIndex < _videos.Count - 1 ? Visibility.Visible : Visibility.Hidden;
@@ -110,10 +103,7 @@ namespace FIBER.Source.Views
             UpdatePlayButtonState();
         }
 
-        private void UpdatePlayButtonState()
-        {
-            // Все три кнопки всегда видны — пользователь сам выбирает действие
-        }
+        private void UpdatePlayButtonState(){}
 
         private void Prev_Click(object sender, RoutedEventArgs e)
         {
@@ -143,36 +133,30 @@ namespace FIBER.Source.Views
             else if (e.Key == Key.Space)
             {
                 if (_mediaPlayerService.IsPlaying)
-                    _mediaPlayerService.Pause();
+                    Pause_Click(sender, e);
                 else
-                    _mediaPlayerService.Play();
+                    Play_Click(sender, e);
                 UpdatePlayButtonState();
             }
         }
 
-        // ===== Управление воспроизведением =====
+        // Управление воспроизведением
 
         private void Play_Click(object sender, RoutedEventArgs e)
         {
-            _mediaPlayerService.Play();
-            _positionTimer.Start();
+            _playback.Play();
             UpdatePlayButtonState();
         }
 
         private void Pause_Click(object sender, RoutedEventArgs e)
         {
-            _mediaPlayerService.Pause();
-            _positionTimer.Stop();
+            _playback.Pause();
             UpdatePlayButtonState();
         }
 
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
-            _mediaPlayerService.Stop();
-            _positionTimer.Stop();
-            // Полный сброс воспроизведения
-            _mediaPlayerService.Position = 0;
-            PositionSlider.Value = 0;
+            _playback.Stop();
             UpdatePlayButtonState();
         }
 
@@ -233,54 +217,5 @@ namespace FIBER.Source.Views
             _isDragging = false;
         }
 
-        private void Media_MediaOpened(object sender, RoutedEventArgs e)
-        {
-            PositionSlider.Maximum = _mediaPlayerService.Duration;
-        }
-
-        // ===== Ползунок позиции =====
-
-        private void PositionSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (_isSliderDragging || _mediaPlayerService == null)
-                return;
-
-            if (PositionSlider.Maximum > 0)
-            {
-                _mediaPlayerService.Position = PositionSlider.Value;
-            }
-        }
-
-        private void PositionSlider_DragStarted(object sender, DragStartedEventArgs e)
-        {
-            _isSliderDragging = true;
-        }
-
-        private void PositionSlider_DragCompleted(object sender, DragCompletedEventArgs e)
-        {
-            _isSliderDragging = false;
-            if (_mediaPlayerService != null && PositionSlider.Maximum > 0)
-            {
-                _mediaPlayerService.Position = PositionSlider.Value;
-            }
-        }
-
-        private void PositionTimer_Tick(object? sender, EventArgs e)
-        {
-            if (_isSliderDragging || _mediaPlayerService == null)
-                return;
-
-            if (_mediaPlayerService.Duration > 0)
-            {
-                PositionSlider.Value = _mediaPlayerService.Position;
-            }
-
-            // Автоматический переход к следующему видео при завершении
-            if (_mediaPlayerService.Position >= _mediaPlayerService.Duration - 0.5 &&
-                _mediaPlayerService.Duration > 0)
-            {
-                Next_Click(this, new RoutedEventArgs());
-            }
-        }
     }
 }

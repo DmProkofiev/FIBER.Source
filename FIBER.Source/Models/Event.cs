@@ -13,16 +13,13 @@ public class Event
     public DateTime? Date { get; set; }
     public string? Description { get; set; }
     public string? Notes { get; set; }
-
-    // Организаторы (независимы, оба nullable)
+    // Организатор
     public int? OrganizerCompanyId { get; set; }
     public Company? OrganizerCompany { get; set; }
-
     public int? OrganizerPersonId { get; set; }
     public Person? OrganizerPerson { get; set; }
 
     public ICollection<EventParticipant> Participants { get; set; } = new List<EventParticipant>();
-    // Связи «событие ↔ событие»: исходящие (данное событие — источник) и обратные.
     public ICollection<EventEvent> EventEvents { get; set; } = new List<EventEvent>();
     public ICollection<EventEvent> ReverseEventEvents { get; set; } = new List<EventEvent>();
 

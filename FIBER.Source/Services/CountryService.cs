@@ -16,6 +16,7 @@ public class CountryService : ICountryService
 
     public async Task<List<Country>> GetActiveAsync()
     {
+        await FIBER.Source.Infrastructure.Helpers.BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.Countries

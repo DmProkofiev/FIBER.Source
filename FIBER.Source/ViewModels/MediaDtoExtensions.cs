@@ -4,16 +4,26 @@ using System;
 
 namespace FIBER.Source.ViewModels;
 
-/// <summary>Методы расширения для конвертации между MediaItemDto (сервисный слой) и MediaItemViewModel (слой представления).</summary>
+// Методы расширения для конвертации между MediaItemDto (сервисный слой) и MediaItemViewModel (слой представления)
 public static class MediaDtoExtensions
 {
-    /// <summary>Конвертирует DTO в VM. Для Temp-файлов (FilePath не пуст) создаёт VM из пути к файлу;
-    /// для медиа из БД (MediaId задан) — ленивую загрузку через IMediaService.</summary>
+    /// Закрывает ресурсы UI до асинхронного удаления снимка временных файлов
+    public static async Task ClearTempFilesAsync(
+        this System.Collections.ObjectModel.ObservableCollection<MediaItemViewModel> items, IMediaService service)
+    {
+        var files = items.Select(item => item.ToDto()).ToArray();
+        foreach (var item in items) item.Dispose();
+        items.Clear();
+        await service.DeleteTempFilesAsync(files);
+    }
+
+    // Конвертирует DTO в VM
+    // для медиа из БД (MediaId задан) — ленивую загрузку через IMediaService
     public static MediaItemViewModel ToViewModel(this MediaItemDto dto, IMediaService? mediaService = null)
     {
         if (!string.IsNullOrEmpty(dto.FilePath))
         {
-            var vm = new MediaItemViewModel(dto.FilePath, dto.OriginalFileName);
+            var vm = new MediaItemViewModel(dto.FilePath, dto.OriginalFileName) { DeleteOnDispose = true };
             if (dto.MediaId is int id) vm.MediaId = id;
             if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
             return vm;
@@ -34,7 +44,6 @@ public static class MediaDtoExtensions
         };
     }
 
-    /// <summary>Конвертирует VM в DTO для передачи в сервисный слой.</summary>
     public static MediaItemDto ToDto(this MediaItemViewModel vm)
     {
         return new MediaItemDto(

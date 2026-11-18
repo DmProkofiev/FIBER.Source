@@ -22,59 +22,26 @@ public sealed class MediaSelectionDialogService : IMediaSelectionDialogService
         _mediaService = mediaService;
     }
 
-    public Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemDto> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
+    public async Task<IReadOnlyList<int>> ShowSelectMediaAsync(IEnumerable<MediaItemDto> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
     {
-        var tcs = new TaskCompletionSource<IReadOnlyList<int>>();
         var app = Application.Current;
-        var dispatcher = app?.Dispatcher;
-        if (dispatcher is null)
+        var dispatcher = app?.Dispatcher
+            ?? throw new InvalidOperationException("Application.Current.Dispatcher is not available");
+        var items = availableMedia.ToArray();
+        return await dispatcher.InvokeAsync<IReadOnlyList<int>>(() =>
         {
-            tcs.SetException(new InvalidOperationException("Application.Current.Dispatcher is not available"));
-            return tcs.Task;
-        }
-
-        var owner = app!.MainWindow;
-
-        // Конвертируем DTO в VM для отображения в окне выбора медиа.
-        // Temp-файлы (FilePath не пуст) — создаём VM из пути к файлу.
-        // Медиа из БД (MediaId задан, FilePath пуст) — ленивая загрузка через IMediaService.
-        var vms = availableMedia.Select(dto =>
-        {
-            MediaItemViewModel vm;
-            if (!string.IsNullOrEmpty(dto.FilePath))
-            {
-                vm = new MediaItemViewModel(dto.FilePath, dto.OriginalFileName);
-                if (dto.MediaId is int id) vm.MediaId = id;
-                if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
-            }
-            else if (dto.MediaId is int mediaId)
-            {
-                vm = new MediaItemViewModel(_mediaService, mediaId, dto.OriginalFileName);
-                if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
-            }
-            else
-            {
-                vm = new MediaItemViewModel(string.Empty, dto.OriginalFileName);
-                if (dto.MediaId is int id2) vm.MediaId = id2;
-                if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
-            }
-            return vm;
-        }).ToList();
-
-        dispatcher.BeginInvoke(() =>
-        {
+            var vms = items.Select(dto => dto.ToViewModel(_mediaService)).ToList();
             try
             {
                 var dialog = new MediaSelectionWindow("Добавить медиафайл", vms, alreadyAddedMediaIds)
                 {
-                    Owner = owner
+                    Owner = app!.MainWindow
                 };
-                tcs.SetResult(dialog.ShowDialog() == true
+                return dialog.ShowDialog() == true
                     ? dialog.SelectedMediaIds
-                    : Array.Empty<int>());
+                    : Array.Empty<int>();
             }
-            catch (Exception ex) { tcs.SetException(ex); }
+            finally { foreach (var vm in vms) vm.Dispose(); }
         });
-        return tcs.Task;
     }
 }

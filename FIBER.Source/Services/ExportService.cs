@@ -8,12 +8,14 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Models.Helpers;
 using FIBER.Source.Models.Joins;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
 namespace FIBER.Source.Services;
 
@@ -66,6 +68,7 @@ public sealed class ExportService : IExportService
         int personId, string parentFolder, ExportFormat format,
         IReadOnlyList<int>? selectedMediaIds = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _factory.CreateDbContextAsync();
         var person = await context.People.Include(p => p.Country).Include(p => p.Aliases)
             .AsNoTracking().FirstOrDefaultAsync(p => p.Id == personId)
@@ -95,6 +98,7 @@ public sealed class ExportService : IExportService
         int companyId, string parentFolder, ExportFormat format,
         IReadOnlyList<int>? selectedMediaIds = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _factory.CreateDbContextAsync();
         var company = await context.Companies.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == companyId)
@@ -123,6 +127,7 @@ public sealed class ExportService : IExportService
         int eventId, string parentFolder, ExportFormat format,
         IReadOnlyList<int>? selectedMediaIds = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _factory.CreateDbContextAsync();
         var ev = await context.Events
             .Include(e => e.OrganizerCompany)
@@ -144,6 +149,9 @@ public sealed class ExportService : IExportService
 
         return targetFolder;
     }
+
+    private static StreamWriter CreateTextWriter(string path) => new(new FileStream(path,
+        FileMode.Create, FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous), Encoding.UTF8);
 
     private static string CreateUniqueFolder(string parentFolder, string baseName)
     {
@@ -180,21 +188,21 @@ public sealed class ExportService : IExportService
             .ToListAsync();
 
         int idx = 0;
+        await context.Database.OpenConnectionAsync();
+        var connection = (SqliteConnection)context.Database.GetDbConnection();
         foreach (var meta in metas)
         {
             idx++;
-            var data = await context.MediaAttachments
-                .Where(m => m.Id == meta.Id)
-                .Select(m => m.Data)
-                .FirstOrDefaultAsync();
-            if (data is null || data.Length == 0) continue;
 
             var ext = Path.GetExtension(meta.OriginalFileName);
             if (string.IsNullOrEmpty(ext)) ext = ".bin";
             var safeBase = SanitizeFileName(Path.GetFileNameWithoutExtension(meta.OriginalFileName));
             if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "media";
             var diskName = $"{idx:000}_{safeBase}{ext}";
-            await File.WriteAllBytesAsync(Path.Combine(targetFolder, diskName), data);
+            await using var source = new SqliteBlob(connection, "MediaAttachments", "Data", meta.Id, readOnly: true);
+            await using var destination = new FileStream(Path.Combine(targetFolder, diskName), FileMode.CreateNew,
+                FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous);
+            await source.CopyToAsync(destination);
         }
     }
 
@@ -258,7 +266,7 @@ public sealed class ExportService : IExportService
         List<EventParticipant> participations,
         List<Event> organizedEvents, List<PersonRelationship> relationships)
     {
-        await using var w = new StreamWriter(path, false, Encoding.UTF8);
+        await using var w = CreateTextWriter(path);
         await w.WriteLineAsync($"=== Личность: {person.FullName ?? $"Аноним #{person.Id}"} ===");
         await w.WriteLineAsync();
         await w.WriteLineAsync($"ID: {person.Id}");
@@ -353,7 +361,7 @@ public sealed class ExportService : IExportService
         List<Event> organizedEvents,
         List<EventParticipant> participations, List<CompanyInteraction> interactions)
     {
-        await using var w = new StreamWriter(path, false, Encoding.UTF8);
+        await using var w = CreateTextWriter(path);
         await w.WriteLineAsync($"=== Организация: {company.Name} ===");
         await w.WriteLineAsync();
         await w.WriteLineAsync($"ID: {company.Id}");
@@ -412,7 +420,7 @@ public sealed class ExportService : IExportService
 
     private static async Task BuildEventTxtAsync(string path, Event ev)
     {
-        await using var w = new StreamWriter(path, false, Encoding.UTF8);
+        await using var w = CreateTextWriter(path);
         await w.WriteLineAsync($"=== Событие: {ev.Title} ===");
         await w.WriteLineAsync();
         await w.WriteLineAsync($"ID: {ev.Id}");

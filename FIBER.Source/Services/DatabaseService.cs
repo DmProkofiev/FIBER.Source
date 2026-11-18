@@ -1,166 +1,141 @@
-﻿using System;
 using System.IO;
-using System.Threading.Tasks;
+using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using Microsoft.Data.Sqlite;
 
 namespace FIBER.Source.Services;
 
-/// <summary>
-/// Сервис управления единым зашифрованным файлом fiber.db (SQLCipher).
-/// </summary>
+/// <summary>Управление ключом и согласованными снимками SQLCipher.</summary>
 public sealed class DatabaseService : IDatabaseService
 {
-    /// <summary>Текущий мастер-пароль сессии.</summary>
     private string _password = string.Empty;
+    private readonly DatabaseAccessCoordinator _access;
 
-    /// <summary>Путь к файлу БД.</summary>
-    public string DatabasePath { get; }
-
-    /// <summary>Текущий мастер-пароль (только для внутренних сервисов).</summary>
-    public string CurrentPassword => _password;
-
-    /// <summary>Фиксирует путь к файлу fiber.db в каталоге приложения.</summary>
-    public DatabaseService()
+    public DatabaseService(DatabaseAccessCoordinator access, string? databasePath = null)
     {
-        DatabasePath = Path.Combine(AppContext.BaseDirectory, "fiber.db");
+        _access = access;
+        DatabasePath = databasePath ?? Path.Combine(AppContext.BaseDirectory, "fiber.db");
     }
 
-    /// <summary>Проверяет существование файла БД.</summary>
-    public bool DatabaseExists() => File.Exists(DatabasePath);
+    public string DatabasePath { get; }
+    public string CurrentPassword => Volatile.Read(ref _password);
 
-    /// <summary>Пытается открыть БД с паролем; возвращает false при неверном пароле.
-    /// Весь синхронный SQLite-вызов выполняется на пуле потоков (Task.Run), чтобы не блокировать UI.</summary>
+    public Task<bool> DatabaseExistsAsync() => Task.Run(() => File.Exists(DatabasePath));
+
     public async Task<bool> TryUnlockAsync(string password)
     {
         if (string.IsNullOrEmpty(password)) return false;
-        if (!DatabaseExists()) return false;
-
-        return await Task.Run(() =>
+        await BackgroundWork.SwitchToThreadPool();
+        using var lease = await _access.AcquireAsync(exclusive: true);
+        if (!File.Exists(DatabasePath)) return false;
+        try
         {
-            try
-            {
-                using var conn = new SqliteConnection(BuildConnectionString(password));
-                conn.Open();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT count(*) FROM sqlite_master;";
-                cmd.ExecuteScalar();
-                _password = password;
-                return true;
-            }
-            catch (SqliteException)
-            {
-                return false;
-            }
-        });
+            using var connection = Open(password);
+            Verify(connection);
+            Volatile.Write(ref _password, password);
+            return true;
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 26)
+        {
+            return false;
+        }
     }
 
-    /// <summary>Создаёт новую БД с указанным паролем.</summary>
     public async Task CreateDatabaseAsync(string password)
     {
-        if (string.IsNullOrEmpty(password))
-            throw new ArgumentException("Пароль не может быть пустым", nameof(password));
-
-        if (DatabaseExists())
-            throw new InvalidOperationException("Файл БД уже существует");
-
-        await Task.Run(() =>
-        {
-            using var conn = new SqliteConnection(BuildConnectionString(password));
-            conn.Open();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;";
-            cmd.ExecuteNonQuery();
-
-            _password = password;
-        });
+        ArgumentException.ThrowIfNullOrWhiteSpace(password);
+        await BackgroundWork.SwitchToThreadPool();
+        using var lease = await _access.AcquireAsync(exclusive: true);
+        if (File.Exists(DatabasePath)) throw new InvalidOperationException("Файл БД уже существует");
+        using var connection = Open(password, SqliteOpenMode.ReadWriteCreate);
+        Execute(connection, "PRAGMA journal_mode=WAL;");
+        Volatile.Write(ref _password, password);
     }
 
-    /// <summary>Смена мастер-пароля через PRAGMA rekey.</summary>
     public async Task ChangePasswordAsync(string oldPassword, string newPassword)
     {
-        if (string.IsNullOrEmpty(newPassword))
-            throw new ArgumentException("Новый пароль не может быть пустым", nameof(newPassword));
-
-        if (!await TryUnlockAsync(oldPassword))
-            throw new InvalidOperationException("Неверный текущий пароль");
-
-        await Task.Run(() =>
+        ArgumentException.ThrowIfNullOrWhiteSpace(newPassword);
+        await BackgroundWork.SwitchToThreadPool();
+        using var lease = await _access.AcquireAsync(exclusive: true);
+        // Освобождаем все старые ключи из пула до rekey. Рабочих контекстов уже нет.
+        SqliteConnection.ClearAllPools();
+        try
         {
-            using var conn = new SqliteConnection(BuildConnectionString(oldPassword));
-            conn.Open();
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"PRAGMA rekey = '{EscapeSql(newPassword)}';";
-            cmd.ExecuteNonQuery();
-
-            _password = newPassword;
-        });
+            using var connection = Open(oldPassword);
+            Verify(connection);
+            Execute(connection, $"PRAGMA rekey = '{Escape(newPassword)}';");
+            Volatile.Write(ref _password, newPassword);
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 26)
+        {
+            throw new InvalidOperationException("Неверный текущий пароль", ex);
+        }
+        using var verification = Open(newPassword);
+        Verify(verification);
     }
 
-    /// <summary>Экспорт файла БД в выбранную папку.</summary>
     public async Task ExportAsync(string targetFilePath, bool encrypted)
     {
-        if (string.IsNullOrWhiteSpace(targetFilePath))
-            throw new ArgumentException("Путь экспорта не задан", nameof(targetFilePath));
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetFilePath);
+        await BackgroundWork.SwitchToThreadPool();
+        var target = Path.GetFullPath(targetFilePath);
+        if (string.Equals(target, Path.GetFullPath(DatabasePath), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Нельзя экспортировать базу поверх рабочего файла.");
 
-        var dir = Path.GetDirectoryName(targetFilePath);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-        await Task.Run(() =>
+        using var lease = await _access.AcquireAsync(exclusive: true);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        var staging = target + $".{Guid.NewGuid():N}.tmp";
+        try
         {
-            if (encrypted)
+            // ATTACH наследует флаги основного ReadWrite-соединения (без CREATE).
+            await File.WriteAllBytesAsync(staging, []);
+            // sqlcipher_export создаёт целостный снимок с учётом WAL и умеет менять ключ.
+            using (var connection = Open(CurrentPassword))
             {
-                // WAL-журнал может содержать ещё не перенесённые в основной файл данные,
-                // поэтому перед копированием принудительно выполняем checkpoint.
-                using var conn = new SqliteConnection(BuildConnectionString(_password));
-                conn.Open();
-                using var checkpoint = conn.CreateCommand();
-                checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE);";
-                checkpoint.ExecuteNonQuery();
-
-                File.Copy(DatabasePath, targetFilePath, true);
+                using var attach = connection.CreateCommand();
+                attach.CommandText = "ATTACH DATABASE $path AS backup KEY $key;";
+                attach.Parameters.AddWithValue("$path", staging);
+                attach.Parameters.AddWithValue("$key", encrypted ? CurrentPassword : string.Empty);
+                attach.ExecuteNonQuery();
+                try { Execute(connection, "SELECT sqlcipher_export('backup');"); }
+                finally { Execute(connection, "DETACH DATABASE backup;"); }
             }
-            else
-            {
-                using var conn = new SqliteConnection(BuildConnectionString(_password));
-                conn.Open();
-
-                using (var attach = conn.CreateCommand())
-                {
-                    attach.CommandText = $"ATTACH DATABASE '{EscapeSql(targetFilePath)}' AS plaintext KEY '';";
-                    attach.ExecuteNonQuery();
-                }
-
-                using (var export = conn.CreateCommand())
-                {
-                    export.CommandText = "SELECT sqlcipher_export('plaintext');";
-                    export.ExecuteNonQuery();
-                }
-
-                using (var detach = conn.CreateCommand())
-                {
-                    detach.CommandText = "DETACH DATABASE plaintext;";
-                    detach.ExecuteNonQuery();
-                }
-            }
-        });
+            File.Move(staging, target, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(staging)) File.Delete(staging);
+        }
     }
 
-    /// <summary>Строит строку подключения с паролем.</summary>
-    private string BuildConnectionString(string password)
+    private SqliteConnection Open(string password, SqliteOpenMode mode = SqliteOpenMode.ReadWrite)
     {
-        var csb = new SqliteConnectionStringBuilder
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
-            DataSource = DatabasePath,
-            Password = password,
-            Mode = SqliteOpenMode.ReadWriteCreate,
-            Cache = SqliteCacheMode.Private
-        };
-        return csb.ToString();
+            DataSource = DatabasePath, Password = password, Mode = mode,
+            Cache = SqliteCacheMode.Private, Pooling = false, ForeignKeys = true
+        }.ToString());
+        try
+        {
+            connection.Open();
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 
-    /// <summary>Экранирует одиночные кавычки в SQL-строке.</summary>
-    private static string EscapeSql(string s) => s.Replace("'", "''");
+    private static void Verify(SqliteConnection connection) => Execute(connection, "SELECT count(*) FROM sqlite_master;");
+
+    private static void Execute(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteScalar();
+    }
+
+    private static string Escape(string value) => value.Replace("'", "''");
 }

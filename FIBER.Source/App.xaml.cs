@@ -1,6 +1,7 @@
 using FIBER.Source.Helpers;
 using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Infrastructure.Hosting;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services;
@@ -22,10 +23,7 @@ using Application = System.Windows.Application;
 using SQLitePCL;
 
 namespace FIBER.Source;
-
-/// <summary>
 /// Точка входа приложения: инициализация, аутентификация, DI-хост.
-/// </summary>
 public partial class App : Application
 {
     private IHost? _host;
@@ -61,7 +59,8 @@ public partial class App : Application
             return;
         }
 
-        var databaseService = new DatabaseService();
+        var databaseAccess = new DatabaseAccessCoordinator();
+        var databaseService = new DatabaseService(databaseAccess);
         _databaseService = databaseService;
 
         var authWindow = new IdentificationWindow(_databaseService);
@@ -79,11 +78,8 @@ public partial class App : Application
         }
 
         var builder = Host.CreateApplicationBuilder();
-
-        // Регистрируем созданный экземпляр как singleton в DI.
         builder.Services.AddSingleton<IDatabaseService>(databaseService);
-
-        // VM создаются DI-контейнером вместе со всеми зависимостями (сервисы, DbContextFactory).
+        builder.Services.AddSingleton(databaseAccess);
         builder.Services.AddSingleton<MenuViewModel>();
         builder.Services.AddSingleton<CreatePersonViewModel>();
         builder.Services.AddSingleton<CreateCompanyViewModel>();
@@ -94,20 +90,7 @@ public partial class App : Application
         builder.Services.AddSingleton<UpdateEventViewModel>();
         builder.Services.AddSingleton<SettingsViewModel>();
         builder.Services.AddSingleton<MainViewModel>();
-
-        builder.Services.AddDbContextFactory<FiberSourceDbContext>((sp, options) =>
-        {
-            var db = sp.GetRequiredService<IDatabaseService>();
-            var csb = new SqliteConnectionStringBuilder
-            {
-                DataSource = db.DatabasePath,
-                Password = db.CurrentPassword,
-                Mode = SqliteOpenMode.ReadWriteCreate,
-                Cache = SqliteCacheMode.Private
-            };
-            options.UseSqlite(csb.ToString());
-        });
-
+        builder.Services.AddSingleton<IDbContextFactory<FiberSourceDbContext>, RuntimeDbContextFactory>();
         builder.Services.AddSingleton<ISearchStrategy, Services.Search.SearchByIDStrategy>();
         builder.Services.AddSingleton<ISearchStrategy, Services.Search.SearchByFullNameStrategy>();
         builder.Services.AddSingleton<ISearchStrategy, Services.Search.SearchByFullNameBirthdateStrategy>();
@@ -115,12 +98,10 @@ public partial class App : Application
         builder.Services.AddSingleton<ISearchStrategy, Services.Search.SearchByPhoneStrategy>();
         builder.Services.AddSingleton<ISearchStrategy, Services.Search.SearchByAliasStrategy>();
         builder.Services.AddSingleton<ISearchStrategyFactory, Services.Search.SearchStrategyFactory>();
-
         builder.Services.AddSingleton<IComparisonStrategy, Services.Comparison.ExactMatchStrategy>();
         builder.Services.AddSingleton<IComparisonStrategy, Services.Comparison.LevenshteinStrategy>();
         builder.Services.AddSingleton<IComparisonStrategy, Services.Comparison.MetadataStrategy>();
         builder.Services.AddSingleton<IComparisonStrategyFactory, Services.Comparison.ComparisonStrategyFactory>();
-
         builder.Services.AddSingleton<IAuditLogService, AuditLogService>();
         builder.Services.AddSingleton<IMediaService, MediaService>();
         builder.Services.AddSingleton<IPersonService, PersonService>();
@@ -131,31 +112,24 @@ public partial class App : Application
         builder.Services.AddSingleton<IDuplicateFinderService, DuplicateFinderService>();
         builder.Services.AddSingleton<IExportService, ExportService>();
         builder.Services.AddSingleton<ISeedDataService, SeedDataService>();
-
+        builder.Services.AddSingleton<ISettingsDataService, SettingsDataService>();
         builder.Services.AddSingleton<ITrayService, TrayService>();
-
         builder.Services.AddSingleton<INotificationService, NotificationService>();
-
         builder.Services.AddSingleton<IMediaSelectionDialogService, MediaSelectionDialogService>();
         builder.Services.AddSingleton<IMediaManagementService, MediaManagementService>();
-
         builder.Services.AddHostedService<StorageMaintenanceService>();
 
         try
         {
             _host = builder.Build();
-            await _host.StartAsync();
-
-            using (var scope = _host.Services.CreateScope())
+            await Task.Run(async () =>
             {
+                using var scope = _host.Services.CreateScope();
                 var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<FiberSourceDbContext>>();
                 await using var context = await factory.CreateDbContextAsync();
                 await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
                 await context.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys=ON;");
                 await context.Database.MigrateAsync();
-
-                // Разовая очистка псевдонимов, ранее создававшихся автоматически из ФИО
-                // идентифицированной личности (LegalName через UI не добавляется).
                 var autoAliases = await context.PersonAliases
                     .Where(a => a.Type == AliasType.LegalName &&
                                 context.People.Any(p => p.Id == a.PersonId && p.Status == IdentityStatus.Identified))
@@ -166,16 +140,13 @@ public partial class App : Application
                     context.PersonAliases.RemoveRange(autoAliases);
                     await context.SaveChangesAsync();
                 }
-            }
+            });
 
+            await _host.StartAsync();
             var auditLog = _host.Services.GetRequiredService<IAuditLogService>();
             await auditLog.LogAsync("Auth.Startup", $"Version={typeof(App).Assembly.GetName().Version}");
-
-            // Предзагружаем все медиа в кэш при старте (один раз, в фоне),
-            // чтобы при нажатии «Добавить» не было зависания.
             var mediaService = _host.Services.GetRequiredService<IMediaService>();
             _ = mediaService.PreloadAllMediaAsync();
-
             var mainWindow = new MainWindow
             {
                 DataContext = _host.Services.GetRequiredService<MainViewModel>()
@@ -184,7 +155,7 @@ public partial class App : Application
             mainWindow.Show();
 
             _trayService = _host.Services.GetRequiredService<ITrayService>();
-            _trayService.Initialize(onOpen: RestoreWindow, onExit: ExitApplication);
+            await _trayService.InitializeAsync(onOpen: RestoreWindow, onExit: ExitApplication);
             mainWindow.Closing += MainWindow_Closing;
 
             var createVm = _host.Services.GetRequiredService<CreatePersonViewModel>();
@@ -196,31 +167,28 @@ public partial class App : Application
             Notification.Show("Ошибка запуска",
                 $"Критическая ошибка при запуске: {ex.Message}",
                 NotificationType.Error);
-            CleanupAndShutdown();
+            await CleanupAndShutdownAsync();
         }
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        CleanupHost();
-
-        try
-        {
-            var tempDir = Path.Combine(Path.GetTempPath(), "FIBER");
-            if (Directory.Exists(tempDir))
-                Directory.Delete(tempDir, true);
-        }
-        catch { }
-
-        SqliteConnection.ClearAllPools();
+        _trayService?.Dispose();
         CleanupMutex();
         base.OnExit(e);
     }
 
-    private void CleanupAndShutdown()
+    private async Task CleanupAndShutdownAsync()
     {
         _isExiting = true;
-        CleanupHost();
+        MainWindow?.Close();
+        _trayService?.Dispose();
+        _trayService = null;
+        var host = _host;
+        _host = null;
+        if (host is not null) await Task.Run(() => CleanupHostAsync(host));
+        await Task.Run(SqliteConnection.ClearAllPools);
+        await TemporaryFiles.CleanupAsync(includeCurrentSession: true);
         Shutdown();
     }
 
@@ -230,7 +198,7 @@ public partial class App : Application
         {
             var audit = _host?.Services.GetService<IAuditLogService>();
             if (audit != null) _ = audit.LogAsync("App.UnhandledException",
-                $"{e.Exception.GetType().Name}: {e.Exception.Message}");
+                e.Exception.ToString());
         }
         catch { }
         Notification.Show("Ошибка",
@@ -255,32 +223,17 @@ public partial class App : Application
         MainWindow.Activate();
     }
 
-    private void ExitApplication()
+    private async void ExitApplication()
     {
         if (_isExiting) return;
         _isExiting = true;
-        CleanupHost();
-        Shutdown();
+        await CleanupAndShutdownAsync();
     }
 
     private static async Task CleanupHostAsync(IHost host)
     {
         try { await host.StopAsync(); } catch { }
         try { host.Dispose(); } catch { }
-    }
-
-    private void CleanupHost()
-    {
-        // NotifyIcon должен быть удалён в UI-потоке до освобождения DI-контейнера.
-        _trayService?.Dispose();
-        _trayService = null;
-
-        var host = _host;
-        _host = null;
-        if (host is null) return;
-
-        // Передаём конкретный экземпляр: повторный вызов очистки не остановит его второй раз.
-        _ = Task.Run(() => CleanupHostAsync(host));
     }
 
     private void CleanupMutex()

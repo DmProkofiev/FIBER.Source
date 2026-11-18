@@ -26,7 +26,6 @@ public partial class CreatePersonView : UserControl
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        // Можно добавить визуальную реакцию на уход курсора
     }
 
     private async void DropZone_Drop(object sender, DragEventArgs e)

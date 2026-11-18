@@ -29,7 +29,7 @@ public partial class UpdatePersonView : UserControl
 
     private void DropZone_DragLeave(object sender, DragEventArgs e)
     {
-        // Опционально: визуальная реакция на уход курсора
+
     }
 
     private async void DropZone_Drop(object sender, DragEventArgs e)

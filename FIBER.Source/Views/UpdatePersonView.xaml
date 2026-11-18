@@ -339,7 +339,7 @@
                     </Expander>
                     
 
-                    <!-- ================= СВЯЗИ С ОРГАНИЗАЦИЯМИ ================= -->
+                    <!-- СВЯЗИ С ОРГАНИЗАЦИЯМИ -->
                     <Expander Header="Связи с организациями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -421,7 +421,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С СОБЫТИЯМИ ================= -->
+                    <!-- СВЯЗИ С СОБЫТИЯМИ -->
                     <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -514,8 +514,6 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-
-                                                    <!-- Превью изображения -->
                                                     <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
                                                             ClipToBounds="True">
                                                         <Grid>
@@ -591,7 +589,6 @@
                             </TabItem>
 
                             <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
-                                <!-- Список видео (как в Settings) -->
                                 <ListBox ItemsSource="{Binding ExistingVideos}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -632,7 +629,6 @@
                             </TabItem>
 
                             <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
-                                <!-- Список аудио (как в Settings) -->
                                 <ListBox ItemsSource="{Binding ExistingAudio}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"

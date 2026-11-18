@@ -13,24 +13,27 @@ public class TrayService : ITrayService
     private bool _isBalloonShown;
     private bool _isDisposed;
 
-    public void Initialize(Action onOpen, Action onExit)
+    public async Task InitializeAsync(Action onOpen, Action onExit)
     {
         // Защита от дублирования: если иконка уже создана или сервис disposal-лен — не создаём повторно.
         if (_notifyIcon != null || _isDisposed) return;
 
-        _notifyIcon = new Forms.NotifyIcon();
-
         // Загружаем иконку из ресурсов
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "FIBERICO.ico");
-        if (File.Exists(iconPath))
+        Drawing.Icon? icon = null;
+        try
         {
-            _icon = new Drawing.Icon(iconPath);
-            _notifyIcon.Icon = _icon;
+            var bytes = await File.ReadAllBytesAsync(iconPath);
+            using var stream = new MemoryStream(bytes);
+            icon = new Drawing.Icon(stream);
         }
-        else
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _notifyIcon.Icon = Drawing.SystemIcons.Application;
+            System.Diagnostics.Trace.TraceWarning("Не удалось загрузить иконку трея: {0}", ex);
         }
+        if (_isDisposed) { icon?.Dispose(); return; }
+        _icon = icon;
+        _notifyIcon = new Forms.NotifyIcon { Icon = icon ?? Drawing.SystemIcons.Application };
 
         _notifyIcon.Text = "FIBER Source";
 

@@ -7,21 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FIBER.Source.Views;
 
-/// <summary>Диалог экспорта объекта: формат, папка, выбор медиа.</summary>
+//Диалог экспорта объекта: формат, папка, выбор медиа
 public partial class ExportDialogWindow : Window
 {
     private readonly ExportDialogViewModel _vm;
-
-    /// <summary>Выбранный формат.</summary>
     public ExportFormat SelectedFormat { get; private set; }
-
-    /// <summary>Id выбранных медиа (пусто — без медиа, null не бывает).</summary>
     public IReadOnlyList<int> SelectedMediaIds { get; private set; } = Array.Empty<int>();
-
-    /// <summary>Папка назначения.</summary>
     public string TargetFolder { get; private set; } = string.Empty;
-
-    /// <summary>Создаёт диалог.</summary>
     public ExportDialogWindow(string objectTitle, IEnumerable<MediaItemViewModel> availableMedia)
     {
         InitializeComponent();

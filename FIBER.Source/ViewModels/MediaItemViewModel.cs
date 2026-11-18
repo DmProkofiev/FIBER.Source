@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Interfaces;
+using FIBER.Source.Infrastructure.Helpers;
+using FIBER.Source.MediaPlayer;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -9,99 +11,58 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace FIBER.Source.ViewModels;
-
-/// <summary>
-/// VM медиа-элемента. Изображения загружаются сразу в память, для видео MediaPlayer
-/// создаётся неторопливо (для первого кадра), для аудио — откладывается до Play.
-/// </summary>
+/// VM медиа-элемента. Декодирование изображений и извлечение видео/аудио
 public partial class MediaItemViewModel : ObservableObject, IDisposable
 {
-    /// <summary>Плеер WPF для видео/аудио.</summary>
+    //Плеер WPF для видео/аудио
     private System.Windows.Media.MediaPlayer? _player;
 
-    /// <summary>Таймер обновления позиции.</summary>
+    // Таймер обновления позиции
     private DispatcherTimer? _timer;
 
-    /// <summary>Таймер дебаунса для Seek при изменении слайдера.</summary>
-    private DispatcherTimer? _debounceTimer;
-
-    /// <summary>Признак готовности плеера (MediaOpened).</summary>
+    // Таймер дебаунса для Seek при изменении слайдера
+    private SeekDebouncer? _seek;
+    private bool _updatingPosition;
+    private bool _disposed;
+    private Task? _imageLoadTask;
+    private Task? _playbackLoadTask;
     private bool _playerReady;
-
-    /// <summary>Признак отложенного воспроизведения после открытия.</summary>
     private bool _pendingPlay;
-
-    /// <summary>Путь к файлу на диске (пусто для изображений из памяти).</summary>
-    public string FilePath { get; }
-
-    /// <summary>Отображаемое имя файла.</summary>
+    public string FilePath
+    {
+        get => _filePath;
+        private set => SetProperty(ref _filePath, value);
+    }
+    private string _filePath = string.Empty;
     public string FileName { get; }
-
-    /// <summary>Признак изображения.</summary>
     public bool IsImage { get; }
-
-    /// <summary>Признак видео.</summary>
     public bool IsVideo { get; }
-
-    /// <summary>Признак аудио.</summary>
     public bool IsAudio { get; }
-
-    /// <summary>Источник изображения в памяти (загружается по требованию, не блокирует GUI).</summary>
     public ImageSource? ImageSource
     {
         get => _imageSource;
         private set => SetProperty(ref _imageSource, value);
     }
     private ImageSource? _imageSource;
-
-    /// <summary>Идёт ли сейчас загрузка изображения (для индикатора в UI).</summary>
     public bool IsImageLoading
     {
         get => _isImageLoading;
         private set => SetProperty(ref _isImageLoading, value);
     }
     private bool _isImageLoading;
-
-    /// <summary>Сырые байты изображения (для отложенной декодировки).</summary>
     private byte[]? _imageData;
-
-    /// <summary>Сервис медиа для ленивой загрузки BLOB из БД по требованию.</summary>
     private readonly IMediaService? _mediaService;
-
-    /// <summary>Идентификатор вложения для ленивой загрузки из БД.</summary>
     private readonly int? _mediaIdForLazyLoad;
-
-    /// <summary>Плеер для видео/аудио (null до инициализации).</summary>
     public System.Windows.Media.MediaPlayer? Player => _player;
-
-    /// <summary>Идентификатор MediaAttachment.</summary>
     public int? MediaId { get; set; }
-
-    /// <summary>Удалять FilePath при Dispose.</summary>
     public bool DeleteOnDispose { get; set; }
-
-    /// <summary>SHA-256 hex содержимого файла — для защиты от дублей при перетаскивании.</summary>
     public string? ContentHash { get; set; }
-
-    /// <summary>Признак неудачной загрузки.</summary>
     [ObservableProperty] private bool _loadFailed;
-
-    /// <summary>Признак воспроизведения.</summary>
     [ObservableProperty] private bool _isPlaying;
-
-    /// <summary>Позиция в процентах.</summary>
     [ObservableProperty] private double _position;
-
-    /// <summary>Текущее время.</summary>
     [ObservableProperty] private string _currentTime = "0:00";
-
-    /// <summary>Общая длительность.</summary>
     [ObservableProperty] private string _totalTime = "0:00";
-
-    /// <summary>Флаг перетаскивания слайдера.</summary>
     public bool IsDragging { get; set; }
-
-    /// <summary>Конструктор для файла на диске.</summary>
     public MediaItemViewModel(string filePath, string originalName)
     {
         FilePath = filePath;
@@ -114,29 +75,11 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         if (IsImage)
         {
-            try
-            {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                ImageSource = bitmap;
-            }
-            catch { LoadFailed = true; }
+            _ = LoadImageAsync();
         }
-        else if (IsVideo)
-        {
-            // Эагерная инициализация — нужна для отрисовки первого кадра.
-            // IsMuted=true предотвращает утечку звука до нажатия Play.
-            InitializePlayer();
-        }
-        // Audio: полностью отложено до Play — это устраняет баг с миллисекундным звуком.
     }
 
-    /// <summary>Конструктор для изображения из байтов.</summary>
-    /// <remarks>Изображение не декодируется автоматически — используйте <see cref="LoadImageAsync"/></remarks>
+    // Конструктор для изображения из байтов
     public MediaItemViewModel(byte[] data, string originalName)
     {
         FilePath = string.Empty;
@@ -150,13 +93,10 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
             LoadFailed = true;
             return;
         }
-
-        // Сохраняем байты для отложенной декодировки — не блокируем GUI при создании списка
         _imageData = data;
     }
 
-    /// <summary>Конструктор для ленивой загрузки изображения из БД по MediaId.</summary>
-    /// <remarks>BLOB-данные не читаются из базы до вызова <see cref="LoadImageAsync"/></remarks>
+    // Конструктор для ленивой загрузки изображения из БД по MediaId
     public MediaItemViewModel(IMediaService mediaService, int mediaId, string originalName)
     {
         FilePath = string.Empty;
@@ -166,45 +106,49 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         IsImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
         IsVideo = ext is ".mp4" or ".avi" or ".wmv";
         IsAudio = ext is ".mp3" or ".wav" or ".wma";
-
-        // Изображения — ленивая загрузка BLOB. Видео/аудио — файл уже в Temp (передан через другой конструктор).
-        // Не помечаем как неудачные — загрузка произойдёт по требованию.
         _mediaService = mediaService;
         _mediaIdForLazyLoad = mediaId;
         MediaId = mediaId;
     }
-
-    /// <summary>Ограничение параллельной декодировки изображений, чтобы не перегрузить GUI поток.</summary>
     private static readonly SemaphoreSlim _imageLoadSemaphore = new(4);
-
-    /// <summary>Асинхронно создаёт BitmapImage из сохранённых байтов и устанавливает ImageSource.</summary>
-    /// <remarks>Вызвать по требованию (когда элемент попадает в зону видимости).</remarks>
-    public async Task LoadImageAsync()
+    public Task LoadImageAsync() => _imageLoadTask ??= LoadImageCoreAsync();
+    public Task LoadPlaybackFileAsync() => _playbackLoadTask ??= LoadPlaybackFileCoreAsync();
+    private async Task LoadPlaybackFileCoreAsync()
     {
-        if (ImageSource is not null) return;
-
-        // Если байтов ещё нет, но есть сервис и ID — читаем BLOB из БД по требованию
-        if (_imageData is null && _mediaService is not null && _mediaIdForLazyLoad is int mediaId)
+        if (_disposed || !(IsVideo || IsAudio) || !string.IsNullOrEmpty(FilePath)) return;
+        try
         {
-            _imageData = await _mediaService.GetMediaDataAsync(mediaId);
-            if (_imageData is null)
+            if (_mediaService is null || MediaId is not int id) return;
+            var path = await _mediaService.GetMediaFilePathAsync(id);
+            if (_disposed) await TemporaryFiles.DeleteAsync(path);
+            else
             {
-                LoadFailed = true;
-                return;
+                DeleteOnDispose = true;
+                FilePath = path;
             }
         }
+        catch { if (!_disposed) LoadFailed = true; }
+    }
 
-        if (_imageData is null) return;
-
+    private async Task LoadImageCoreAsync()
+    {
+        if (_disposed || !IsImage || ImageSource is not null) return;
+        IsImageLoading = true;
         await _imageLoadSemaphore.WaitAsync();
         try
         {
-            IsImageLoading = true;
+            if (_disposed) return;
+            var data = _imageData;
+            if (data is null && _mediaService is not null && _mediaIdForLazyLoad is int mediaId)
+                data = await _mediaService.GetMediaDataAsync(mediaId);
+            else if (data is null && !string.IsNullOrEmpty(FilePath))
+                data = await File.ReadAllBytesAsync(FilePath);
+            if (data is null) { LoadFailed = true; return; }
 
             BitmapImage? bitmap = null;
             await Task.Run(() =>
             {
-                using var ms = new MemoryStream(_imageData);
+                using var ms = new MemoryStream(data);
                 var bmp = new BitmapImage();
                 bmp.BeginInit();
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
@@ -218,13 +162,13 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
             {
                 await uiDispatcher.InvokeAsync(() =>
                 {
-                    ImageSource = bitmap;
+                    if (!_disposed) ImageSource = bitmap;
                     _imageData = null; // освобождаем байты после декодирования
                 });
             }
             else
             {
-                ImageSource = bitmap;
+                if (!_disposed) ImageSource = bitmap;
                 _imageData = null;
             }
         }
@@ -239,11 +183,11 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Создаёт MediaPlayer с отложенной разблокировкой звука.</summary>
+    // Создаёт MediaPlayer с отложенной разблокировкой звука
     private void InitializePlayer()
     {
-        if (_player != null) return;
-        if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath)) { LoadFailed = true; return; }
+        if (_disposed || _player != null) return;
+        if (string.IsNullOrEmpty(FilePath)) { LoadFailed = true; return; }
 
         try
         {
@@ -270,26 +214,35 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
                 }
             };
 
-            _player.MediaFailed += (_, _) => { LoadFailed = true; _playerReady = false; };
+            _player.MediaFailed += (_, _) =>
+            {
+                LoadFailed = true;
+                _playerReady = false;
+                _pendingPlay = false;
+                IsPlaying = false;
+                _timer?.Stop();
+                _seek?.Cancel();
+            };
 
             _player.MediaEnded += (_, _) =>
             {
                 IsPlaying = false;
                 _timer?.Stop();
-                Position = 0;
+                _seek?.Cancel();
+                SetPlaybackPosition(0);
                 CurrentTime = "0:00";
             };
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             _timer.Tick += (_, _) =>
             {
-                if (_player != null && _player.NaturalDuration.HasTimeSpan && !IsDragging)
+                if (_player != null && _player.NaturalDuration.HasTimeSpan && !IsDragging && _seek?.IsPending != true)
                 {
                     var total = _player.NaturalDuration.TimeSpan.TotalSeconds;
                     if (total > 0)
                     {
                         var current = _player.Position.TotalSeconds;
-                        Position = current / total * 100;
+                        SetPlaybackPosition(current / total * 100);
                         CurrentTime = FormatTime(_player.Position);
                     }
                 }
@@ -304,35 +257,35 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Обновляет позицию плеера при изменении слайдера.</summary>
+    // Обновляет позицию плеера при изменении слайдера
     partial void OnPositionChanged(double value)
     {
-        if (_player == null || !_playerReady || !_player.NaturalDuration.HasTimeSpan)
+        if (_disposed || _updatingPosition || _player == null || !_playerReady || !_player.NaturalDuration.HasTimeSpan)
             return;
 
-        // Дебаунс Seek: отменяем предыдущий отложенный вызов и запускаем новый.
-        // Seek выполняется только после паузы в изменении позиции (300 мс),
-        // чтобы не спамить событиями плеера и не блокировать GUI при быстрых обновлениях.
-        _debounceTimer?.Stop();
-        _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
-        _debounceTimer.Tick += (_, _) =>
+        _seek ??= new SeekDebouncer(position =>
         {
-            _debounceTimer?.Stop();
-            _debounceTimer = null;
             if (_player != null && _playerReady && _player.NaturalDuration.HasTimeSpan)
             {
                 var total = _player.NaturalDuration.TimeSpan.TotalSeconds;
                 if (total > 0)
                 {
-                    _player.Position = TimeSpan.FromSeconds(total * value / 100.0);
+                    _player.Position = TimeSpan.FromSeconds(total * Math.Clamp(position, 0, 100) / 100.0);
                     CurrentTime = FormatTime(_player.Position);
                 }
             }
-        };
-        _debounceTimer.Start();
+        });
+        _seek.Schedule(value);
     }
 
-    /// <summary>Запуск или отложенный запуск воспроизведения.</summary>
+    private void SetPlaybackPosition(double value)
+    {
+        _updatingPosition = true;
+        try { Position = value; }
+        finally { _updatingPosition = false; }
+    }
+
+    // Запуск или отложенный запуск воспроизведения
     [RelayCommand]
     private void Play()
     {
@@ -351,56 +304,47 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
         _timer?.Start();
     }
 
-    /// <summary>Пауза.</summary>
     [RelayCommand]
     private void Pause()
     {
+        _pendingPlay = false;
         if (_player == null) return;
         _player.Pause();
         IsPlaying = false;
         _timer?.Stop();
     }
 
-    /// <summary>Остановка.</summary>
     [RelayCommand]
     private void Stop()
     {
+        _pendingPlay = false;
+        _seek?.Cancel();
         if (_player == null) return;
         _player.Stop();
         IsPlaying = false;
         _timer?.Stop();
-        Position = 0;
+        SetPlaybackPosition(0);
         CurrentTime = "0:00";
     }
 
-    /// <summary>Форматирует длительность.</summary>
     private static string FormatTime(TimeSpan t) =>
         t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
 
-    /// <summary>Освобождает ресурсы; удаляет временный файл при необходимости.
-    /// Кэшированные VM (DeleteOnDispose = false) не утилизируются полностью,
-    /// так как они belong к общему кэшу MediaService и используются повторно.</summary>
+    // свобождает плеер и таймеры независимо от владения файлом
     public void Dispose()
     {
-        if (!DeleteOnDispose)
-        {
-            // Кэшированный VM — только останавливаем таймер обновления позиции,
-            // MediaPlayer и temp-файл остаются для повторного использования.
-            _timer?.Stop();
-            return;
-        }
-
+        if (_disposed) return;
+        _disposed = true;
+        _pendingPlay = false;
+        IsPlaying = false;
         _timer?.Stop();
         _player?.Close();
-
-        // Очищаем дебаунс-таймер, если он ещё активен.
-        _debounceTimer?.Stop();
-        _debounceTimer = null;
-
-        if (!string.IsNullOrEmpty(FilePath))
-        {
-            try { if (File.Exists(FilePath)) File.Delete(FilePath); }
-            catch { }
-        }
+        _player = null;
+        _seek?.Dispose();
+        _seek = null;
+        _imageData = null;
+        ImageSource = null;
+        if (DeleteOnDispose && !string.IsNullOrEmpty(FilePath))
+            _ = TemporaryFiles.DeleteAsync(FilePath);
     }
 }

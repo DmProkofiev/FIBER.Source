@@ -58,6 +58,7 @@ public sealed class SeedDataService : ISeedDataService
 
     public async Task<SeedResult> SeedAsync()
     {
+        await FIBER.Source.Infrastructure.Helpers.BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         bool hasPeople = await context.People.AnyAsync();

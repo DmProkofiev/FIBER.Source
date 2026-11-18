@@ -9,6 +9,7 @@ public sealed record EventParticipantRoleOption(EventParticipantRole Value, stri
 
 public static class EventParticipantRoles
 {
+    // Дописать до 100 штук
     public static string DisplayName(EventParticipantRole role) => role switch
     {
         EventParticipantRole.Participant => "Участник",

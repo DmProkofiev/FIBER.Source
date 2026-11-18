@@ -10,10 +10,10 @@ public class PersonRelationship
     public int PersonId { get; set; }
     public int RelatedPersonId { get; set; }
 
-    /// <summary>Роль Person по отношению к RelatedPerson.</summary>
+    // Роль Person по отношению к RelatedPerson
     public PersonRelationKind KindFrom { get; set; }
 
-    /// <summary>Роль RelatedPerson по отношению к Person.</summary>
+    // Роль RelatedPerson по отношению к Person
     public PersonRelationKind KindTo { get; set; }
 
     public string Notes { get; set; } = string.Empty;

@@ -52,10 +52,7 @@ public partial class CreatePersonViewModel : ObservableValidator
     public ObservableCollection<PersonSummary> AvailablePersons { get; } = new();
     public ObservableCollection<CompanySummary> AvailableCompanies { get; } = new();
     public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
-
-    /// <summary>Id только что созданной личности (для привязки существующих медиа).</summary>
     public int? CreatedOwnerId { get; private set; }
-
     [ObservableProperty] private int? _selectedRelatedPersonId;
     [ObservableProperty] private int? _selectedTargetCompanyId;
     [ObservableProperty] private int? _selectedTargetEventId;
@@ -63,12 +60,9 @@ public partial class CreatePersonViewModel : ObservableValidator
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdentifiedMode))]
     private bool _isAnonymousMode;
-
     public bool IsIdentifiedMode => !IsAnonymousMode;
     public IReadOnlyList<GenderOption> GenderChoices { get; } = GenderOptions.All;
-
     [ObservableProperty] private Gender _selectedGender = Gender.Unknown;
-
     [ObservableProperty] private string _job = string.Empty;
     [ObservableProperty] private string _phone = string.Empty;
     [ObservableProperty] private string _city = string.Empty;
@@ -86,37 +80,26 @@ public partial class CreatePersonViewModel : ObservableValidator
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _firstName = string.Empty;
-
     [ObservableProperty] private string _secondName = string.Empty;
-
     [ObservableProperty] private DateTime? _birthDate;
     [ObservableProperty] private string _passport = string.Empty;
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _primaryAlias = string.Empty;
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private bool _isBusy;
-
     public async Task InitializeAsync()
     {
         var countries = await _countryService.GetActiveAsync();
         Countries.Clear();
         foreach (var c in countries) Countries.Add(c);
-
-        // Справочник персон для выбора цели связи.
         AvailablePersons.Clear();
         foreach (var p in await _personService.SearchAsync(string.Empty))
             AvailablePersons.Add(p);
-
-        // Справочник организаций для связи «персона ↔ организация».
         AvailableCompanies.Clear();
         foreach (var c in await _companyService.ListAsync(null))
             AvailableCompanies.Add(c);
-
-        // Справочник событий для связи «персона ↔ событие».
         AvailableEvents.Clear();
         foreach (var e in await _eventService.ListAsync(null))
             AvailableEvents.Add(e);
@@ -128,11 +111,12 @@ public partial class CreatePersonViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private void RemoveTempFile(MediaItemViewModel item)
+    private async Task RemoveTempFile(MediaItemViewModel item)
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
+        item.Dispose();
+        await _mediaService.DeleteTempFilesAsync(new[] { item.ToDto() });
     }
 
     [RelayCommand(CanExecute = nameof(CanCreate))]
@@ -214,7 +198,6 @@ public partial class CreatePersonViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                // Существующие медиа (уже в БД) — привязать к владельцу
                 var existingIds = TempFiles
                     .Where(m => m.MediaId.HasValue)
                     .Select(m => m.MediaId!.Value)
@@ -223,16 +206,13 @@ public partial class CreatePersonViewModel : ObservableValidator
                 {
                     await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Person, personId);
                 }
-
-                // Новые медиа — закоммитить в БД
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
                     await _mediaService.CommitTempFilesAsync(
                         newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Person, personId);
                 }
-
-                TempFiles.Clear();
+                await TempFiles.ClearTempFilesAsync(_mediaService);
             }
 
             CreatedOwnerId = personId;
@@ -250,31 +230,22 @@ public partial class CreatePersonViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        // Передаём уже добавленные MediaId, чтобы они отмечались галочкой и не дублировались
         var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
         var selected = await _mediaManagement.SelectExistingMediaAsync(alreadyAdded);
         if (selected.Count == 0) return;
-
-        // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
-
         _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
-
-    // ----- Связи «персона ↔ персона» при создании -----
 
     [RelayCommand]
     private void AddRelationship()
     {
         if (SelectedRelatedPersonId == null) return;
-
         var target = AvailablePersons.FirstOrDefault(p => p.Id == SelectedRelatedPersonId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такая цель уже есть в списке связей.
         if (Relationships.Any(r => r.RelatedPersonId == target.Id))
         {
-            _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Связь с этой личностью уже добавлена", NotificationType.Warning);
             SelectedRelatedPersonId = null;
             return;
         }
@@ -300,8 +271,6 @@ public partial class CreatePersonViewModel : ObservableValidator
             .Select(r => r.ToInput())
             .ToList();
 
-    // ----- Связи «персона ↔ организация» при создании -----
-
     [RelayCommand]
     private void AddCompanyPerson()
     {
@@ -309,8 +278,6 @@ public partial class CreatePersonViewModel : ObservableValidator
 
         var target = AvailableCompanies.FirstOrDefault(c => c.Id == SelectedTargetCompanyId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такая организация уже есть в списке связей.
         if (CompanyPeople.Any(cp => cp.CompanyId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этой организацией уже добавлена", NotificationType.Warning);
@@ -338,28 +305,21 @@ public partial class CreatePersonViewModel : ObservableValidator
             .Where(cp => cp.CompanyId.HasValue)
             .Select(cp => cp.ToInput())
             .ToList();
-
-    // ----- Связи «персона ↔ событие» при создании -----
-
     [RelayCommand]
     private void AddEventParticipation()
     {
         if (SelectedTargetEventId == null) return;
-
         var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
             SelectedTargetEventId = null;
             return;
         }
-
         EventParticipations.Add(new EventParticipantEditVM
         {
-            PersonId = null, // Будет установлено при создании персоны в сервисе
+            PersonId = null,
             EventId = target.Id,
             DisplayName = target.Title,
             Notes = string.Empty
@@ -400,8 +360,7 @@ public partial class CreatePersonViewModel : ObservableValidator
         Address = string.Empty;
         Notes = string.Empty;
 
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        _ = TempFiles.ClearTempFilesAsync(_mediaService);
         Relationships.Clear();
         CompanyPeople.Clear();
         EventParticipations.Clear();

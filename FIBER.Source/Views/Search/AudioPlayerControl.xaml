@@ -22,15 +22,13 @@
                                   LoadedBehavior="Manual"
                                   Stretch="None"
                                   Margin="0"
-                                  Visibility="Collapsed"
-                                  MediaOpened="AudioMediaElement_MediaOpened"/>
+                                   Visibility="Collapsed"/>
                 </Grid>
             </Border>
             
             <Slider x:Name="AudioSlider"
                     HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                    Margin="0,10,0,0"
-                    ValueChanged="AudioSlider_ValueChanged"/>
+                    Margin="0,10,0,0"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,0">
                 <Button Content="Play" Click="Play_Click"

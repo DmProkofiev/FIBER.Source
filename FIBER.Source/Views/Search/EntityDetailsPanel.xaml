@@ -57,7 +57,6 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <!-- Удалить (красный) — виден только при выбранном объекте -->
             <Button Grid.Column="5" Content="Удалить" Command="{Binding DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="60">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ActionButtonRed}">
@@ -69,7 +68,6 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <!-- Дубликаты (синий) — виден только при выбранном объекте -->
             <Button Grid.Column="7" Content="Дубликаты" Command="{Binding DuplicatesCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Width="80">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource ActionButtonBlue}">

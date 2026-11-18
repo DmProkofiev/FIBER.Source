@@ -29,7 +29,10 @@ public sealed class CompanyService : BaseService, ICompanyService
 
     public async Task<Company> CreateAsync(CompanyInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
+        if (string.IsNullOrWhiteSpace(input.Name)) throw new InvalidOperationException("Название организации обязательно.");
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var company = new Company
         {
             Name = input.Name.Trim(),
@@ -64,12 +67,14 @@ public sealed class CompanyService : BaseService, ICompanyService
             await context.SaveChangesAsync();
         }
 
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Company.Create", $"Id={company.Id}");
         return company;
     }
 
     public async Task<Company?> GetByIdAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Companies.AsNoTracking()
             // Взаимодействия компании: прямые и обратные (чтобы в редакторе были видны обе стороны).
@@ -84,6 +89,7 @@ public sealed class CompanyService : BaseService, ICompanyService
 
     public async Task<IReadOnlyList<Company>> GetAllExceptAsync(int excludeId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Companies.AsNoTracking()
             .Where(c => c.Id != excludeId)
@@ -93,6 +99,7 @@ public sealed class CompanyService : BaseService, ICompanyService
 
     public async Task<IReadOnlyList<CompanySummary>> ListAsync(string? query)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         IQueryable<Company> q = context.Companies.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(query))
@@ -115,8 +122,12 @@ public sealed class CompanyService : BaseService, ICompanyService
 
     public async Task UpdateAsync(int id, CompanyInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
+        if (string.IsNullOrWhiteSpace(input.Name)) throw new InvalidOperationException("Название организации обязательно.");
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var company = await context.Companies
+            .Include(c => c.EventParticipations)
             .Include(c => c.OutgoingInteractions).ThenInclude(ci => ci.TargetCompany)
             .Include(c => c.IncomingInteractions).ThenInclude(ci => ci.SourceCompany)
             // Связи организации с персонами (для редактирования в Update-экране).
@@ -142,6 +153,7 @@ public sealed class CompanyService : BaseService, ICompanyService
         await SyncCompanyEventParticipationsAsync(context, company, input.EventParticipations);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Company.Update", $"Id={company.Id}");
     }
 
@@ -264,6 +276,8 @@ public sealed class CompanyService : BaseService, ICompanyService
         FiberSourceDbContext context, Company company, IReadOnlyList<EventParticipantEditInput>? inputs)
     {
         if (inputs is null) return;
+        if (inputs.Where(i => i.EventId.HasValue).GroupBy(i => i.EventId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Одно событие указано в связях несколько раз.");
 
         // DELETE: связи, отсутствующие во входных данных.
         foreach (var existing in company.EventParticipations?.ToList() ?? new List<EventParticipant>())
@@ -304,6 +318,7 @@ public sealed class CompanyService : BaseService, ICompanyService
 
     public async Task DeleteAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await DeleteWithMediaAsync(
             id,
             MediaOwnerType.Company,

@@ -12,11 +12,9 @@ using System.Windows.Media;
 
 namespace FIBER.Source.ViewModels;
 
-/// <summary>Один медиаэлемент в списке выбора медиафайлов.</summary>
 public partial class MediaSelectionItem : ObservableObject
 {
     private readonly MediaItemViewModel _media;
-
     public int MediaId => _media.MediaId ?? 0;
     public string DisplayName => _media.FileName;
     public string FilePath => _media.FilePath;
@@ -26,45 +24,42 @@ public partial class MediaSelectionItem : ObservableObject
     public bool IsAudio => _media.IsAudio;
     public bool IsImageLoading => _media.IsImageLoading;
 
-    /// <summary>Признак неудачной загрузки (пробрасывает PropertyChanged из исходного VM).</summary>
+    // Признак неудачной загрузки
     public bool LoadFailed => _media.LoadFailed;
 
-    /// <summary>Источник изображения (пробрасывает PropertyChanged из исходного VM).</summary>
+    // Источник изображения 
     public ImageSource? ImageSource => _media.ImageSource;
 
-    /// <summary>Исходная модель медиа (для открытия окон зума).</summary>
+    // Исходная модель медиа 
     public MediaItemViewModel Media => _media;
 
     [ObservableProperty]
     private bool _isSelected;
 
-    /// <summary>Признак «уже добавлено к текущему владельцу» — отмечается галочкой и не подлежит повторному добавлению.</summary>
+    //Признак уже добавлено к текущему владельцу
     [ObservableProperty]
     private bool _isAlreadyAdded;
-
     public MediaSelectionItem(MediaItemViewModel media)
     {
         _media = media;
         IsSelected = false;
-
-        // Пробрасываем PropertyChanged от исходного MediaItemViewModel,
-        // чтобы UI обновлялся при изменении ImageSource, IsImageLoading и т.п.
         _media.PropertyChanged += Media_PropertyChanged;
     }
 
-    /// <summary>Загружает изображение в фоновом потоке (декодирование не блокирует GUI).</summary>
+    // Загружает изображение в фоновом потоке
     public Task LoadImageAsync() => _media.LoadImageAsync();
 
-    /// <summary>Освобождает ресурсы. Не утилизирует исходный MediaItemViewModel,
-    /// так как он принадлежит кэшу MediaService и используется повторно.</summary>
+    // Освобождает подписку и принадлежащую диалогу модель медиа
     public void Dispose()
     {
         _media.PropertyChanged -= Media_PropertyChanged;
+        _media.Dispose();
     }
 
     private void Media_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MediaItemViewModel.ImageSource)
+            || e.PropertyName == nameof(MediaItemViewModel.FilePath)
             || e.PropertyName == nameof(MediaItemViewModel.IsImageLoading)
             || e.PropertyName == nameof(MediaItemViewModel.LoadFailed))
         {
@@ -73,25 +68,21 @@ public partial class MediaSelectionItem : ObservableObject
     }
 }
 
-/// <summary>VM диалога выбора медиафайлов: список изображений/видео/аудио, мультивыбор, подтверждение.</summary>
+// VM диалога выбора медиафайлов: список изображений/видео/аудио, мультивыбор, подтверждение
 public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 {
     private readonly Action<bool> _close;
     private bool _disposed;
     private readonly HashSet<int> _alreadyAddedIds;
     private readonly INotificationService _notificationService;
-
     public string Title { get; }
-
     public ObservableCollection<MediaSelectionItem> PhotoItems { get; } = new();
     public ObservableCollection<MediaSelectionItem> VideoItems { get; } = new();
     public ObservableCollection<MediaSelectionItem> AudioItems { get; } = new();
-
     public bool HasMedia => PhotoItems.Count > 0 || VideoItems.Count > 0 || AudioItems.Count > 0;
     public bool HasPhotos => PhotoItems.Count > 0;
     public bool HasVideos => VideoItems.Count > 0;
     public bool HasAudio => AudioItems.Count > 0;
-
     public MediaSelectionViewModel(string title, IEnumerable<MediaItemViewModel> media, Action<bool> close, INotificationService notificationService, IEnumerable<int>? alreadyAddedMediaIds = null)
     {
         Title = title;
@@ -103,7 +94,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
             if (m is null) continue;
             var item = new MediaSelectionItem(m);
             item.IsAlreadyAdded = _alreadyAddedIds.Contains(m.MediaId ?? 0);
-            // Уже добавленные файлы помечаются галочкой — они не подлежат повторному выбору.
+            // Уже добавленные файлы помечаются галочкой — они не подлежат повторному выбору
             if (item.IsAlreadyAdded)
                 item.IsSelected = true;
             if (m.IsImage) PhotoItems.Add(item);
@@ -113,21 +104,16 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
 
         _close = close;
 
-        // Декодирование изображений в фоне параллельно — не блокирует GUI.
+        // Декодирование изображений в фоне параллельно — не блокирует GUI
         _ = LoadImagesInBackgroundAsync();
     }
 
-    /// <summary>Ограничение параллельной декодировки изображений (не более 3 одновременных),
-    /// чтобы не создавать конфликтов при чтении BLOB из SQLCipher БД.</summary>
+    //Ограничение параллельной декодировки изображений (не более 3 одновременных)
     private static readonly SemaphoreSlim _imageLoadSemaphore = new(3, 3);
-
-    /// <summary>Декодирует все изображения в фоне с ограничением параллелизма.</summary>
     private async Task LoadImagesInBackgroundAsync()
     {
         var imageItems = PhotoItems.Where(i => i.IsImage).ToList();
         if (imageItems.Count == 0) return;
-
-        // Ограничиваем параллельность: не более 3 изображений загружаются одновременно.
         var tasks = imageItems.Select(async item =>
         {
             await _imageLoadSemaphore.WaitAsync();
@@ -143,8 +129,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         await Task.WhenAll(tasks);
     }
 
-    /// <summary>Id выбранных медиа (пусто — ничего не выбрано).
-    /// Файлы, отмеченные как уже добавленные, не возвращаются — повторное добавление запрещено.</summary>
+    // Id выбранных медиа (пусто — ничего не выбрано)
     public IReadOnlyList<int> GetSelectedMediaIds() =>
         PhotoItems.Concat(VideoItems).Concat(AudioItems)
             .Where(m => m.IsSelected && !m.IsAlreadyAdded && m.MediaId > 0)
@@ -186,8 +171,7 @@ public partial class MediaSelectionViewModel : ObservableObject, IDisposable
         _close(false);
     }
 
-    /// <summary>Очищает коллекции при закрытии окна. Не утилизирует MediaItemViewModel,
-    /// так как они принадлежат кэшу MediaService.</summary>
+    //Очищает коллекции и освобождает медиа при закрытии окна
     public void Dispose()
     {
         if (_disposed) return;

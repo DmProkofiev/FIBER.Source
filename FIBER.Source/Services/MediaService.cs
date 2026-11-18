@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FIBER.Source.Contracts;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
@@ -42,9 +43,6 @@ public sealed class MediaService : IMediaService
     /// <summary>Сервис аудита.</summary>
     private readonly IAuditLogService _auditLog;
 
-    /// <summary>Сервис БД для прямого потокового чтения BLOB.</summary>
-    private readonly IDatabaseService _databaseService;
-
     /// <summary>Логгер.</summary>
     private readonly ILogger<MediaService> _logger;
 
@@ -55,29 +53,25 @@ public sealed class MediaService : IMediaService
     /// Загружаются один раз при запуске через <see cref="PreloadAllMediaAsync"/>.</summary>
     private IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>? _allMediaMetaCache;
 
-    /// <summary>Кэш путей к Temp-файлам видео/аудио (mediaId → tempPath).
-    /// Заполняется при старте и лениво — при первом обращении к медиа.</summary>
-    private Dictionary<int, string>? _tempFileCache;
+    private readonly object _metadataSync = new();
+    private long _cacheVersion;
 
     /// <summary>Защита кэшей от параллельного многократного заполнения.</summary>
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
-    /// <summary>Ограничение параллельного чтения BLOB из SQLCipher (одно соединение к зашифрованной БД).</summary>
+    /// <summary>Ограничение параллельного чтения BLOB для контроля нагрузки и памяти.</summary>
     private readonly SemaphoreSlim _blobLoadSemaphore = new(2, 2);
 
-    /// <summary>Инициализирует зависимости и создаёт временный каталог.</summary>
+    /// <summary>Инициализирует зависимости; каталог создаётся при первой записи.</summary>
     public MediaService(
         IDbContextFactory<FiberSourceDbContext> contextFactory,
         IAuditLogService auditLog,
-        IDatabaseService databaseService,
         ILogger<MediaService> logger)
     {
         _contextFactory = contextFactory;
         _auditLog = auditLog;
-        _databaseService = databaseService;
         _logger = logger;
-        _tempDir = Path.Combine(Path.GetTempPath(), "FIBER");
-        Directory.CreateDirectory(_tempDir);
+        _tempDir = TemporaryFiles.SessionDirectory;
     }
 
     /// <summary>Проверяет, относится ли расширение к изображениям.</summary>
@@ -93,8 +87,10 @@ public sealed class MediaService : IMediaService
     /// <summary>Копирует выбранные файлы во временный каталог %Temp%\FIBER\ для предпросмотра.</summary>
     public async Task<List<MediaItemDto>> SaveToTempAsync(string[] filePaths)
     {
+        await BackgroundWork.SwitchToThreadPool();
         var result = new List<MediaItemDto>();
         if (filePaths is null) return result;
+        Directory.CreateDirectory(_tempDir);
 
         // Используем один контекст БД на все файлы для проверки существующих медиа по ContentHash
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -135,7 +131,7 @@ public sealed class MediaService : IMediaService
                     await src.CopyToAsync(dst);
                 }
 
-                var hash = await ComputeFileHashAsync(path);
+                var hash = await ComputeFileHashAsync(destPath);
 
                 // Генерируем уникальное отображаемое имя уже при добавлении файла,
                 // чтобы не было дублей наименований в списке временных файлов.
@@ -160,7 +156,7 @@ public sealed class MediaService : IMediaService
             }
             catch (Exception ex)
             {
-                TryDeleteFile(destPath);
+                await TemporaryFiles.DeleteAsync(destPath);
                 _logger.LogWarning(ex, "Не удалось скопировать {Path} в Temp", path);
             }
         }
@@ -169,12 +165,13 @@ public sealed class MediaService : IMediaService
     }
 
     /// <summary>Удаляет временные файлы из Temp.</summary>
-    public void DeleteTempFiles(IEnumerable<MediaItemDto> tempFiles)
+    public async Task DeleteTempFilesAsync(IEnumerable<MediaItemDto> tempFiles)
     {
         if (tempFiles is null) return;
         foreach (var dto in tempFiles)
         {
-            TryDeleteFile(dto.FilePath);
+            if (!string.IsNullOrWhiteSpace(dto.FilePath))
+                await TemporaryFiles.DeleteAsync(dto.FilePath);
         }
     }
 
@@ -182,19 +179,30 @@ public sealed class MediaService : IMediaService
     public async Task CommitTempFilesAsync(
         List<MediaItemDto> tempFiles, MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (tempFiles is null || tempFiles.Count == 0) return;
 
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var deletedTempFiles = new List<string>();
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var processedHashes = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var dto in tempFiles)
         {
-            if (dto is null || !File.Exists(dto.FilePath)) continue;
+            if (dto is null) continue;
+            if (!File.Exists(dto.FilePath))
+                throw new FileNotFoundException("Временное вложение отсутствует. Добавьте файл повторно.", dto.FilePath);
 
             // Проверяем дедупликацию по ContentHash
             var hash = await ComputeSha256HexAsync(dto.FilePath);
+            if (!processedHashes.Add(hash))
+            {
+                deletedTempFiles.Add(dto.FilePath);
+                continue;
+            }
             var existing = await context.MediaAttachments
+                .Select(m => new { m.Id, m.ContentHash })
                 .FirstOrDefaultAsync(m => m.ContentHash == hash);
 
             if (existing is not null)
@@ -238,6 +246,9 @@ public sealed class MediaService : IMediaService
 
             // Сохраняем медиа, чтобы получить реальный ID
             await context.SaveChangesAsync();
+            // Не удерживаем BLOB всех файлов пакета в ChangeTracker до конца импорта.
+            context.Entry(media).State = EntityState.Detached;
+            media.Data = Array.Empty<byte>();
 
             // Создаём ссылку
             context.MediaAttachmentLinks.Add(new MediaAttachmentLink
@@ -251,8 +262,9 @@ public sealed class MediaService : IMediaService
         }
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
-        foreach (var path in deletedTempFiles) TryDeleteFile(path);
+        foreach (var path in deletedTempFiles) await TemporaryFiles.DeleteAsync(path);
 
         await _auditLog.LogAsync("Media.Commit",
             $"Owner={ownerType}:{ownerId}, Files={tempFiles.Count}");
@@ -262,6 +274,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Добавляет существующий медиафайл к владельцу; при существующей связи ничего не делает.</summary>
     public async Task AddLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         await using var tx = await context.Database.BeginTransactionAsync();
 
@@ -298,6 +311,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Проверяет, привязан ли медиафайл уже к данному владельцу.</summary>
     public async Task<bool> IsMediaLinkedToOwnerAsync(int mediaId, MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.MediaAttachmentLinks
             .AnyAsync(l => l.MediaAttachmentId == mediaId
@@ -308,6 +322,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Возвращает медиа владельца.</summary>
     public async Task<List<MediaItemDto>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var metas = await context.MediaAttachmentLinks
@@ -327,17 +342,9 @@ public sealed class MediaService : IMediaService
         {
             var ext = Path.GetExtension(m.OriginalFileName).ToLowerInvariant();
 
-            // Видео и аудио хранятся в БД как BLOB — для воспроизведения им обязателен
-            // путь к временному файлу. Без него плеер и окно зума не работают.
-            var filePath = string.Empty;
-            if (IsVideoExtension(ext) || IsAudioExtension(ext))
-            {
-                filePath = await GetTempFilePathForAsync(m.Id, ext);
-            }
-
             result.Add(new MediaItemDto(
                 MediaId: m.Id,
-                FilePath: filePath,
+                FilePath: string.Empty,
                 OriginalFileName: m.OriginalFileName,
                 MimeType: m.MimeType,
                 SizeBytes: m.SizeBytes,
@@ -353,6 +360,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Возвращает все медиа со всех владельцев.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllMediaAsync()
     {
+        await BackgroundWork.SwitchToThreadPool();
         var metaList = await GetAllMediaMetaAsync();
 
         var result = new List<MediaForOwner>(metaList.Count);
@@ -360,17 +368,10 @@ public sealed class MediaService : IMediaService
         {
             var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
 
-            // Видео/аудио должны иметь путь к временному файлу — см. GetMediaForOwnerAsync.
-            var filePath = string.Empty;
-            if (IsVideoExtension(ext) || IsAudioExtension(ext))
-            {
-                filePath = await GetTempFilePathForAsync(meta.Id, ext);
-            }
-
             result.Add(new MediaForOwner(
                 new MediaItemDto(
                     MediaId: meta.Id,
-                    FilePath: filePath,
+                    FilePath: string.Empty,
                     OriginalFileName: meta.OriginalFileName,
                     MimeType: meta.MimeType,
                     SizeBytes: meta.SizeBytes,
@@ -388,6 +389,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Возвращает только изображения со всех владельцев — видео/аудио не извлекаются в Temp.</summary>
     public async Task<IReadOnlyList<MediaForOwner>> GetAllImagesAsync()
     {
+        await BackgroundWork.SwitchToThreadPool();
         var metaList = await GetAllMediaMetaAsync();
 
         var result = new List<MediaForOwner>();
@@ -417,64 +419,31 @@ public sealed class MediaService : IMediaService
     /// <summary>Инвалидирует кэши списка «все медиа». Вызывается после любого изменения ссылок.</summary>
     public void InvalidateAllMediaCache()
     {
-        _allMediaMetaCache = null;
-        _tempFileCache = null;
+        lock (_metadataSync)
+        {
+            _cacheVersion++;
+            _allMediaMetaCache = null;
+        }
     }
 
-    /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз).</summary>
+    /// <summary>Предзагружает метаданные без извлечения аудио/видео.</summary>
     public async Task PreloadAllMediaAsync()
     {
-        IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)> metaList;
-
-        await _cacheLock.WaitAsync();
+        await BackgroundWork.SwitchToThreadPool();
         try
         {
-            if (_tempFileCache is not null) return; // уже прелоадили
-            if (_allMediaMetaCache is null)
-                _allMediaMetaCache = await LoadAllMediaMetaFromDbAsync();
-            _tempFileCache = new Dictionary<int, string>(_allMediaMetaCache.Count);
-            metaList = _allMediaMetaCache;
+            await GetAllMediaMetaAsync();
         }
-        finally
+        catch (Exception ex)
         {
-            _cacheLock.Release();
-        }
-
-        // Извлекаем видео/аудио во Temp-файлы (вне лока, на пуле потоков)
-        foreach (var (meta, _, _) in metaList)
-        {
-            var ext = Path.GetExtension(meta.OriginalFileName).ToLowerInvariant();
-            if (IsImageExtension(ext)) continue;
-
-            await _cacheLock.WaitAsync();
-            try
-            {
-                if (_tempFileCache!.ContainsKey(meta.Id)) continue;
-            }
-            finally
-            {
-                _cacheLock.Release();
-            }
-
-            try
-            {
-                var tempPath = await StreamDataToTempAsync(meta.Id, ext);
-                if (tempPath is null) continue;
-
-                await _cacheLock.WaitAsync();
-                try { _tempFileCache![meta.Id] = tempPath; }
-                finally { _cacheLock.Release(); }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Не удалось извлечь медиа Id={Id} во Temp при старте", meta.Id);
-            }
+            _logger.LogWarning(ex, "Не удалось предзагрузить метаданные медиа");
         }
     }
 
     /// <summary>Удаляет связь; если ссылок не осталось, удаляет BLOB и запись.</summary>
     public async Task RemoveLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         await using var tx = await context.Database.BeginTransactionAsync();
 
@@ -499,13 +468,7 @@ public sealed class MediaService : IMediaService
 
             if (!hasOtherLinks)
             {
-                var orphan = await context.MediaAttachments
-                    .FirstOrDefaultAsync(m => m.Id == mediaId);
-                if (orphan is not null)
-                {
-                    context.MediaAttachments.Remove(orphan);
-                    await context.SaveChangesAsync();
-                }
+                await context.MediaAttachments.Where(m => m.Id == mediaId).ExecuteDeleteAsync();
             }
 
             await tx.CommitAsync();
@@ -524,6 +487,7 @@ public sealed class MediaService : IMediaService
     /// <summary>Удаляет все связи владельца и осиротевшие MediaAttachment.</summary>
     public async Task RemoveAllLinksForOwnerAsync(MediaOwnerType ownerType, int ownerId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         await using var tx = await context.Database.BeginTransactionAsync();
 
@@ -556,13 +520,8 @@ public sealed class MediaService : IMediaService
 
             if (orphanIds.Count > 0)
             {
-                var orphans = await context.MediaAttachments
-                    .Where(m => orphanIds.Contains(m.Id))
-                    .ToListAsync();
-
-                context.MediaAttachments.RemoveRange(orphans);
-                await context.SaveChangesAsync();
-                removedOrphans = orphans.Count;
+                removedOrphans = await context.MediaAttachments
+                    .Where(m => orphanIds.Contains(m.Id)).ExecuteDeleteAsync();
             }
 
             await tx.CommitAsync();
@@ -580,8 +539,7 @@ public sealed class MediaService : IMediaService
 
     /// <summary>Читает BLOB-данные вложения по идентификатору (для ленивой загрузки).
     /// SQLite-провайдер читает BLOB синхронно внутри, поэтому вся операция выносится на пул потоков.
-    /// Чтение защищено семафором — к SQLCipher можно обращаться не более 2 параллельных потоков,
-    /// иначе возникают конфликты при работе с зашифрованным файлом БД.</summary>
+    /// Семафор ограничивает количество одновременно выделяемых больших массивов.</summary>
     public async Task<byte[]?> GetMediaDataAsync(int mediaId)
     {
         await _blobLoadSemaphore.WaitAsync();
@@ -603,16 +561,18 @@ public sealed class MediaService : IMediaService
     }
 
     /// <summary>Вычисляет SHA-256 hex содержимого файла (для защиты от дублей).</summary>
-    public Task<string> ComputeFileHashAsync(string filePath)
+    public async Task<string> ComputeFileHashAsync(string filePath)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-            return Task.FromResult(string.Empty);
-        return ComputeSha256HexAsync(filePath);
+            return string.Empty;
+        return await ComputeSha256HexAsync(filePath);
     }
 
     /// <summary>Ищет MediaId по ContentHash в БД. Возвращает null, если файл не найден.</summary>
     public async Task<int?> GetMediaIdByContentHashAsync(string contentHash)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(contentHash)) return null;
 
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -625,31 +585,25 @@ public sealed class MediaService : IMediaService
     /// <summary>Вычисляет SHA-256 hex содержимого файла.</summary>
     private static async Task<string> ComputeSha256HexAsync(string path)
     {
-        await using var fs = File.OpenRead(path);
+        await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
         using var sha = SHA256.Create();
         var hash = await sha.ComputeHashAsync(fs);
         return Convert.ToHexString(hash);
     }
 
-    /// <summary>Возвращает путь к временному файлу видео/аудио по MediaId (из кэша или извлечение из BLOB).</summary>
-    private async Task<string> GetTempFilePathForAsync(int mediaId, string extension)
+    public async Task<string> GetMediaFilePathAsync(int mediaId)
     {
-        string? cachedPath = null;
-        await _cacheLock.WaitAsync();
-        try
-        {
-            cachedPath = _tempFileCache is not null && _tempFileCache.TryGetValue(mediaId, out var cached)
-                ? cached
-                : null;
-        }
-        finally
-        {
-            _cacheLock.Release();
-        }
-
-        if (!string.IsNullOrEmpty(cachedPath)) return cachedPath;
-
-        return await StreamDataToTempAsync(mediaId, extension) ?? string.Empty;
+        await BackgroundWork.SwitchToThreadPool();
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var name = await context.MediaAttachments.Where(m => m.Id == mediaId)
+            .Select(m => m.OriginalFileName).SingleAsync();
+        var extension = Path.GetExtension(name);
+        if (!IsVideoExtension(extension) && !IsAudioExtension(extension))
+            throw new InvalidOperationException("Файл не является видео или аудио.");
+        await _blobLoadSemaphore.WaitAsync();
+        try { return await StreamDataToTempAsync(mediaId, extension) ?? string.Empty; }
+        finally { _blobLoadSemaphore.Release(); }
     }
 
     /// <summary>Возвращает MIME-тип по расширению.</summary>
@@ -698,50 +652,27 @@ public sealed class MediaService : IMediaService
         return sb.ToString();
     }
 
-    /// <summary>Пытается удалить файл, игнорирует ошибки.</summary>
-    private static void TryDeleteFile(string path)
-    {
-        try { if (File.Exists(path)) File.Delete(path); } catch { }
-    }
-
     /// <summary>Потоково копирует BLOB в Temp-файл без загрузки всего массива в память.</summary>
     private async Task<string?> StreamDataToTempAsync(int mediaId, string extension)
     {
         var tempPath = Path.Combine(_tempDir, Guid.NewGuid().ToString("N") + extension);
 
-        var csb = new SqliteConnectionStringBuilder
-        {
-            DataSource = _databaseService.DatabasePath,
-            Password = _databaseService.CurrentPassword,
-            Mode = SqliteOpenMode.ReadOnly,
-            Cache = SqliteCacheMode.Private
-        };
-        var connectionString = csb.ToString();
-
         try
         {
-            await Task.Run(() =>
-            {
-                using var conn = new SqliteConnection(connectionString);
-                conn.Open();
-
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT Data FROM MediaAttachments WHERE Id = @id";
-                cmd.Parameters.AddWithValue("@id", mediaId);
-
-                using var reader = cmd.ExecuteReader();
-                if (!reader.Read())
-                    throw new InvalidOperationException($"MediaAttachment Id={mediaId} не найден.");
-
-                using var stream = reader.GetStream(0);
-                using var fileStream = File.Create(tempPath);
-                stream.CopyTo(fileStream);
-            });
+            Directory.CreateDirectory(_tempDir);
+            await using var context = await _contextFactory.CreateDbContextAsync();
+            await context.Database.OpenConnectionAsync();
+            var connection = (SqliteConnection)context.Database.GetDbConnection();
+            // SqliteBlob использует incremental blob I/O: SELECT Data не материализует весь файл.
+            await using var stream = new SqliteBlob(connection, "MediaAttachments", "Data", mediaId, readOnly: true);
+            await using var fileStream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write,
+                FileShare.None, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await stream.CopyToAsync(fileStream);
             return tempPath;
         }
         catch
         {
-            TryDeleteFile(tempPath);
+            await TemporaryFiles.DeleteAsync(tempPath);
             throw;
         }
     }
@@ -749,17 +680,26 @@ public sealed class MediaService : IMediaService
     /// <summary>Возвращает кэшированные метаданные «все медиа» (без VM, без BLOB).</summary>
     private async Task<IReadOnlyList<(MediaMeta Meta, MediaOwnerType OwnerType, int OwnerId)>> GetAllMediaMetaAsync()
     {
-        if (_allMediaMetaCache is not null)
-            return _allMediaMetaCache;
+        lock (_metadataSync)
+        {
+            if (_allMediaMetaCache is not null) return _allMediaMetaCache;
+        }
 
         await _cacheLock.WaitAsync();
         try
         {
-            if (_allMediaMetaCache is not null)
-                return _allMediaMetaCache;
-
-            _allMediaMetaCache = await LoadAllMediaMetaFromDbAsync();
-            return _allMediaMetaCache;
+            long version;
+            lock (_metadataSync)
+            {
+                if (_allMediaMetaCache is not null) return _allMediaMetaCache;
+                version = _cacheVersion;
+            }
+            var loaded = await LoadAllMediaMetaFromDbAsync();
+            lock (_metadataSync)
+            {
+                if (version == _cacheVersion) _allMediaMetaCache = loaded;
+            }
+            return loaded;
         }
         finally
         {

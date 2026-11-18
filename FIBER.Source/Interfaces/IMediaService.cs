@@ -21,7 +21,10 @@ public interface IMediaService
     Task CommitTempFilesAsync(List<MediaItemDto> tempFiles, MediaOwnerType ownerType, int ownerId);
 
     /// <summary>Удаляет временные файлы из Temp.</summary>
-    void DeleteTempFiles(IEnumerable<MediaItemDto> tempFiles);
+    Task DeleteTempFilesAsync(IEnumerable<MediaItemDto> tempFiles);
+
+    /// <summary>Лениво извлекает видео/аудио в файл для воспроизведения.</summary>
+    Task<string> GetMediaFilePathAsync(int mediaId);
 
     /// <summary>Добавляет существующий медиафайл к владельцу (без дублирования ссылки).</summary>
     Task AddLinkAsync(int mediaId, MediaOwnerType ownerType, int ownerId);
@@ -29,7 +32,7 @@ public interface IMediaService
     /// <summary>Проверяет, привязан ли медиафайл уже к данному владельцу.</summary>
     Task<bool> IsMediaLinkedToOwnerAsync(int mediaId, MediaOwnerType ownerType, int ownerId);
 
-    /// <summary>Возвращает медиа владельца.</summary>
+    /// <summary>Возвращает метаданные медиа владельца; файлы извлекаются по требованию.</summary>
     Task<List<MediaItemDto>> GetMediaForOwnerAsync(MediaOwnerType ownerType, int ownerId);
 
     /// <summary>Возвращает все медиа со всех владельцев.</summary>
@@ -53,6 +56,6 @@ public interface IMediaService
     /// <summary>Инвалидировать кэш списка «все медиа» (вызывать после изменения ссылок).</summary>
     void InvalidateAllMediaCache();
 
-    /// <summary>Предзагружает все медиа в кэш при запуске приложения (один раз), чтобы при нажатии «Добавить» не было зависания.</summary>
+    /// <summary>Предзагружает метаданные медиа без чтения BLOB и создания временных файлов.</summary>
     Task PreloadAllMediaAsync();
 }

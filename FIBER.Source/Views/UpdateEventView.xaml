@@ -75,7 +75,7 @@
                                  VerticalContentAlignment="Top" VerticalAlignment="Stretch"/>
                     </Grid>
 
-                    <!-- ================= УЧАСТНИКИ (CRUD связей события) ================= -->
+                    <!-- УЧАСТНИКИ -->
                     <Expander Header="Участники" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -159,7 +159,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С СОБЫТИЯМИ ================= -->
+                    <!-- СВЯЗИ С СОБЫТИЯМИ -->
                     <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">

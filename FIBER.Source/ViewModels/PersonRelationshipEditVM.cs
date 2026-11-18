@@ -14,7 +14,7 @@ public partial class PersonRelationshipEditVM : ObservableObject
 
     [ObservableProperty] private int? _relatedPersonId;
     [ObservableProperty] private string _displayName = string.Empty;
-    /// <summary>Имя исходного объекта связи (редактируемая персоны или инициатор).</summary>
+    // Имя исходного объекта связи (редактируемая персоны или инициатор)
     [ObservableProperty] private string _sourceDisplayName = string.Empty;
     [ObservableProperty] private PersonRelationKind _kindFrom;
     [ObservableProperty] private PersonRelationKind _kindTo;

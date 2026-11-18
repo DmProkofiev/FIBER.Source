@@ -69,7 +69,6 @@
                                  AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalAlignment="Stretch"/>
                     </Grid>
 
-                    <!-- ВЗАИМОДЕЙСТВИЯ «КОМПАНИЯ - КОМПАНИЯ»  -->
                      <Expander Header="Взаимодействия с организациями" IsExpanded="True" Margin="0,20,0,0"
                                FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                                Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -141,7 +140,6 @@
                          </StackPanel>
                      </Expander>
 
-<!-- СВЯЗИ С СОБЫТИЯМИ -->
                       <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                                 FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                                 Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -281,6 +279,7 @@
                             </TextBlock>
                         </StackPanel>
                     </Expander>
+                    
                      <!-- ЗОНА DRAG & DROP -->
                     <Border Margin="0,20,0,0" Height="110" CornerRadius="8"
                             BorderBrush="#55000000" BorderThickness="2"

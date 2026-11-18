@@ -8,6 +8,7 @@ public sealed record PersonRelationKindOption(PersonRelationKind Value, string D
 
 public static class PersonRelationKinds
 {
+    // Дописать до 100 штук
     public static string DisplayNameOfKind(PersonRelationKind kind) => kind switch
     {
         PersonRelationKind.Father => "Отец",

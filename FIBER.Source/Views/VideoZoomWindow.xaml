@@ -43,7 +43,6 @@
                           MouseLeftButtonUp="Media_MouseLeftButtonUp"
                           MouseMove="Media_MouseMove"
                           LostMouseCapture="Media_LostMouseCapture"
-                          MediaOpened="Media_MediaOpened"
                           Cursor="SizeAll">
                 <MediaElement.RenderTransform>
                     <TransformGroup>
@@ -84,15 +83,11 @@
             </Button>
         </Grid>
 
-        <!-- Панель управления (снизу) -->
         <Border Grid.Row="2" Background="#88000000" Padding="10">
             <StackPanel Margin="20,0,20,0">
                 <Slider x:Name="PositionSlider"
                         HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                        Margin="0,0,0,10"
-                        ValueChanged="PositionSlider_ValueChanged"
-                        Thumb.DragStarted="PositionSlider_DragStarted"
-                        Thumb.DragCompleted="PositionSlider_DragCompleted"/>
+                        Margin="0,0,0,10"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button x:Name="PlayButton" Content="Play" Click="Play_Click"

@@ -43,43 +43,37 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     public ObservableCollection<MediaItemViewModel> ExistingVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingAudio { get; } = new();
 
-    // Взаимодействия «компания → компания»: исходящие редактируются, обратные — для информации.
+    // Взаимодействия «компания компания»: исходящие редактируются, обратные — для информации
     public ObservableCollection<CompanyInteractionEditVM> Interactions { get; } = new();
-    // Справочник организаций для ComboBox выбора цели новой связи.
+    // Справочник организаций для ComboBox выбора цели новой связи
     public ObservableCollection<Models.Company> AvailableCompanies { get; } = new();
-    // Связи «организация ↔ персона».
+    // Связи «организация персона»
     public ObservableCollection<CompanyPersonEditVM> CompanyPeople { get; } = new();
-    // Справочник персон для связи с организацией.
+    // Справочник персон для связи с организацией
     public ObservableCollection<Contracts.Summaries.PersonSummary> AvailablePersons { get; } = new();
-    // Связи «организация ↔ событие».
+    // Связи «организация событие»
     public ObservableCollection<EventParticipantEditVM> EventParticipations { get; } = new();
-    // Справочник событий для связи с организацией.
+    // Справочник событий для связи с организацией
     public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
-
     [ObservableProperty] private int? _selectedTargetCompanyId;
     [ObservableProperty] private int? _selectedTargetPersonId;
     [ObservableProperty] private int? _selectedTargetEventId;
-
     [ObservableProperty] private int _companyId;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Название обязательно")]
     private string _name = string.Empty;
-
     [ObservableProperty] private string _registrationNumber = string.Empty;
     [ObservableProperty] private string _address = string.Empty;
     [ObservableProperty] private string _phone = string.Empty;
     [ObservableProperty] private string _mail = string.Empty;
     [ObservableProperty] private string _website = string.Empty;
     [ObservableProperty] private string _notes = string.Empty;
-
     [ObservableProperty] private bool _isBusy;
-
     public async Task LoadAsync(int companyId)
     {
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        await TempFiles.ClearTempFilesAsync(_mediaService);
         ClearExistingMedia();
         Interactions.Clear();
         SelectedTargetCompanyId = null;
@@ -92,7 +86,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             return;
         }
 
-        // Справочник организаций для выбора цели связи (исключаем саму организацию).
+        // Справочник организаций для выбора цели связи (исключаем саму организацию)
         AvailableCompanies.Clear();
         foreach (var c in await _companyService.GetAllExceptAsync(companyId))
             AvailableCompanies.Add(c);
@@ -106,28 +100,28 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         Website = company.Website ?? string.Empty;
         Notes = company.Notes ?? string.Empty;
 
-        // Взаимодействия: сначала исходящие (редактируемые), затем обратные (только просмотр).
+        // Взаимодействия: сначала исходящие (редактируемые), затем обратные (только просмотр)
         foreach (var ci in company.OutgoingInteractions)
             Interactions.Add(CompanyInteractionEditVM.FromModel(ci));
         foreach (var ci in company.IncomingInteractions)
             Interactions.Add(CompanyInteractionEditVM.FromReverse(ci));
 
-        // Справочник персон для связи «организация ↔ персона».
+        // Справочник персон для связи организация персона
         AvailablePersons.Clear();
         foreach (var p in await _personService.SearchAsync(string.Empty))
             AvailablePersons.Add(p);
 
-        // Связи организации с персонами.
+        // Связи организации с персонами
         CompanyPeople.Clear();
         foreach (var cp in company.CompanyPeople)
             CompanyPeople.Add(CompanyPersonEditVM.FromModel(cp));
 
-        // Справочник событий для связи «организация ↔ событие».
+        // Справочник событий для связи организация событие
         AvailableEvents.Clear();
         foreach (var e in await _eventService.ListAsync(null))
             AvailableEvents.Add(e);
 
-        // Связи организации с событиями.
+        // Связи организации с событиями
         EventParticipations.Clear();
         foreach (var ep in company.EventParticipations)
             EventParticipations.Add(EventParticipantEditVM.FromModel(ep));
@@ -137,7 +131,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
 
     private OwnerMedia? _ownerMedia;
 
-    // Загрузка медиа владельца в коллекции UI (изображения лениво подгружаются в память).
+    // Загрузка медиа владельца в коллекции UI (изображения лениво подгружаются в память)
     private async Task LoadExistingMediaAsync(int ownerId)
     {
         _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
@@ -164,7 +158,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         SelectedTargetEventId = null;
     }
 
-    // ----- Взаимодействия «компания → компания»: CRUD внутри редактора -----
+    // Взаимодействия «компания компания»: CRUD внутри редактора
 
     [RelayCommand]
     private void AddInteraction()
@@ -174,7 +168,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         var target = AvailableCompanies.FirstOrDefault(c => c.Id == SelectedTargetCompanyId.Value);
         if (target == null) return;
 
-        // Защита от дубля на уровне UI: такая цель уже есть в списке связей.
+        // Защита от дубля на уровне UI: такая цель уже есть в списке связей
         if (Interactions.Any(i => i.TargetCompanyId == target.Id))
         {
             _notificationService.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
@@ -204,7 +198,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             .Select(i => i.ToInput())
             .ToList();
 
-    // ----- Связи «организация ↔ персона» -----
+    // Связи организация персона
 
     [RelayCommand]
     private void AddPersonCompany()
@@ -225,7 +219,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         {
             PersonId = target.Id,
             PersonName = target.DisplayName,
-            CompanyId = CompanyId,  // Текущая организация
+            CompanyId = CompanyId,
         });
         SelectedTargetPersonId = null;
     }
@@ -243,17 +237,13 @@ public partial class UpdateCompanyViewModel : ObservableValidator
             .Select(cp => cp.ToInput())
             .ToList();
 
-    // ----- Связи «организация ↔ событие» -----
-
+    // Связи организация событие
     [RelayCommand]
     private void AddEventParticipation()
     {
         if (SelectedTargetEventId == null) return;
-
         var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
@@ -263,7 +253,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
 
         EventParticipations.Add(new EventParticipantEditVM
         {
-            CompanyId = CompanyId,  // Текущая организация
+            CompanyId = CompanyId,
             EventId = target.Id,
             DisplayName = target.Title,
             Notes = string.Empty
@@ -277,22 +267,20 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         if (eventParticipation == null) return;
         EventParticipations.Remove(eventParticipation);
     }
-
     private List<EventParticipantEditInput> BuildEventParticipationsInput() =>
         EventParticipations
             .Where(ep => ep.EventId.HasValue)
             .Select(ep => ep.ToEditInput())
             .ToList();
-
     public async Task HandleFilesDropAsync(string[] files)
     {
         await _mediaManagement.HandleFilesDropAsync(TempFiles, files);
     }
 
     [RelayCommand]
-    private void RemoveTempFile(MediaItemViewModel item)
+    private async Task RemoveTempFile(MediaItemViewModel item)
     {
-        _mediaManagement.RemoveTempFile(TempFiles, item);
+        await _mediaManagement.RemoveTempFileAsync(TempFiles, item);
     }
 
     [RelayCommand]
@@ -302,6 +290,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         ExistingImages.Remove(media);
         ExistingVideos.Remove(media);
         ExistingAudio.Remove(media);
+        media.Dispose();
     }
 
     [RelayCommand]
@@ -312,14 +301,13 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         var selected = await _mediaManagement.SelectExistingMediaAsync(MediaOwnerType.Company, CompanyId, alreadyAdded);
         if (selected.Count == 0) return;
 
-        // Все элементы из SelectExistingMediaAsync имеют MediaId (они загружены из БД),
-        // поэтому newMedia всегда пуст — упрощаем логику.
+        // Все элементы из SelectExistingMediaAsync имеют MediaId (они загружены из БД)
         var existingIds = selected
             .Where(m => m.MediaId.HasValue)
             .Select(m => m.MediaId!.Value)
             .ToList();
 
-        // Уже привязанные к этой организации файлы пропускаются — о защите сообщаем пользователю.
+        // Уже привязанные к этой организации файлы пропускаются — о защите сообщаем пользователю
         int skipped = 0;
         if (existingIds.Count > 0)
         {
@@ -331,7 +319,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
         if (skipped > 0)
         {
             _notificationService.Show("Внимание",
-                $"{skipped} файл(ов) уже привязаны к этой организации и не добавлены повторно.",
+                $"{skipped} файл(ов) уже привязаны к этой организации и не добавлены повторно",
                 NotificationType.Warning);
         }
         if (added > 0)
@@ -378,7 +366,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
                         newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Company, CompanyId);
                 }
 
-                TempFiles.Clear();
+                await TempFiles.ClearTempFilesAsync(_mediaService);
             }
 
             _notificationService.Show("Успех", "Изменения сохранены", NotificationType.Success);
@@ -394,8 +382,7 @@ public partial class UpdateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        _ = TempFiles.ClearTempFilesAsync(_mediaService);
         ClearExistingMedia();
         Cancelled?.Invoke();
     }

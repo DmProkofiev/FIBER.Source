@@ -5,15 +5,8 @@ using FIBER.Source.Helpers;
 using Button = System.Windows.Controls.Button;
 
 namespace FIBER.Source.Views;
-
-/// <summary>
-/// Модальное окно уведомления или диалога подтверждения в стиле проекта.
-/// Использует полностью квалифицированные типы System.Windows.Media/Input,
-/// чтобы избежать коллизий с System.Drawing/System.Windows.Forms.
-/// </summary>
 public partial class NotificationWindow : Window
 {
-    /// <summary>Создаёт окно с заданным заголовком, сообщением, типом и режимом.</summary>
     public NotificationWindow(string title, string message, NotificationType type, bool isConfirm)
     {
         InitializeComponent();
@@ -23,7 +16,6 @@ public partial class NotificationWindow : Window
         BuildButtons(isConfirm);
     }
 
-    /// <summary>Настраивает иконку и цвет по типу уведомления.</summary>
     private void ConfigureIcon(NotificationType type)
     {
         (string glyph, System.Windows.Media.Color color) = type switch
@@ -37,7 +29,6 @@ public partial class NotificationWindow : Window
         IconBorder.Background = new System.Windows.Media.SolidColorBrush(color);
     }
 
-    /// <summary>Создаёт кнопки: OK или Да/Нет.</summary>
     private void BuildButtons(bool isConfirm)
     {
         if (isConfirm)
@@ -84,11 +75,8 @@ public partial class NotificationWindow : Window
             ButtonsPanel.Children.Add(ok);
         }
     }
-
-    /// <summary>Закрывает окно по клику на крестик.</summary>
     private void Close_Click(object sender, RoutedEventArgs e) => DialogResult = false;
 
-    /// <summary>Перетаскивание окна за заголовок.</summary>
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.LeftButton == MouseButtonState.Pressed) DragMove();

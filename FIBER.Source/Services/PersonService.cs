@@ -66,6 +66,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<Person> CreateIdentifiedAsync(PersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.LastName))
             throw new InvalidOperationException("Фамилия обязательна для идентифицированной личности.");
         if (string.IsNullOrWhiteSpace(input.FirstName))
@@ -73,6 +74,7 @@ public sealed class PersonService : BaseService, IPersonService
         ValidateBirthDate(input.BirthDate);
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var person = new Person
         {
@@ -130,16 +132,20 @@ public sealed class PersonService : BaseService, IPersonService
             await SyncEventParticipationsAsync(context, person, input.EventParticipations);
         }
 
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.CreateIdentified", $"Id={person.Id}");
         return person;
     }
 
     public async Task<Person> CreateAnonymousAsync(AnonymousPersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.PrimaryAlias))
             throw new InvalidOperationException("PrimaryAlias обязателен для неидентифицированной личности.");
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var person = new Person
         {
@@ -207,12 +213,15 @@ public sealed class PersonService : BaseService, IPersonService
             await SyncEventParticipationsAsync(context, person, input.EventParticipations);
         }
 
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.CreateAnonymous", $"Id={person.Id}");
         return person;
     }
 
     public async Task<Person> PromoteAsync(int personId, PromotePersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.LastName))
             throw new InvalidOperationException("Фамилия обязательна");
         if (string.IsNullOrWhiteSpace(input.FirstName))
@@ -244,10 +253,13 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task UpdateAsync(int id, PersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            .Include(p => p.EventParticipations)
             // Связи персоны с организациями (для редактирования в Update-экране).
             .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
@@ -303,18 +315,22 @@ public sealed class PersonService : BaseService, IPersonService
         await SyncEventParticipationsAsync(context, person, input.EventParticipations);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.Update", $"Id={person.Id}");
     }
 
     public async Task UpdateAnonymousAsync(int id, AnonymousPersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.PrimaryAlias))
             throw new InvalidOperationException("PrimaryAlias обязателен для неидентифицированной личности.");
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            .Include(p => p.EventParticipations)
             // Связи персоны с организациями (для редактирования в Update-экране).
             .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
@@ -362,11 +378,13 @@ public sealed class PersonService : BaseService, IPersonService
         await SyncEventParticipationsAsync(context, person, input.EventParticipations);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.UpdateAnonymous", $"Id={person.Id}");
     }
 
     public async Task DeleteAliasAsync(int personId, int aliasId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var person = await context.People.Include(p => p.Aliases)
@@ -419,7 +437,8 @@ public sealed class PersonService : BaseService, IPersonService
     private static async Task SyncAliasesAsync(
         FiberSourceDbContext context, Person person, IReadOnlyList<PersonAliasInput> inputs)
     {
-        await using var tx = await context.Database.BeginTransactionAsync();
+        await using var tx = context.Database.CurrentTransaction is null
+            ? await context.Database.BeginTransactionAsync() : null;
         try
         {
             var inputIds = inputs.Where(a => a.Id.HasValue).Select(a => a.Id!.Value).ToHashSet();
@@ -473,11 +492,11 @@ public sealed class PersonService : BaseService, IPersonService
                 }
             }
 
-            await tx.CommitAsync();
+            if (tx is not null) await tx.CommitAsync();
         }
         catch
         {
-            await tx.RollbackAsync();
+            if (tx is not null) await tx.RollbackAsync();
             throw;
         }
     }
@@ -485,6 +504,7 @@ public sealed class PersonService : BaseService, IPersonService
     public async Task<IReadOnlyList<PersonSummary>> SearchAsync(
         string query, string? strategyKey = null, bool? isIdentified = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var strategy = _searchFactory.Resolve(strategyKey);
 
@@ -548,6 +568,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<IReadOnlyList<Person>> GetAllExceptAsync(int excludeId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.People.AsNoTracking()
             // Псевдонимы нужны стратегиям сравнения (Levenshtein для анонимов).
@@ -558,6 +579,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<Person?> GetByIdAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.People
             .AsNoTracking()
@@ -675,6 +697,8 @@ public sealed class PersonService : BaseService, IPersonService
         FiberSourceDbContext context, Person person, IReadOnlyList<EventParticipantEditInput>? inputs)
     {
         if (inputs is null) return;
+        if (inputs.Where(i => i.EventId.HasValue).GroupBy(i => i.EventId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Одно событие указано в связях несколько раз.");
 
         // DELETE: связи, отсутствующие во входных данных.
         foreach (var existing in person.EventParticipations?.ToList() ?? new List<EventParticipant>())
@@ -715,6 +739,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task DeleteAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await DeleteWithMediaAsync(
             id,
             MediaOwnerType.Person,

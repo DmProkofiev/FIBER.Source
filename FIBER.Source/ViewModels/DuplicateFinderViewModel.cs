@@ -14,17 +14,12 @@ using System.Windows;
 public partial class DuplicateFinderViewModel : ObservableObject
 {
     public const double DefaultThreshold = 0.6;
-
-    /// <summary>Переход к найденному кандидату.</summary>
     public event Action<FIBER.Source.ViewModels.RelationTargetType, int>? NavigateRequested;
-    /// <summary>Закрыть окно.</summary>
     public event Action? CloseRequested;
-
     private readonly IDuplicateFinderService _duplicateFinderService;
     private readonly int _sourcePersonId;
     private readonly int _sourceCompanyId;
     private readonly INotificationService _notificationService;
-
     public DuplicateFinderViewModel(int personId, IDuplicateFinderService duplicateFinderService, INotificationService notificationService)
     {
         _sourcePersonId = personId;
@@ -35,8 +30,6 @@ public partial class DuplicateFinderViewModel : ObservableObject
         _selectedStrategy = Strategies.FirstOrDefault();
         _threshold = DefaultThreshold;
     }
-
-    // Режим поиска дубликатов организаций.
     public DuplicateFinderViewModel(
         int sourceCompanyId,
         bool isCompanyMode,
@@ -51,20 +44,16 @@ public partial class DuplicateFinderViewModel : ObservableObject
         Strategies = new ObservableCollection<IComparisonStrategy>(duplicateFinderService.Strategies);
         _threshold = DefaultThreshold;
     }
-
     public bool IsCompanyMode { get; }
-
     public ObservableCollection<IComparisonStrategy> Strategies { get; }
     public ObservableCollection<DuplicateCandidate> Candidates { get; } = new();
-    // Кандидаты в режиме организаций (отдельный список для GridView в XAML).
     public ObservableCollection<CompanyDuplicateCandidate> CompanyCandidates { get; } = new();
-
     [ObservableProperty] private IComparisonStrategy? _selectedStrategy;
     [ObservableProperty] private string _sourceName = string.Empty;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private double _threshold = DefaultThreshold;
 
-    // Фиксированный диапазон порога: 0–100 % с шагом 5 % (выбор только из списка).
+    // Фиксированный диапазон порога: 0–100 % с шагом 5 % (выбор только из списка)
     public IReadOnlyList<ThresholdOption> ThresholdOptions { get; } =
         Enumerable.Range(0, 21)
             .Select(index =>
@@ -74,13 +63,10 @@ public partial class DuplicateFinderViewModel : ObservableObject
             })
             .ToList();
 
-    // Для режима компаний: выбранный ключ стратегии («company_exact_name» и т.п.).
+    // Для режима компаний: выбранный ключ стратегии «company_exact_name» 
     [ObservableProperty] private string _selectedCompanyStrategyKey = DuplicateFinderService.CompanyFuzzyNameKey;
-
-    // Справочник стратегий поиска дубликатов организаций (для ComboBox в XAML).
     public IReadOnlyList<DuplicateFinderService.CompanyStrategyOption> CompanyStrategies
         => DuplicateFinderService.CompanyStrategies;
-
     public async Task InitializeAsync()
     {
         if (IsCompanyMode)
@@ -162,6 +148,4 @@ public partial class DuplicateFinderViewModel : ObservableObject
         NavigateRequested?.Invoke(FIBER.Source.ViewModels.RelationTargetType.Person, candidate.Person.Id);
     }
 }
-
-// Вариант порога отсечения для ComboBox: значение 0.0–1.0 и подпись «60%».
 public sealed record ThresholdOption(double Value, string Display);

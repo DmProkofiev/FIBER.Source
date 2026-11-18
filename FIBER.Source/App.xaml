@@ -197,7 +197,7 @@
             </Setter>
         </Style>
 
-        <!-- ====== TextBox ====== -->
+        <!-- TextBox -->
         <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -238,7 +238,7 @@
             </Setter>
         </Style>
 
-        <!-- ====== ComboBox ====== -->
+        <!-- ComboBox -->
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -252,7 +252,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
-        <!-- ====== DatePicker ====== -->
+        <!-- DatePicker -->
         <Style x:Key="ModernDatePickerStyle" TargetType="DatePicker">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -267,7 +267,7 @@
             <Setter Property="SelectedDateFormat" Value="Short"/>
         </Style>
 
-        <!-- ====== Подпись в форме ====== -->
+        <!-- Подпись в форме -->
         <Style x:Key="FormLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontFamily" Value="Times New Roman"/>
@@ -278,7 +278,7 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-        <!-- ====== Карточка поля ====== -->
+        <!-- Карточка поля -->
         <Style x:Key="FieldCardStyle" TargetType="Border">
             <Setter Property="Background" Value="#FAFBFC"/>
             <Setter Property="BorderBrush" Value="#33000000"/>
@@ -313,7 +313,7 @@
             <Setter Property="Margin" Value="0,3,0,0"/>
         </Style>
 
-        <!-- ====== Карточка «Связи» (только просмотр) ====== -->
+        <!-- Связи (только просмотр) -->
         <DataTemplate x:Key="RelationItemTemplate">
             <Border Background="#FAFBFC" CornerRadius="6" Padding="8" Margin="0,4,0,4">
                 <Grid>
@@ -327,7 +327,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Исходный объект (ссылка) -->
+                    <!-- Исходный объект -->
                     <Button Grid.Column="0" Grid.Row="0"
                             Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding}"
@@ -347,7 +347,7 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- Стрелка между объектами (интерактивная) -->
+                    <!-- Стрелка между объектами -->
                     <TextBlock Grid.Column="1" Grid.Row="0" Text="↔"
                                FontFamily="Segoe UI Symbol" FontSize="22" FontWeight="Bold"
                                Foreground="#8E44AD" VerticalAlignment="Center" Margin="8,0"
@@ -403,7 +403,7 @@
             </Border>
         </DataTemplate>
 
-        <!-- ====== Карточка «Событие ↔ Участник» (только просмотр) ====== -->
+        <!-- Карточка Событие Участник -->
         <DataTemplate x:Key="EventParticipantTemplate">
             <Border Background="#FAFBFC" CornerRadius="6" Padding="8" Margin="0,4,0,4">
                 <Grid>
@@ -417,7 +417,7 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Событие (источник) -->
+                    <!-- Событие -->
                     <Button Grid.Column="0" Grid.Row="0"
                             Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding}"
@@ -455,7 +455,7 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <!-- Участник (цель) -->
+                    <!-- Участник -->
                     <Button Grid.Column="2" Grid.Row="0"
                             Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding}"
@@ -496,7 +496,7 @@
         <!-- Селектор DataTemplate для связей (событийные участники — EventParticipantTemplate) -->
         <helpers:EventParticipantDataTemplateSelector x:Key="EventParticipantDataTemplateSelector"/>
 
-        <!-- ====== Тонкий скроллбар ====== -->
+        <!-- Тонкий скроллбар -->
         <Style TargetType="ScrollBar">
             <Setter Property="Width" Value="10"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -546,7 +546,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- ====== DataTemplates ====== -->
+        <!-- DataTemplates -->
         <DataTemplate DataType="{x:Type vm:MenuViewModel}">
             <views:MenuView/>
         </DataTemplate>
@@ -575,7 +575,7 @@
             <views:UpdateEventView/>
         </DataTemplate>
 
-        <!-- ====== Анимация появления контента ====== -->
+        <!-- Анимация появления контента -->
         <Style TargetType="ContentControl" x:Key="FadeContentControlStyle">
             <Setter Property="Opacity" Value="0"/>
             <Style.Triggers>
@@ -630,7 +630,7 @@
             <Setter Property="Background" Value="#E74C3C"/>
         </Style>
 
-        <!-- Карточка изображения (единый стиль для фото, на базе Settings) -->
+        <!-- изображения -->
         <Style x:Key="MediaImageCardStyle" TargetType="Border">
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="CornerRadius" Value="5"/>
@@ -674,7 +674,7 @@
             <Setter Property="MinHeight" Value="120"/>
         </Style>
 
-        <!-- Контейнер видео: желтый, адекватные размеры -->
+        <!-- Контейнер видео: желтый -->
         <Style x:Key="VideoContainerStyle" TargetType="Border">
             <Setter Property="Background" Value="#F1C40F"/>
             <Setter Property="CornerRadius" Value="8"/>

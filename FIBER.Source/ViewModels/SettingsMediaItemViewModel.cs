@@ -18,7 +18,6 @@ namespace FIBER.Source.ViewModels
             OwnerName = ownerName;
         }
 
-        // Отформатированная строка для заголовка (например: "Человек (ID: 1) - Иванов Иван")
         public string OwnerDisplay => OwnerType switch
         {
             MediaOwnerType.Person => $"Человек (ID: {OwnerId}) - {OwnerName}",

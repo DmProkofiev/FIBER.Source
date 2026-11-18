@@ -5,10 +5,6 @@ using UserControl = System.Windows.Controls.UserControl;
 
 namespace FIBER.Source.Views;
 
-/// <summary>
-/// Повторно используемая кнопка «Хранилище Медиа».
-/// Инкапсулирует Command и оформление — исключает дублирование XAML в Create/Update вью.
-/// </summary>
 public partial class MediaStorageButton : UserControl
 {
     public static readonly DependencyProperty CommandProperty =
