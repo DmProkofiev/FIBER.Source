@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace FIBER.Source.ViewModels;
 
-// VM создания организации с медиа
+// VM создания организаци
 public partial class CreateCompanyViewModel : ObservableValidator
 {
     private readonly ICompanyService _companyService;
@@ -24,8 +24,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
     private readonly IMediaService _mediaService;
     private readonly IMediaManagementService _mediaManagement;
     private readonly INotificationService _notificationService;
-
-    // Внедряет сервисы
     public CreateCompanyViewModel(ICompanyService companyService, IPersonService personService, IEventService eventService, IMediaService mediaService, IMediaManagementService mediaManagement, INotificationService notificationService)
     {
         _companyService = companyService;
@@ -38,17 +36,17 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
     public async Task InitializeAsync()
     {
-        // Справочник организаций для связи «организация ↔ персона».
+        // Справочник организаций для связи организация персона
         AvailablePersons.Clear();
         foreach (var p in await _personService.SearchAsync(string.Empty))
             AvailablePersons.Add(p);
 
-        // Справочник организаций для взаимодействий «организация → организация».
+        // Справочник организаций для взаимодействий организация организация
         AvailableCompanies.Clear();
         foreach (var c in await _companyService.GetAllExceptAsync(0))
             AvailableCompanies.Add(c);
 
-        // Справочник событий для связи «организация ↔ событие».
+        // Справочник событий для связи организация событие
         AvailableEvents.Clear();
         foreach (var e in await _eventService.ListAsync(null))
             AvailableEvents.Add(e);
@@ -61,27 +59,21 @@ public partial class CreateCompanyViewModel : ObservableValidator
     public ObservableCollection<Company> AvailableCompanies { get; } = new();
     public ObservableCollection<PersonSummary> AvailablePersons { get; } = new();
     public ObservableCollection<EventSummary> AvailableEvents { get; } = new();
-
-    /// <summary>Id только что созданной организации (для привязки существующих медиа).</summary>
     public int? CreatedOwnerId { get; private set; }
-
     [ObservableProperty] private int? _selectedTargetCompanyId;
     [ObservableProperty] private int? _selectedTargetPersonId;
     [ObservableProperty] private int? _selectedTargetEventId;
-
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Название обязательно")]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private string _name = string.Empty;
-
     [ObservableProperty] private string _registrationNumber = string.Empty;
     [ObservableProperty] private string _address = string.Empty;
     [ObservableProperty] private string _phone = string.Empty;
     [ObservableProperty] private string _mail = string.Empty;
     [ObservableProperty] private string _website = string.Empty;
     [ObservableProperty] private string _notes = string.Empty;
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateCommand))]
     private bool _isBusy;
@@ -94,14 +86,15 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
     // Удаляет временный файл
     [RelayCommand]
-    private void RemoveTempFile(MediaItemViewModel item)
+    private async Task RemoveTempFile(MediaItemViewModel item)
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
+        item.Dispose();
+        await _mediaService.DeleteTempFilesAsync(new[] { item.ToDto() });
     }
 
-    // Создаёт организацию и коммитит медиа
+    // Создаёт организацию
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private async Task CreateAsync()
     {
@@ -141,7 +134,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
                         newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Company, company.Id);
                 }
 
-                TempFiles.Clear();
+                await TempFiles.ClearTempFilesAsync(_mediaService);
             }
 
             CreatedOwnerId = company.Id;
@@ -162,18 +155,12 @@ public partial class CreateCompanyViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        // Передаём уже добавленные MediaId, чтобы они отмечались галочкой и не дублировались
         var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
         var selected = await _mediaManagement.SelectExistingMediaAsync(alreadyAdded);
         if (selected.Count == 0) return;
-
-        // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
-
         _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
-
-    // ----- Взаимодействия «компания → компания» при создании -----
 
     [RelayCommand]
     private void AddInteraction()
@@ -182,8 +169,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
         var target = AvailableCompanies.FirstOrDefault(c => c.Id == SelectedTargetCompanyId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такое взаимодействие уже есть в списке.
         if (Interactions.Any(i => i.TargetCompanyId == target.Id))
         {
             _notificationService.Show("Внимание", "Взаимодействие с этой организацией уже добавлено", NotificationType.Warning);
@@ -212,8 +197,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
             .Select(i => i.ToInput())
             .ToList();
 
-    // ----- Связи «организация ↔ персона» при создании -----
-
     [RelayCommand]
     private void AddPersonCompany()
     {
@@ -221,8 +204,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
         var target = AvailablePersons.FirstOrDefault(p => p.Id == SelectedTargetPersonId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такая персона уже есть в списке связей.
         if (CompanyPeople.Any(cp => cp.PersonId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этой персоной уже добавлена", NotificationType.Warning);
@@ -234,7 +215,8 @@ public partial class CreateCompanyViewModel : ObservableValidator
         {
             PersonId = target.Id,
             PersonName = target.DisplayName,
-            Role = string.Empty
+            PersonRole = string.Empty,
+            CompanyRole = string.Empty
         });
         SelectedTargetPersonId = null;
     }
@@ -252,8 +234,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
             .Select(cp => cp.ToInput())
             .ToList();
 
-    // ----- Связи «организация ↔ событие» при создании -----
-
     [RelayCommand]
     private void AddEventParticipation()
     {
@@ -261,8 +241,6 @@ public partial class CreateCompanyViewModel : ObservableValidator
 
         var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
-
-        // Защита от дубля: такое событие уже есть в списке.
         if (EventParticipations.Any(ep => ep.EventId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);
@@ -293,10 +271,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
             .Select(ep => ep.ToEditInput())
             .ToList();
 
-    // Проверяет, можно ли запускать создание
     private bool CanCreate() => !IsBusy;
-
-    // Очищает форму и освобождает временные файлы
     public void ClearForm()
     {
         Name = string.Empty;
@@ -306,8 +281,7 @@ public partial class CreateCompanyViewModel : ObservableValidator
         Mail = string.Empty;
         Website = string.Empty;
         Notes = string.Empty;
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        _ = TempFiles.ClearTempFilesAsync(_mediaService);
         Interactions.Clear();
         CompanyPeople.Clear();
         AvailableCompanies.Clear();

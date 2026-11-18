@@ -58,6 +58,7 @@ public sealed class SeedDataService : ISeedDataService
 
     public async Task<SeedResult> SeedAsync()
     {
+        await FIBER.Source.Infrastructure.Helpers.BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         bool hasPeople = await context.People.AnyAsync();
@@ -153,7 +154,7 @@ public sealed class SeedDataService : ISeedDataService
             var kind = relationKinds[Rng.Next(relationKinds.Length)];
             try
             {
-                await _relationService.AddPersonRelationshipAsync(a, b, kind, "Тестовая связь из сидинга.");
+                await _relationService.AddPersonRelationshipAsync(a, b, kind, kind, "Тестовая связь из сидинга.");
                 relationshipsCreated++;
             }
             catch { /* дубликат или self-link — пропускаем */ }

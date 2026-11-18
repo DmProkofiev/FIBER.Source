@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:FIBER.Source.ViewModels"
              xmlns:views="clr-namespace:FIBER.Source.Views"
              xmlns:converters="clr-namespace:FIBER.Source.Helpers.Converters"
+             xmlns:helpers="clr-namespace:FIBER.Source.Helpers"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
 
@@ -196,7 +197,7 @@
             </Setter>
         </Style>
 
-        <!-- ====== TextBox ====== -->
+        <!-- TextBox -->
         <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -237,7 +238,7 @@
             </Setter>
         </Style>
 
-        <!-- ====== ComboBox ====== -->
+        <!-- ComboBox -->
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -251,7 +252,7 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
-        <!-- ====== DatePicker ====== -->
+        <!-- DatePicker -->
         <Style x:Key="ModernDatePickerStyle" TargetType="DatePicker">
             <Setter Property="Background" Value="#E8FFFFFF"/>
             <Setter Property="Foreground" Value="Black"/>
@@ -266,7 +267,7 @@
             <Setter Property="SelectedDateFormat" Value="Short"/>
         </Style>
 
-        <!-- ====== Подпись в форме ====== -->
+        <!-- Подпись в форме -->
         <Style x:Key="FormLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontFamily" Value="Times New Roman"/>
@@ -277,7 +278,7 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-        <!-- ====== Карточка поля ====== -->
+        <!-- Карточка поля -->
         <Style x:Key="FieldCardStyle" TargetType="Border">
             <Setter Property="Background" Value="#FAFBFC"/>
             <Setter Property="BorderBrush" Value="#33000000"/>
@@ -312,20 +313,28 @@
             <Setter Property="Margin" Value="0,3,0,0"/>
         </Style>
 
-        <!-- ====== Карточка «Связи» (только просмотр) ====== -->
+        <!-- Связи (только просмотр) -->
         <DataTemplate x:Key="RelationItemTemplate">
             <Border Background="#FAFBFC" CornerRadius="6" Padding="8" Margin="0,4,0,4">
-                <StackPanel>
-                    <!-- Вид / тип связи -->
-                    <TextBlock Text="{Binding Kind}" FontFamily="Times New Roman" FontSize="14"
-                               FontWeight="Bold" Foreground="#8E44AD" Margin="0,0,0,4" TextWrapping="Wrap"/>
-                    
-                    <!-- Целевой объект (ссылка) -->
-                    <Button Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Исходный объект -->
+                    <Button Grid.Column="0" Grid.Row="0"
+                            Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                             CommandParameter="{Binding}"
-                            Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,0,4"
-                            Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left">
-                        <TextBlock Text="{Binding Target}" FontFamily="Times New Roman" FontSize="15"
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left"
+                            Visibility="{Binding CanNavigateSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding SourceDisplayWithRole}" FontFamily="Times New Roman" FontSize="15"
                                    Foreground="#1F4E79" TextDecorations="Underline" VerticalAlignment="Center" TextWrapping="Wrap"/>
                         <Button.Style>
                             <Style TargetType="Button">
@@ -337,26 +346,157 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                    
+
+                    <!-- Стрелка между объектами -->
+                    <TextBlock Grid.Column="1" Grid.Row="0" Text="↔"
+                               FontFamily="Segoe UI Symbol" FontSize="22" FontWeight="Bold"
+                               Foreground="#8E44AD" VerticalAlignment="Center" Margin="8,0"
+                               Cursor="Hand">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="#6C3483"/>
+                                        <Setter Property="Background" Value="#E8DAEF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Целевой объект (ссылка) -->
+                    <Button Grid.Column="2" Grid.Row="0"
+                            Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left">
+                        <TextBlock Text="{Binding TargetDisplayWithRole}" FontFamily="Times New Roman" FontSize="15"
+                                   Foreground="#1F4E79" TextDecorations="Underline" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="#2980B9"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
                     <!-- Заметки -->
-                    <TextBlock Text="{Binding Details}" FontFamily="Times New Roman" FontSize="13" FontStyle="Italic"
-                               Foreground="#666666" TextWrapping="Wrap" Margin="0,0,0,0">
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+                               Text="{Binding Notes}" FontFamily="Times New Roman" FontSize="13" FontStyle="Italic"
+                               Foreground="#666666" TextWrapping="Wrap" Margin="0,4,0,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Visible"/>
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasDetails}" Value="False">
+                                    <DataTrigger Binding="{Binding HasNotes}" Value="False">
                                         <Setter Property="Visibility" Value="Collapsed"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                </StackPanel>
+                </Grid>
             </Border>
         </DataTemplate>
 
-        <!-- ====== Тонкий скроллбар ====== -->
+        <!-- Карточка Событие Участник -->
+        <DataTemplate x:Key="EventParticipantTemplate">
+            <Border Background="#FAFBFC" CornerRadius="6" Padding="8" Margin="0,4,0,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Событие -->
+                    <Button Grid.Column="0" Grid.Row="0"
+                            Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left"
+                            Visibility="{Binding CanNavigateSource, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{Binding SourceDisplayWithRole}" FontFamily="Times New Roman" FontSize="15"
+                                   Foreground="#1F4E79" TextDecorations="Underline" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="#2980B9"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Стрелка между объектами -->
+                    <TextBlock Grid.Column="1" Grid.Row="0" Text="↔"
+                               FontFamily="Segoe UI Symbol" FontSize="22" FontWeight="Bold"
+                               Foreground="#8E44AD" VerticalAlignment="Center" Margin="8,0"
+                               Cursor="Hand">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="#6C3483"/>
+                                        <Setter Property="Background" Value="#E8DAEF"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Участник -->
+                    <Button Grid.Column="2" Grid.Row="0"
+                            Command="{Binding DataContext.NavigateRelationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            Cursor="Hand" Focusable="False" HorizontalContentAlignment="Left">
+                        <TextBlock Text="{Binding TargetDisplayWithRole}" FontFamily="Times New Roman" FontSize="15"
+                                   Foreground="#1F4E79" TextDecorations="Underline" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="#2980B9"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Заметки -->
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+                               Text="{Binding Notes}" FontFamily="Times New Roman" FontSize="13" FontStyle="Italic"
+                               Foreground="#666666" TextWrapping="Wrap" Margin="0,4,0,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasNotes}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- Селектор DataTemplate для связей (событийные участники — EventParticipantTemplate) -->
+        <helpers:EventParticipantDataTemplateSelector x:Key="EventParticipantDataTemplateSelector"/>
+
+        <!-- Тонкий скроллбар -->
         <Style TargetType="ScrollBar">
             <Setter Property="Width" Value="10"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -406,7 +546,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- ====== DataTemplates ====== -->
+        <!-- DataTemplates -->
         <DataTemplate DataType="{x:Type vm:MenuViewModel}">
             <views:MenuView/>
         </DataTemplate>
@@ -435,7 +575,7 @@
             <views:UpdateEventView/>
         </DataTemplate>
 
-        <!-- ====== Анимация появления контента ====== -->
+        <!-- Анимация появления контента -->
         <Style TargetType="ContentControl" x:Key="FadeContentControlStyle">
             <Setter Property="Opacity" Value="0"/>
             <Style.Triggers>
@@ -490,7 +630,7 @@
             <Setter Property="Background" Value="#E74C3C"/>
         </Style>
 
-        <!-- Карточка изображения (единый стиль для фото, на базе Settings) -->
+        <!-- изображения -->
         <Style x:Key="MediaImageCardStyle" TargetType="Border">
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="CornerRadius" Value="5"/>
@@ -534,7 +674,7 @@
             <Setter Property="MinHeight" Value="120"/>
         </Style>
 
-        <!-- Контейнер видео: желтый, адекватные размеры -->
+        <!-- Контейнер видео: желтый -->
         <Style x:Key="VideoContainerStyle" TargetType="Border">
             <Setter Property="Background" Value="#F1C40F"/>
             <Setter Property="CornerRadius" Value="8"/>

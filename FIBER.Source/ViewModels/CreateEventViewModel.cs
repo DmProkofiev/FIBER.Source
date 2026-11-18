@@ -6,11 +6,8 @@ using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services.MediaManagement;
-using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace FIBER.Source.ViewModels;
 
@@ -81,7 +78,7 @@ public partial class CreateEventViewModel : ObservableValidator
 
         var persons = await _personService.SearchAsync(string.Empty);
         Persons.Clear();
-        Persons.Add(new PersonSummary(0, "(не указан)", IdentityStatus.Anonymous, null));
+        Persons.Add(new PersonSummary(0, "не указан", IdentityStatus.Anonymous, null));
         foreach (var p in persons) Persons.Add(p);
 
         AvailableEvents.Clear();
@@ -95,11 +92,12 @@ public partial class CreateEventViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private void RemoveTempFile(MediaItemViewModel item)
+    private async Task RemoveTempFile(MediaItemViewModel item)
     {
         if (item == null) return;
         TempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
+        item.Dispose();
+        await _mediaService.DeleteTempFilesAsync(new[] { item.ToDto() });
     }
 
     [RelayCommand]
@@ -173,7 +171,7 @@ public partial class CreateEventViewModel : ObservableValidator
                         newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Event, ev.Id);
                 }
 
-                TempFiles.Clear();
+                await TempFiles.ClearTempFilesAsync(_mediaService);
             }
 
             CreatedOwnerId = ev.Id;
@@ -192,14 +190,10 @@ public partial class CreateEventViewModel : ObservableValidator
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        // Передаём уже добавленные MediaId, чтобы они отмечались галочкой и не дублировались
         var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
         var selected = await _mediaManagement.SelectExistingMediaAsync(alreadyAdded);
         if (selected.Count == 0) return;
-
-        // Добавление во временные файлы с защитой от дублей
         await _mediaManagement.AddToTempFilesAsync(TempFiles, selected);
-
         _notificationService.Show("Успех", $"Добавлено медиафайлов: {selected.Count}", NotificationType.Success);
     }
 
@@ -219,21 +213,17 @@ public partial class CreateEventViewModel : ObservableValidator
         SelectedTargetEventId = null;
         EventEvents.Clear();
         AvailableEvents.Clear();
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        _ = TempFiles.ClearTempFilesAsync(_mediaService);
     }
 
-    // Связи «событие событие» при создании 
+    // Связи событие событие
 
     [RelayCommand]
     private void AddEventEvent()
     {
         if (SelectedTargetEventId == null) return;
-
         var target = AvailableEvents.FirstOrDefault(e => e.Id == SelectedTargetEventId.Value);
         if (target == null) return;
-
-        // Защита от дубля
         if (EventEvents.Any(ee => ee.TargetEventId == target.Id))
         {
             _notificationService.Show("Внимание", "Связь с этим событием уже добавлена", NotificationType.Warning);

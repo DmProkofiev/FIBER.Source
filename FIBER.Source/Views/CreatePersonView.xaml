@@ -196,7 +196,7 @@
                         <TextBox Grid.Row="20" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}" Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalAlignment="Stretch"/>
                     </Grid>
 
-                    <!-- ================= СВЯЗИ С ПЕРСОНАМИ ================= -->
+                    <!-- СВЯЗИ С ПЕРСОНАМИ -->
                     <Expander Header="Связи с персонами" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -224,8 +224,9 @@
                                         <Border Background="#11FFFFFF" CornerRadius="4" Padding="6" Margin="0,2">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="170"/>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
@@ -234,14 +235,20 @@
                                                          Margin="0,0,6,0"/>
                                                 <ComboBox Grid.Column="1" Style="{StaticResource ModernComboBoxStyle}"
                                                       ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
-                                                      SelectedValue="{Binding Kind}"
+                                                      SelectedValue="{Binding KindFrom}"
                                                       SelectedValuePath="Value"
                                                       DisplayMemberPath="Display"
                                                       Margin="0,0,6,0"/>
-                                                <TextBox Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
+                                                <ComboBox Grid.Column="2" Style="{StaticResource ModernComboBoxStyle}"
+                                                      ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
+                                                      SelectedValue="{Binding KindTo}"
+                                                      SelectedValuePath="Value"
+                                                      DisplayMemberPath="Display"
+                                                      Margin="0,0,6,0"/>
+                                                <TextBox Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}"
                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
-                                                <Button Grid.Column="3" Content="×" Width="26" Height="26"
+                                                <Button Grid.Column="4" Content="×" Width="26" Height="26"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.RemoveRelationshipCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -267,7 +274,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С ОРГАНИЗАЦИЯМИ ================= -->
+                    <!-- СВЯЗИ С ОРГАНИЗАЦИЯМИ -->
                     <Expander Header="Связи с организациями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -298,9 +305,13 @@
                                                 <TextBox Text="{Binding CompanyName, Mode=OneWay}" IsReadOnly="True"
                                                          Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
                                                 
-                                                <TextBlock Text="Роль" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Роль человека" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <TextBox Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding PersonRole, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,0,0,6"/>
+                                                <TextBlock Text="Роль организации" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Style="{StaticResource ModernTextBoxStyle}"
+                                                         Text="{Binding CompanyRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,0,6"/>
                                                 
                                                 <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
@@ -335,7 +346,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С СОБЫТИЯМИ ================= -->
+                    <!-- СВЯЗИ С СОБЫТИЯМИ -->
                     <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">

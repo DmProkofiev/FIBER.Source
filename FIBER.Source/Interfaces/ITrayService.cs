@@ -2,6 +2,6 @@
 
 public interface ITrayService : IDisposable
 {
-    void Initialize(Action onOpen, Action onExit);
+    Task InitializeAsync(Action onOpen, Action onExit);
     void ShowMinimizeNotification();
 }

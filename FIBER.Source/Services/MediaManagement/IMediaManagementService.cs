@@ -55,5 +55,5 @@ public interface IMediaManagementService
     Task<int> HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths);
 
     /// Удаляет временный файл из коллекции и диска
-    void RemoveTempFile(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item);
+    Task RemoveTempFileAsync(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item);
 }

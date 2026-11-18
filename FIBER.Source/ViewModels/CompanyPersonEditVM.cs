@@ -4,20 +4,19 @@ using FIBER.Source.Models.Joins;
 
 namespace FIBER.Source.ViewModels;
 
-// Редактируемая строка связи «организация ↔ личность» в форме редактирования.
 public partial class CompanyPersonEditVM : ObservableObject
 {
-    // Id существующей записи CompanyPerson; null — новая связь.
     public int? Id { get; set; }
 
     [ObservableProperty] private int? _companyId;
     [ObservableProperty] private string _companyName = string.Empty;
     [ObservableProperty] private int? _personId;
     [ObservableProperty] private string _personName = string.Empty;
-    [ObservableProperty] private string _role = string.Empty;
+    [ObservableProperty] private string _personRole = string.Empty;
+    [ObservableProperty] private string _companyRole = string.Empty;
     [ObservableProperty] private string _notes = string.Empty;
 
-    public CompanyPersonEditInput ToInput() => new(Id, CompanyId.GetValueOrDefault(), PersonId.GetValueOrDefault(), Role, Notes);
+    public CompanyPersonEditInput ToInput() => new(Id, CompanyId.GetValueOrDefault(), PersonId.GetValueOrDefault(), PersonRole, CompanyRole, Notes);
 
     public static CompanyPersonEditVM FromModel(CompanyPerson cp) => new()
     {
@@ -28,7 +27,8 @@ public partial class CompanyPersonEditVM : ObservableObject
         PersonName = cp.Person?.FullName
             ?? cp.Person?.Aliases.FirstOrDefault(a => a.IsPrimary)?.Value
             ?? $"Аноним #{cp.PersonId}",
-        Role = cp.Role,
+        PersonRole = cp.PersonRole,
+        CompanyRole = cp.CompanyRole,
         Notes = cp.Notes
     };
 }

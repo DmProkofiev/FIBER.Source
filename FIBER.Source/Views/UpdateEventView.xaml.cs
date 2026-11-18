@@ -14,8 +14,6 @@ namespace FIBER.Source.Views;
 public partial class UpdateEventView : UserControl
 {
     public UpdateEventView() => InitializeComponent();
-
-    // Разрешает перетаскивание файлов; иначе — запрещает
     private void DropZone_DragOver(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
@@ -23,11 +21,7 @@ public partial class UpdateEventView : UserControl
             : DragDropEffects.None;
         e.Handled = true;
     }
-
-    // Ничего не делает; оставлен для симметрии
     private void DropZone_DragLeave(object sender, DragEventArgs e) { }
-
-    // Передаёт перетащенные файлы в VM
     private async void DropZone_Drop(object sender, DragEventArgs e)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;

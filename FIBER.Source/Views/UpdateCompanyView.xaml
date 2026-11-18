@@ -64,7 +64,7 @@
                                  AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" VerticalAlignment="Stretch"/>
                     </Grid>
 
-                    <!-- ================= ВЗАИМОДЕЙСТВИЯ «КОМПАНИЯ → КОМПАНИЯ» ================= -->
+                    <!-- ВЗАИМОДЕЙСТВИЯ КОМПАНИЯ КОМПАНИЯ -->
                     <Expander Header="Взаимодействия с организациями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -98,18 +98,19 @@
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <!-- Подписи -->
+
                                                 <TextBlock Grid.Column="0" Text="Организация" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
                                                 <TextBlock Grid.Column="1" Text="Тип взаимодействия" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
                                                 <TextBlock Grid.Column="2" Text="Заметки" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <!-- Название целевой организации: редактируемые — TextBox, обратные — метка -->
+
                                                 <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding DisplayName, Mode=OneWay}" IsReadOnly="True"
                                                          Margin="0,0,6,0">
                                                     <TextBox.Style>
@@ -142,14 +143,6 @@
                                                           
                                                           Text="{Binding InteractionType, UpdateSourceTrigger=PropertyChanged}"
                                                           Margin="0,0,6,0"/>
-                                                    
-                                                    
-                                                    
-                                                    
-                                                    
-                                                    
-                                                    
-                                                
                                                 <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0" VerticalAlignment="Stretch"/>
@@ -194,7 +187,7 @@
 
                     
 
-                    <!-- ================= СВЯЗИ С ПЕРСОНАМИ ================= -->
+                    <!-- СВЯЗИ С ПЕРСОНАМИ -->
                     <Expander Header="Связи с персонами" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -225,10 +218,14 @@
                                                 <TextBox Text="{Binding PersonName, Mode=OneWay}" IsReadOnly="True"
                                                          Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
                                                 
-                                                <TextBlock Text="Роль" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="Роль человека" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <TextBox Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding PersonRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,0,6"/>
+                                                <TextBlock Text="Роль организации" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBox Style="{StaticResource ModernTextBoxStyle}"
+                                                         Text="{Binding CompanyRole, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,0,0,6" VerticalAlignment="Stretch"/>
                                                 
                                                 <TextBlock Text="Заметки" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <TextBox Style="{StaticResource ModernTextBoxStyle}"
@@ -262,7 +259,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С СОБЫТИЯМИ ================= -->
+                    <!-- СВЯЗИ С СОБЫТИЯМИ -->
                     <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -291,7 +288,8 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>

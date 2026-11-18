@@ -17,8 +17,6 @@ public partial class MainViewModel : ObservableObject
     private readonly UpdateCompanyViewModel _updateCompany;
     private readonly UpdateEventViewModel _updateEvent;
     private readonly SettingsViewModel _settings;
-
-    // Внедряет все VM и связывает события
     public MainViewModel(
         MenuViewModel menu,
         CreatePersonViewModel createPerson,
@@ -120,7 +118,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // Открывает редактирование персоны
+    // редактирование персоны
     private async void OnUpdatePersonRequested(int personId)
     {
         try
@@ -137,14 +135,10 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // Куда вернуться после сохранения/отмены редактирования организации/события.
     private bool _companyEditReturnsToSearch;
     private bool _eventEditReturnsToSearch;
-
-    // Открывает редактирование организации
     private async void OnUpdateCompanyRequested(int companyId) =>
         await OpenCompanyAsync(companyId, returnToSearch: true);
-
     private async void OnSettingsCompanyRequested(int companyId) =>
         await OpenCompanyAsync(companyId, returnToSearch: false);
 
@@ -164,14 +158,10 @@ public partial class MainViewModel : ObservableObject
                 NotificationType.Error);
         }
     }
-
-    // Открывает редактирование события
     private async void OnUpdateEventRequested(int eventId) =>
         await OpenEventAsync(eventId, returnToSearch: true);
-
     private async void OnSettingsEventRequested(int eventId) =>
         await OpenEventAsync(eventId, returnToSearch: false);
-
     private async Task OpenEventAsync(int eventId, bool returnToSearch)
     {
         _eventEditReturnsToSearch = returnToSearch;
@@ -188,9 +178,6 @@ public partial class MainViewModel : ObservableObject
                 NotificationType.Error);
         }
     }
-
-    // ===== Переходы по связям: показываем целевой объект в режиме просмотра =====
-
     private async void OnNavigateToPerson(int personId)
     {
         ShowSearchView();
@@ -208,16 +195,12 @@ public partial class MainViewModel : ObservableObject
         ShowSearchView();
         await _search.ShowEventAsync(eventId);
     }
-
-    // Открывает экран поиска без перезагрузки списков (чтобы не сбросить выбранную запись)
     private void ShowSearchView()
     {
         CurrentContent = _search;
         CurrentPanelKey = "Search";
         _menu.CloseSubmenu();
     }
-
-    // Возврат в экран после сохранения/отмены (Person — экран поиска, Company/Event — туда, откуда открыли)
     private void OnUpdateFinished() => ShowSearch();
 
     private void OnCompanyUpdateFinished()
@@ -232,14 +215,12 @@ public partial class MainViewModel : ObservableObject
         else ShowSettings();
     }
 
-    // Переход на экран поиска (после сохранения/отмены Person)
     private void ShowSearch()
     {
         ShowSearchView();
         _ = _search.InitializeAsync();
     }
 
-    // Переход на экран настроек (после сохранения/отмены Company/Event)
     private void ShowSettings()
     {
         CurrentContent = _settings;

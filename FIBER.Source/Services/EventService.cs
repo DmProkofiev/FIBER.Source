@@ -103,6 +103,8 @@ public sealed class EventService : BaseService, IEventService
 
     public async Task<Event> CreateAsync(EventInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
+        if (string.IsNullOrWhiteSpace(input.Title)) throw new InvalidOperationException("Название события обязательно.");
         ValidateEventDate(input.Date);
 
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -156,6 +158,7 @@ public sealed class EventService : BaseService, IEventService
 
     public async Task<Event?> GetByIdAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.Events.AsNoTracking()
             .Include(e => e.OrganizerCompany)
@@ -170,6 +173,7 @@ public sealed class EventService : BaseService, IEventService
 
     public async Task<IReadOnlyList<EventSummary>> ListAsync(string? query = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         IQueryable<Event> q = context.Events.AsNoTracking();
@@ -264,6 +268,8 @@ public sealed class EventService : BaseService, IEventService
 
     public async Task UpdateAsync(int id, EventInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
+        if (string.IsNullOrWhiteSpace(input.Title)) throw new InvalidOperationException("Название события обязательно.");
         ValidateEventDate(input.Date);
 
         await using var context = await _contextFactory.CreateDbContextAsync();
@@ -414,6 +420,10 @@ public sealed class EventService : BaseService, IEventService
         FiberSourceDbContext context, Event ev, IReadOnlyList<EventEventEditInput>? inputs)
     {
         if (inputs is null) return;
+        if (inputs.Any(i => i.TargetEventId == ev.Id))
+            throw new InvalidOperationException("Связь события с самим собой невозможна.");
+        if (inputs.GroupBy(i => i.TargetEventId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Одно событие указано в связях несколько раз.");
 
         // DELETE: связи, отсутствующие во входных данных.
         foreach (var existing in ev.EventEvents?.ToList() ?? new List<EventEvent>())
@@ -461,6 +471,7 @@ public sealed class EventService : BaseService, IEventService
 
     public async Task DeleteAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await DeleteWithMediaAsync(
             id,
             MediaOwnerType.Event,

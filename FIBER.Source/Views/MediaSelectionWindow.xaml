@@ -59,7 +59,7 @@
                                     FontWeight="Bold" BorderThickness="0" Cursor="Hand"/>
                         </Grid>
 
-                        <!-- Вкладки по типам медиа (единый стиль из App.xaml) -->
+                        <!-- Вкладки по типам медиа-->
                         <TabControl Grid.Row="1" Style="{StaticResource MediaTabControlStyle}">
                             <TabItem Header="Фото" Style="{StaticResource MediaTabItemStyle}"
                                      Visibility="{Binding HasPhotos, Converter={StaticResource BooleanToVisibilityConverter}}">

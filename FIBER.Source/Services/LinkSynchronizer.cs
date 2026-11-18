@@ -9,9 +9,6 @@ namespace FIBER.Source.Services;
 
 /// <summary>
 /// Универсальный синхронизатор связей "владелец ↔ цель".
-/// Инкапсулирует повторяющийся паттерн CRUD связей, размазанный ранее
-/// по PersonService, CompanyService и EventService (SRP/DRY).
-///
 /// Паттерн: DELETE (отсутствующие во входных данных) → UPDATE (существующие) → CREATE (новые).
 /// </summary>
 public sealed class LinkSynchronizer
@@ -33,9 +30,10 @@ public sealed class LinkSynchronizer
     /// <param name="ownerId">Идентификатор владельца (передаётся в фабрику создания связи).</param>
     /// <param name="getInputId">Извлечение Id существующей связи (null для новой).</param>
     /// <param name="getInputTargetId">Извлечение Id целевого объекта.</param>
-    /// <param name="getInputRole">Извлечение роли/вида связи.</param>
+    /// <param name="getInputRole">Извлечение первой роли/вида связи.</param>
+    /// <param name="getInputRole2">Извлечение второй роли/вида связи (опционально).</param>
     /// <param name="getInputNotes">Извлечение заметок.</param>
-    /// <param name="setLinkFields">Заполнение полей связи (role, notes).</param>
+    /// <param name="setLinkFields">Заполнение полей связи (role1, role2, notes).</param>
     /// <param name="targetExists">Проверка существования целевого объекта по Id.</param>
     /// <param name="duplicateExists">Проверка дубля связи (ownerId, targetId).</param>
     /// <param name="createLink">Фабрика новой связи; получает targetId, ownerId доступен через замыкание.</param>
@@ -46,8 +44,9 @@ public sealed class LinkSynchronizer
         Func<TInput, int?> getInputId,
         Func<TInput, int> getInputTargetId,
         Func<TInput, string?> getInputRole,
+        Func<TInput, string?>? getInputRole2,
         Func<TInput, string?> getInputNotes,
-        Action<TLink, string, string> setLinkFields,
+        Action<TLink, string, string, string> setLinkFields,
         Func<int, Task<bool>> targetExists,
         Func<int, int, Task<bool>> duplicateExists,
         Func<int, TLink> createLink)
@@ -83,6 +82,7 @@ public sealed class LinkSynchronizer
             if (link is not null)
             {
                 setLinkFields(link, getInputRole(input) ?? string.Empty,
+                    getInputRole2?.Invoke(input) ?? string.Empty,
                     getInputNotes(input) ?? string.Empty);
                 continue;
             }
@@ -94,6 +94,7 @@ public sealed class LinkSynchronizer
 
             var newLink = createLink(targetId);
             setLinkFields(newLink, getInputRole(input) ?? string.Empty,
+                getInputRole2?.Invoke(input) ?? string.Empty,
                 getInputNotes(input) ?? string.Empty);
             _context.Add(newLink);
         }

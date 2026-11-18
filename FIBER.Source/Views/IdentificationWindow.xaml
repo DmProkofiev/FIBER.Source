@@ -45,7 +45,7 @@
                         </TextBlock>
                     </Border>
 
-                    <TextBlock Text="Мастер-пароль:" Foreground="White"
+                    <TextBlock Text="Пароль:" Foreground="White"
                                FontFamily="Times New Roman" FontSize="15" FontWeight="Bold"
                                Margin="0,0,0,5"/>
                     <PasswordBox x:Name="PasswordBox" Height="35" Padding="8"

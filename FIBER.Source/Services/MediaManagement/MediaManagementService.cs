@@ -183,7 +183,7 @@ public sealed class MediaManagementService : IMediaManagementService
             if (tempFiles.Any(t => BelongsToSameMedia(t, dto)))
             {
                 skipped++;
-                _mediaService.DeleteTempFiles(new[] { dto }); // удаляем временную копию дубля
+                await _mediaService.DeleteTempFilesAsync(new[] { dto });
                 continue;
             }
 
@@ -204,33 +204,14 @@ public sealed class MediaManagementService : IMediaManagementService
     }
 
     /// Удаляет временный файл из коллекции и диска
-    public void RemoveTempFile(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item)
+    public async Task RemoveTempFileAsync(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel item)
     {
         if (item == null) return;
         tempFiles.Remove(item);
-        _mediaService.DeleteTempFiles(new[] { item.ToDto() });
+        item.Dispose();
+        await _mediaService.DeleteTempFilesAsync(new[] { item.ToDto() });
     }
 
     /// <summary>Конвертирует DTO в VM.</summary>
-    private MediaItemViewModel DtoToVm(MediaItemDto dto)
-    {
-        if (!string.IsNullOrEmpty(dto.FilePath))
-        {
-            var vm = new MediaItemViewModel(dto.FilePath, dto.OriginalFileName);
-            if (dto.MediaId is int id) vm.MediaId = id;
-            if (!string.IsNullOrEmpty(dto.ContentHash)) vm.ContentHash = dto.ContentHash;
-            return vm;
-        }
-
-        // Ленивая загрузка из БД через IMediaService.
-        if (dto.MediaId is int mediaId)
-        {
-            return new MediaItemViewModel(_mediaService, mediaId, dto.OriginalFileName)
-            {
-                ContentHash = dto.ContentHash ?? string.Empty
-            };
-        }
-
-        return new MediaItemViewModel(string.Empty, dto.OriginalFileName);
-    }
+    private MediaItemViewModel DtoToVm(MediaItemDto dto) => dto.ToViewModel(_mediaService);
 }

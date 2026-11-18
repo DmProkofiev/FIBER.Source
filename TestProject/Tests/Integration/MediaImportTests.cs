@@ -33,7 +33,7 @@ public class MediaImportTests
 
         var service = new MediaService(factory,
             new AuditLogService(factory, NullLogger<AuditLogService>.Instance),
-            null!, NullLogger<MediaService>.Instance);
+            NullLogger<MediaService>.Instance);
         // These scenarios do not use playback or the media selection dialog.
         var management = new MediaManagementService(service, null!);
         var pending = new ObservableCollection<MediaItemViewModel>();
@@ -78,7 +78,7 @@ public class MediaImportTests
         }
         finally
         {
-            service.DeleteTempFiles(pending.Select(m => m.ToDto()));
+            await service.DeleteTempFilesAsync(pending.Select(m => m.ToDto()));
             File.Delete(source);
         }
 
@@ -88,7 +88,7 @@ public class MediaImportTests
                 .Select(m => m.MediaId!.Value), ownerType, 1);
             await service.CommitTempFilesAsync(pending.Where(m => !m.MediaId.HasValue)
                 .Select(m => m.ToDto()).ToList(), ownerType, 1);
-            service.DeleteTempFiles(pending.Select(m => m.ToDto()));
+            await service.DeleteTempFilesAsync(pending.Select(m => m.ToDto()));
             pending.Clear();
         }
     }

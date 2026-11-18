@@ -48,7 +48,10 @@ public abstract class BaseService
         try
         {
             await deleteRelatedAndEntityAsync(context);
+            await context.MediaAttachmentLinks
+                .Where(l => l.OwnerType == ownerType && l.OwnerId == id).ExecuteDeleteAsync();
             await context.SaveChangesAsync();
+            await context.MediaAttachments.Where(m => !m.Links.Any()).ExecuteDeleteAsync();
             await tx.CommitAsync();
         }
         catch
@@ -57,7 +60,7 @@ public abstract class BaseService
             throw;
         }
 
-        await _mediaService.RemoveAllLinksForOwnerAsync(ownerType, id);
+        _mediaService.InvalidateAllMediaCache();
         await _auditLog.LogAsync(auditAction, $"Id={id}");
     }
 }

@@ -66,6 +66,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<Person> CreateIdentifiedAsync(PersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.LastName))
             throw new InvalidOperationException("Фамилия обязательна для идентифицированной личности.");
         if (string.IsNullOrWhiteSpace(input.FirstName))
@@ -73,6 +74,7 @@ public sealed class PersonService : BaseService, IPersonService
         ValidateBirthDate(input.BirthDate);
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var person = new Person
         {
@@ -130,16 +132,20 @@ public sealed class PersonService : BaseService, IPersonService
             await SyncEventParticipationsAsync(context, person, input.EventParticipations);
         }
 
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.CreateIdentified", $"Id={person.Id}");
         return person;
     }
 
     public async Task<Person> CreateAnonymousAsync(AnonymousPersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.PrimaryAlias))
             throw new InvalidOperationException("PrimaryAlias обязателен для неидентифицированной личности.");
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
 
         var person = new Person
         {
@@ -207,12 +213,15 @@ public sealed class PersonService : BaseService, IPersonService
             await SyncEventParticipationsAsync(context, person, input.EventParticipations);
         }
 
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.CreateAnonymous", $"Id={person.Id}");
         return person;
     }
 
     public async Task<Person> PromoteAsync(int personId, PromotePersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.LastName))
             throw new InvalidOperationException("Фамилия обязательна");
         if (string.IsNullOrWhiteSpace(input.FirstName))
@@ -244,10 +253,13 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task UpdateAsync(int id, PersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            .Include(p => p.EventParticipations)
             // Связи персоны с организациями (для редактирования в Update-экране).
             .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
@@ -303,18 +315,22 @@ public sealed class PersonService : BaseService, IPersonService
         await SyncEventParticipationsAsync(context, person, input.EventParticipations);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.Update", $"Id={person.Id}");
     }
 
     public async Task UpdateAnonymousAsync(int id, AnonymousPersonInput input)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (string.IsNullOrWhiteSpace(input.PrimaryAlias))
             throw new InvalidOperationException("PrimaryAlias обязателен для неидентифицированной личности.");
 
         await using var context = await _contextFactory.CreateDbContextAsync();
+        await using var transaction = await context.Database.BeginTransactionAsync();
         var person = await context.People
             .Include(p => p.Aliases)
             .Include(p => p.Relationships)
+            .Include(p => p.EventParticipations)
             // Связи персоны с организациями (для редактирования в Update-экране).
             .Include(p => p.CompanyPeople).ThenInclude(cp => cp.Company)
             .FirstOrDefaultAsync(p => p.Id == id)
@@ -362,11 +378,13 @@ public sealed class PersonService : BaseService, IPersonService
         await SyncEventParticipationsAsync(context, person, input.EventParticipations);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         await _auditLog.LogAsync("Person.UpdateAnonymous", $"Id={person.Id}");
     }
 
     public async Task DeleteAliasAsync(int personId, int aliasId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         var person = await context.People.Include(p => p.Aliases)
@@ -419,7 +437,8 @@ public sealed class PersonService : BaseService, IPersonService
     private static async Task SyncAliasesAsync(
         FiberSourceDbContext context, Person person, IReadOnlyList<PersonAliasInput> inputs)
     {
-        await using var tx = await context.Database.BeginTransactionAsync();
+        await using var tx = context.Database.CurrentTransaction is null
+            ? await context.Database.BeginTransactionAsync() : null;
         try
         {
             var inputIds = inputs.Where(a => a.Id.HasValue).Select(a => a.Id!.Value).ToHashSet();
@@ -473,11 +492,11 @@ public sealed class PersonService : BaseService, IPersonService
                 }
             }
 
-            await tx.CommitAsync();
+            if (tx is not null) await tx.CommitAsync();
         }
         catch
         {
-            await tx.RollbackAsync();
+            if (tx is not null) await tx.RollbackAsync();
             throw;
         }
     }
@@ -485,6 +504,7 @@ public sealed class PersonService : BaseService, IPersonService
     public async Task<IReadOnlyList<PersonSummary>> SearchAsync(
         string query, string? strategyKey = null, bool? isIdentified = null)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var strategy = _searchFactory.Resolve(strategyKey);
 
@@ -548,6 +568,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<IReadOnlyList<Person>> GetAllExceptAsync(int excludeId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.People.AsNoTracking()
             // Псевдонимы нужны стратегиям сравнения (Levenshtein для анонимов).
@@ -558,6 +579,7 @@ public sealed class PersonService : BaseService, IPersonService
 
     public async Task<Person?> GetByIdAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.People
             .AsNoTracking()
@@ -574,95 +596,63 @@ public sealed class PersonService : BaseService, IPersonService
 
     // ===== Синхронизация связей «персона ↔ персона» (CRUD внутри Update) =====
 
-    // Полная синхронизация исходящих связей персоны: новые добавляются (с зеркалом у
-    // связанной персоны), изменённые обновляются (зеркало приводится в соответствие),
-    // отсутствующие удаляются (вместе с зеркалом).
+    // Полная синхронизация исходящих связей персоны. Одна запись хранит обе роли:
+    // KindFrom — роль персоны, KindTo — роль связанной персоны. Зеркальные записи не создаются.
     private static async Task SyncRelationshipsAsync(
         FiberSourceDbContext context, Person person, IReadOnlyList<PersonRelationshipEditInput>? inputs)
     {
         if (inputs is null) return; // null — не трогать связи; пустой список — удалить все.
 
-        // DELETE: прямые связи, отсутствующие во входных данных, и их зеркальные записи.
+        // DELETE: прямые связи, отсутствующие во входных данных.
         foreach (var existing in person.Relationships.ToList())
         {
             if (inputs.Any(i => i.Id == existing.Id)) continue;
 
             person.Relationships.Remove(existing);
             context.PersonRelationships.Remove(existing);
-            await RemoveInverseAsync(context, person.Id, existing.RelatedPersonId, existing.Kind);
         }
 
-        // UPDATE: существующие связи — цель/вид/заметки; зеркало пересоздаётся при изменении.
-        foreach (var input in inputs.Where(i => i.Id.HasValue))
+        // UPDATE + CREATE.
+        foreach (var input in inputs)
         {
-            var link = person.Relationships.FirstOrDefault(r => r.Id == input.Id!.Value);
-            if (link is null) continue;
-
-            if (input.RelatedPersonId == person.Id)
+            var targetId = input.RelatedPersonId;
+            if (targetId <= 0) continue;
+            if (targetId == person.Id)
                 throw new InvalidOperationException("Связь человека с самим собой невозможна");
 
-            var oldRelatedId = link.RelatedPersonId;
-            var oldKind = link.Kind;
-            bool targetChanged = oldRelatedId != input.RelatedPersonId;
-            bool kindChanged = oldKind != input.Kind;
+            if (!await context.People.AnyAsync(p => p.Id == targetId))
+                throw new InvalidOperationException($"Личность Id={targetId} не найдена");
 
-            if (!targetChanged && !kindChanged)
+            // Защита от дубля: связь в обратном направлении уже существует.
+            bool reverseExists = await context.PersonRelationships.AnyAsync(r =>
+                r.PersonId == targetId && r.RelatedPersonId == person.Id);
+            if (reverseExists) continue;
+
+            var link = input.Id is not null
+                ? person.Relationships.FirstOrDefault(r => r.Id == input.Id.Value)
+                : null;
+            if (link is not null)
             {
+                link.RelatedPersonId = targetId;
+                link.KindFrom = input.KindFrom;
+                link.KindTo = input.KindTo;
                 link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
                 continue;
             }
 
-            // Старое зеркало удаляем только если оно действительно станет неактуальным.
-            var oldInverse = PersonRelationKinds.InverseOf(oldKind);
-            var newInverse = PersonRelationKinds.InverseOf(input.Kind.GetValueOrDefault());
-            bool oldHasMirror = oldInverse != oldKind && oldInverse != PersonRelationKind.Other;
-            bool newHasMirror = newInverse != input.Kind.GetValueOrDefault() && newInverse != PersonRelationKind.Other;
-
-            if (oldHasMirror &&
-                (targetChanged || !newHasMirror || oldInverse != newInverse))
-            {
-                var oldMirror = await context.PersonRelationships.FirstOrDefaultAsync(r =>
-                    r.PersonId == oldRelatedId &&
-                    r.RelatedPersonId == person.Id &&
-                    r.Kind == oldInverse);
-                if (oldMirror is not null) context.PersonRelationships.Remove(oldMirror);
-            }
-
-            link.RelatedPersonId = input.RelatedPersonId;
-            link.Kind = input.Kind.GetValueOrDefault();
-            link.Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty;
-
-            if (newHasMirror &&
-                (targetChanged || !oldHasMirror || oldInverse != newInverse))
-            {
-                await EnsureInverseAsync(context, person.Id, input.RelatedPersonId, newInverse);
-            }
-        }
-
-        // CREATE: новые прямые связи и их зеркала.
-        foreach (var input in inputs.Where(i => !i.Id.HasValue))
-        {
-            if (input.RelatedPersonId == person.Id)
-                throw new InvalidOperationException("Связь человека с самим собой невозможна");
-
-            var exists = person.Relationships.Any(r =>
-                r.RelatedPersonId == input.RelatedPersonId && r.Kind == input.Kind.GetValueOrDefault());
+            bool exists = person.Relationships.Any(r => r.RelatedPersonId == targetId);
             if (exists) continue;
 
-            var link = new PersonRelationship
+            var newLink = new PersonRelationship
             {
                 PersonId = person.Id,
-                RelatedPersonId = input.RelatedPersonId,
-                Kind = input.Kind.GetValueOrDefault(),
+                RelatedPersonId = targetId,
+                KindFrom = input.KindFrom,
+                KindTo = input.KindTo,
                 Notes = StringHelpers.NullIfEmpty(input.Notes) ?? string.Empty
             };
-            context.PersonRelationships.Add(link);
-            person.Relationships.Add(link);
-
-            var inverseKind = PersonRelationKinds.InverseOf(input.Kind.GetValueOrDefault());
-            if (inverseKind == input.Kind.GetValueOrDefault() || inverseKind == PersonRelationKind.Other) continue;
-
-            await EnsureInverseAsync(context, person.Id, input.RelatedPersonId, inverseKind);
+            context.PersonRelationships.Add(newLink);
+            person.Relationships.Add(newLink);
         }
 
         await context.SaveChangesAsync();
@@ -682,11 +672,13 @@ public sealed class PersonService : BaseService, IPersonService
             ownerId: person.Id,
             getInputId: i => i.Id,
             getInputTargetId: i => i.CompanyId,
-            getInputRole: i => i.Role,
+            getInputRole: i => i.PersonRole,
+            getInputRole2: i => i.CompanyRole,
             getInputNotes: i => i.Notes,
-            setLinkFields: (link, role, notes) =>
+            setLinkFields: (link, role1, role2, notes) =>
             {
-                link.Role = role;
+                link.PersonRole = role1;
+                link.CompanyRole = role2;
                 link.Notes = notes;
             },
             targetExists: id => context.Companies.AnyAsync(c => c.Id == id),
@@ -705,6 +697,8 @@ public sealed class PersonService : BaseService, IPersonService
         FiberSourceDbContext context, Person person, IReadOnlyList<EventParticipantEditInput>? inputs)
     {
         if (inputs is null) return;
+        if (inputs.Where(i => i.EventId.HasValue).GroupBy(i => i.EventId).Any(g => g.Count() > 1))
+            throw new InvalidOperationException("Одно событие указано в связях несколько раз.");
 
         // DELETE: связи, отсутствующие во входных данных.
         foreach (var existing in person.EventParticipations?.ToList() ?? new List<EventParticipant>())
@@ -743,41 +737,9 @@ public sealed class PersonService : BaseService, IPersonService
         }
     }
 
-    // Добавляет зеркальную связь (related → person), если её ещё нет.
-    private static async Task EnsureInverseAsync(
-        FiberSourceDbContext context, int personId, int relatedPersonId, PersonRelationKind inverseKind)
-    {
-        bool exists = await context.PersonRelationships.AnyAsync(r =>
-            r.PersonId == relatedPersonId &&
-            r.RelatedPersonId == personId &&
-            r.Kind == inverseKind);
-        if (exists) return;
-
-        context.PersonRelationships.Add(new PersonRelationship
-        {
-            PersonId = relatedPersonId,
-            RelatedPersonId = personId,
-            Kind = inverseKind,
-            Notes = string.Empty
-        });
-    }
-
-    // Удаляет зеркальную связь (related → person) для указанного вида прямой связи.
-    private static async Task RemoveInverseAsync(
-        FiberSourceDbContext context, int personId, int relatedPersonId, PersonRelationKind kind)
-    {
-        var inverseKind = PersonRelationKinds.InverseOf(kind);
-        if (inverseKind == kind || inverseKind == PersonRelationKind.Other) return;
-
-        var mirror = await context.PersonRelationships.FirstOrDefaultAsync(r =>
-            r.PersonId == relatedPersonId &&
-            r.RelatedPersonId == personId &&
-            r.Kind == inverseKind);
-        if (mirror is not null) context.PersonRelationships.Remove(mirror);
-    }
-
     public async Task DeleteAsync(int id)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await DeleteWithMediaAsync(
             id,
             MediaOwnerType.Person,

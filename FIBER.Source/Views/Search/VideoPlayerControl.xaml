@@ -7,7 +7,6 @@
              d:DesignHeight="230" d:DesignWidth="230" Width="230" Height="230">
     <Border Background="#F1C40F" CornerRadius="8" Padding="0,1,0,2">
         <StackPanel VerticalAlignment="Top">
-            <!-- Видео контейнер с фиксированными размерами — занимает большую часть -->
             <Border Background="#000000" CornerRadius="4" ClipToBounds="True"
                     HorizontalAlignment="Center" VerticalAlignment="Top"
                     Width="224" Height="150" Margin="0,5,0,0">
@@ -18,8 +17,7 @@
                                   Stretch="Uniform"
                                   Margin="0,5,0,0"
                                   HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Stretch"
-                                  MediaOpened="VideoMedia_MediaOpened"/>
+                                   VerticalAlignment="Stretch"/>
                 </Grid>
             </Border>
             <TextBlock Text="{Binding FileName, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -28,8 +26,7 @@
                        TextTrimming="CharacterEllipsis"
                        TextWrapping="Wrap" TextAlignment="Center"/>
             <Slider x:Name="VideoSlider"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Center"
-                    ValueChanged="VideoSlider_ValueChanged"/>
+                    HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Content="Play" Click="Play_Click"
                         Style="{StaticResource MediaPlayButtonStyle}"

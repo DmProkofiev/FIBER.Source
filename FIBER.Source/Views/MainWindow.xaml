@@ -57,13 +57,13 @@
             </StackPanel>
         </Button>
 
-        <!-- Фон панели (только закруглённый прямоугольник) -->
+        <!-- Фон панели -->
         <Border x:Name="MainBorder"
                 Grid.Row="3" Grid.Column="1"
                 Background="#D8171717"
                 CornerRadius="30"/>
 
-        <!-- Содержимое панели, обрезанное по скруглению MainBorder -->
+        <!-- Содержимое панели -->
         <Grid Grid.Row="3" Grid.Column="1">
             <Grid.OpacityMask>
                 <VisualBrush Visual="{Binding ElementName=MainBorder}"/>

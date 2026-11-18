@@ -11,7 +11,8 @@ namespace FIBER.Source.Infrastructure.Data.Configurations
             entity.ToTable("CompanyInteractions");
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.InteractionType).HasMaxLength(100);
+            entity.Property(e => e.InteractionType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.InteractionTypeTo).HasMaxLength(100).IsRequired();
             entity.Property(e => e.Notes).HasColumnType("TEXT");
 
             entity.HasIndex(e => new { e.SourceCompanyId, e.TargetCompanyId })

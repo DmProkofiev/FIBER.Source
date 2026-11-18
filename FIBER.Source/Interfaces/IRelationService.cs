@@ -17,18 +17,19 @@ public interface IRelationService
     Task<IReadOnlyList<PersonRelationship>> ListRelationshipsAsync(int personId);
     Task<IReadOnlyList<PersonRelationship>> ListReverseRelationshipsAsync(int personId);
     Task AddPersonRelationshipAsync(int personId, int relatedPersonId,
-        PersonRelationKind kind, string notes);
+        PersonRelationKind kindFrom, PersonRelationKind kindTo, string notes);
     Task RemovePersonRelationshipAsync(int relationshipId);
 
     Task<IReadOnlyList<CompanyInteraction>> ListCompanyInteractionsAsync(int companyId);
     Task AddCompanyInteractionAsync(int sourceCompanyId, int targetCompanyId,
-        string interactionType, string notes);
+        string interactionType, string interactionTypeTo, string notes);
     Task RemoveCompanyInteractionAsync(int sourceCompanyId, int targetCompanyId);
 
     // ----- Связи «организация ↔ личность» -----
     Task<IReadOnlyList<CompanyPerson>> ListCompanyPeopleAsync(int companyId);
     Task<IReadOnlyList<CompanyPerson>> ListPersonCompaniesAsync(int personId);
-    Task AddCompanyPersonAsync(int companyId, int personId, string role, string notes);
+    Task AddCompanyPersonAsync(int companyId, int personId,
+        string personRole, string companyRole, string notes);
     Task RemoveCompanyPersonAsync(int companyPersonId);
 
     // ----- Связи «событие ↔ событие» -----

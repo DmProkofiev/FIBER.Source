@@ -27,6 +27,7 @@ public sealed class AuditLogService : IAuditLogService
     // Пишет запись в журнал; ошибки БД не роняют приложение
     public async Task LogAsync(string action, string details = "")
     {
+        await FIBER.Source.Infrastructure.Helpers.BackgroundWork.SwitchToThreadPool();
         try
         {
             await using var context = await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
@@ -48,6 +49,7 @@ public sealed class AuditLogService : IAuditLogService
     // Возвращает последние записи журнала
     public async Task<List<AuditLogEntry>> GetRecentLogsAsync(int count = 100)
     {
+        await FIBER.Source.Infrastructure.Helpers.BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync().ConfigureAwait(false);
         return await context.AuditLogEntries
             .AsNoTracking()

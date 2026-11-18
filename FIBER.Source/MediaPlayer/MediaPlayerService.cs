@@ -12,24 +12,33 @@ namespace FIBER.Source.MediaPlayer
     {
         private readonly MediaElement _mediaElement;
         private static MediaPlayerService? _currentPlaying;
+        private bool _isPlaying;
 
         public MediaPlayerService(MediaElement mediaElement)
         {
             _mediaElement = mediaElement ?? throw new ArgumentNullException(nameof(mediaElement));
+            _mediaElement.MediaEnded += (_, _) => Stop();
+            _mediaElement.MediaFailed += (_, _) => Stop();
         }
 
         public string FilePath
         {
-            get => _mediaElement.Source?.AbsolutePath ?? string.Empty;
-            set => _mediaElement.Source = string.IsNullOrWhiteSpace(value)
-                ? null
-                : new Uri(value);
+            get => _mediaElement.Source?.LocalPath ?? string.Empty;
+            set
+            {
+                Stop();
+                _mediaElement.Source = string.IsNullOrWhiteSpace(value) ? null : new Uri(value, UriKind.Absolute);
+            }
         }
 
         public double Position
         {
             get => _mediaElement.Position.TotalSeconds;
-            set => _mediaElement.Position = TimeSpan.FromSeconds(value);
+            set
+            {
+                if (double.IsFinite(value))
+                    _mediaElement.Position = TimeSpan.FromSeconds(Math.Clamp(value, 0, Duration));
+            }
         }
 
         public double Duration
@@ -39,10 +48,7 @@ namespace FIBER.Source.MediaPlayer
                 : 0.0;
         }
 
-        public bool IsPlaying =>
-            _mediaElement.NaturalDuration.HasTimeSpan &&
-            _mediaElement.Position.TotalSeconds > 0 &&
-            _mediaElement.Position.TotalSeconds < _mediaElement.NaturalDuration.TimeSpan.TotalSeconds;
+        public bool IsPlaying => _isPlaying;
 
         public void Play()
         {
@@ -56,13 +62,19 @@ namespace FIBER.Source.MediaPlayer
             _currentPlaying = this;
 
             _mediaElement.Play();
+            _isPlaying = true;
         }
 
-        public void Pause() => _mediaElement.Pause();
+        public void Pause()
+        {
+            _mediaElement.Pause();
+            _isPlaying = false;
+        }
 
         public void Stop()
         {
             _mediaElement.Stop();
+            _isPlaying = false;
             if (_currentPlaying == this)
                 _currentPlaying = null;
         }

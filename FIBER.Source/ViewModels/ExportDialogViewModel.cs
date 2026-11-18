@@ -2,15 +2,10 @@
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Helpers;
 using FIBER.Source.Interfaces;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Windows.Media;
 
 namespace FIBER.Source.ViewModels;
-
-/// <summary>Один медиаэлемент в списке выбора экспорта.</summary>
 public partial class ExportMediaItem : ObservableObject
 {
     public int MediaId { get; }
@@ -30,29 +25,21 @@ public partial class ExportMediaItem : ObservableObject
     }
 }
 
-/// <summary>VM диалога экспорта: формат, папка, выбор медиа.</summary>
 public partial class ExportDialogViewModel : ObservableObject
 {
     private readonly Action<bool> _close;
     private readonly INotificationService _notificationService;
-
     public string ObjectTitle { get; }
     public ObservableCollection<ExportMediaItem> MediaItems { get; }
     public bool HasMedia => MediaItems.Count > 0;
-
     [ObservableProperty]
     private ExportFormat _selectedFormat = ExportFormat.Word;
-
     [ObservableProperty]
     private string _targetFolder = string.Empty;
-
     [ObservableProperty]
     private bool _isBusy;
-
     public bool IsWordFormat => SelectedFormat == ExportFormat.Word;
-
     public bool IsTxtFormat => SelectedFormat == ExportFormat.Txt;
-
     partial void OnSelectedFormatChanged(ExportFormat value)
     {
         OnPropertyChanged(nameof(IsWordFormat));

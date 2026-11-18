@@ -289,10 +289,17 @@
                                                 <TextBox Text="{Binding DisplayName, Mode=OneWay}" IsReadOnly="True"
                                                          Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,6"/>
                                                 
-                                                <TextBlock Text="Вид связи" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <TextBlock Text="{Binding SourceDisplayName, StringFormat='Роль ({0})'}" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
                                                 <ComboBox Style="{StaticResource ModernComboBoxStyle}"
                                                           ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
-                                                          SelectedValue="{Binding Kind}"
+                                                          SelectedValue="{Binding KindFrom}"
+                                                          SelectedValuePath="Value"
+                                                          DisplayMemberPath="Display"
+                                                          Margin="0,0,0,6"/>
+                                                <TextBlock Text="{Binding DisplayName, StringFormat='Роль ({0})'}" Style="{StaticResource FieldLabelStyle}" Margin="0,0,0,2"/>
+                                                <ComboBox Style="{StaticResource ModernComboBoxStyle}"
+                                                          ItemsSource="{x:Static helpers:PersonRelationKinds.AllOptions}"
+                                                          SelectedValue="{Binding KindTo}"
                                                           SelectedValuePath="Value"
                                                           DisplayMemberPath="Display"
                                                           Margin="0,0,0,6"/>
@@ -332,7 +339,7 @@
                     </Expander>
                     
 
-                    <!-- ================= СВЯЗИ С ОРГАНИЗАЦИЯМИ ================= -->
+                    <!-- СВЯЗИ С ОРГАНИЗАЦИЯМИ -->
                     <Expander Header="Связи с организациями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -365,26 +372,30 @@
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <!-- Подписи -->
                                                 <TextBlock Grid.Column="0" Text="Организация" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="1" Text="Роль" FontSize="12" FontWeight="Bold"
+                                                <TextBlock Grid.Column="1" Text="Роль человека" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
-                                                <TextBlock Grid.Column="2" Text="Заметки" FontSize="12" FontWeight="Bold"
+                                                <TextBlock Grid.Column="2" Text="Роль организации" FontSize="12" FontWeight="Bold"
                                                            Foreground="#CCCCCC" Margin="0,0,6,2"/>
                                                 <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding CompanyName, Mode=OneWay}" IsReadOnly="True"
                                                          Margin="0,0,6,0"/>
                                                 <TextBox Grid.Row="1" Grid.Column="1" Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding PersonRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
                                                 <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource ModernTextBoxStyle}"
-                                                         Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                         Text="{Binding CompanyRole, UpdateSourceTrigger=PropertyChanged}"
                                                          Margin="0,0,6,0"/>
-                                                <Button Grid.Row="1" Grid.Column="3" Content="×" Width="26" Height="26"
+                                                <TextBox Grid.Row="1" Grid.Column="3" Style="{StaticResource ModernTextBoxStyle}"
+                                                          Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                          Margin="0,0,6,0"/>
+                                                 <Button Grid.Row="1" Grid.Column="4" Content="×" Width="26" Height="26"
                                                         Background="#CCFF0000" Foreground="White" BorderThickness="0"
                                                         Command="{Binding DataContext.RemoveCompanyPersonCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
@@ -410,7 +421,7 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- ================= СВЯЗИ С СОБЫТИЯМИ ================= -->
+                    <!-- СВЯЗИ С СОБЫТИЯМИ -->
                     <Expander Header="Связи с событиями" IsExpanded="True" Margin="0,20,0,0"
                               FontFamily="Times New Roman" FontSize="16" FontWeight="Bold"
                               Foreground="White" Background="#22FFFFFF" Padding="8">
@@ -439,7 +450,8 @@
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="170"/>
-                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
@@ -502,8 +514,6 @@
                                                         <RowDefinition Height="*"/>
                                                         <RowDefinition Height="Auto"/>
                                                     </Grid.RowDefinitions>
-
-                                                    <!-- Превью изображения -->
                                                     <Border Grid.Row="0" Background="#0A000000" CornerRadius="4"
                                                             ClipToBounds="True">
                                                         <Grid>
@@ -579,7 +589,6 @@
                             </TabItem>
 
                             <TabItem Header="Видео" Style="{StaticResource MediaTabItemStyle}">
-                                <!-- Список видео (как в Settings) -->
                                 <ListBox ItemsSource="{Binding ExistingVideos}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -620,7 +629,6 @@
                             </TabItem>
 
                             <TabItem Header="Аудио" Style="{StaticResource MediaTabItemStyle}">
-                                <!-- Список аудио (как в Settings) -->
                                 <ListBox ItemsSource="{Binding ExistingAudio}" Margin="0,5,0,0"
                                          Background="Transparent" BorderThickness="0"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"

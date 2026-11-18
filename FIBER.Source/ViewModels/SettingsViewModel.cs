@@ -2,12 +2,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FIBER.Source.Contracts.Summaries;
 using FIBER.Source.Helpers;
-using FIBER.Source.Infrastructure.Data;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models;
 using FIBER.Source.Models.Enums;
 using FIBER.Source.Services;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,35 +14,33 @@ using SaveFileDialog = Microsoft.Win32.SaveFileDialog;
 
 namespace FIBER.Source.ViewModels;
 
-/// <summary>Настройки: списки сущностей, медиатека, журнал, смена пароля, экспорт БД.</summary>
+// Настройки: списки сущностей, медиатека, журнал, смена пароля, экспорт БД
 public partial class SettingsViewModel : ObservableObject
 {
-    /// <summary>Сервис аудита.</summary>
+    // Сервис аудита
     private readonly IAuditLogService _auditLogService;
-    /// <summary>Фабрика контекста.</summary>
-    private readonly IDbContextFactory<FiberSourceDbContext> _contextFactory;
-    /// <summary>Сервис медиа.</summary>
+    private readonly ISettingsDataService _settingsDataService;
+    private int _loadVersion;
+    // Сервис медиа
     private readonly IMediaService _mediaService;
-    /// <summary>Сервис организаций.</summary>
+    // Сервис организаций
     private readonly ICompanyService _companyService;
-    /// <summary>Сервис событий.</summary>
+    // Сервис событий
     private readonly IEventService _eventService;
-    /// <summary>Сервис управления БД.</summary>
+    // Сервис управления БД
     private readonly IDatabaseService _databaseService;
-    /// <summary>Сервис сидинга тестовых данных.</summary>
+    // Сервис сидинга тестовых данных
     private readonly ISeedDataService _seedDataService;
-    /// <summary>Сервис уведомлений.</summary>
+    // Сервис уведомлений
     private readonly INotificationService _notificationService;
-
-    /// <summary>Запрос на редактирование организации.</summary>
+    // Запрос на редактирование организации
     public event Action<int>? UpdateCompanyRequested;
-    /// <summary>Запрос на редактирование события.</summary>
+    // Запрос на редактирование события 
     public event Action<int>? UpdateEventRequested;
-
-    /// <summary>Инициализирует зависимости.</summary>
+    // Инициализирует зависимости 
     public SettingsViewModel(
         IAuditLogService auditLogService,
-        IDbContextFactory<FiberSourceDbContext> contextFactory,
+        ISettingsDataService settingsDataService,
         IMediaService mediaService,
         ICompanyService companyService,
         IEventService eventService,
@@ -53,7 +49,7 @@ public partial class SettingsViewModel : ObservableObject
         INotificationService notificationService)
     {
         _auditLogService = auditLogService;
-        _contextFactory = contextFactory;
+        _settingsDataService = settingsDataService;
         _mediaService = mediaService;
         _companyService = companyService;
         _eventService = eventService;
@@ -62,160 +58,81 @@ public partial class SettingsViewModel : ObservableObject
         _notificationService = notificationService;
     }
 
-    /// <summary>Люди.</summary>
+    //Люди
     public ObservableCollection<PersonSummary> People { get; } = new();
-    /// <summary>Организации.</summary>
+    //Организации
     public ObservableCollection<CompanySummary> Companies { get; } = new();
-    /// <summary>События.</summary>
+    //События
     public ObservableCollection<EventSummary> Events { get; } = new();
-    /// <summary>Журнал событий.</summary>
+    //Журнал событий
     public ObservableCollection<AuditLogEntry> Logs { get; } = new();
-    /// <summary>Медиатека.</summary>
+    //Медиатека
     public ObservableCollection<SettingsMediaItemViewModel> AllMedia { get; } = new();
-
-    /// <summary>Всего медиафайлов.</summary>
+    //Всего медиафайлов
     [ObservableProperty] private int _mediaTotal;
-    /// <summary>Идёт ли загрузка данных настроек.</summary>
+    
     [ObservableProperty] private bool _isBusy;
-    /// <summary>Версия приложения.</summary>
+    //Версия приложения
     [ObservableProperty] private string _appVersion = "FIBER Source 1.0.0";
-    /// <summary>Путь к файлу БД.</summary>
+    //Путь к файлу БД
     [ObservableProperty] private string _dbPath = string.Empty;
-    /// <summary>Результат последнего сидинга.</summary>
+    //Результат последнего сидинга
     [ObservableProperty] private string _seedResult = string.Empty;
-    /// <summary>Старый пароль.</summary>
+    //Старый пароль
     [ObservableProperty] private string _oldPassword = string.Empty;
-    /// <summary>Новый пароль.</summary>
+    // Новый пароль
     [ObservableProperty] private string _newPassword = string.Empty;
-    /// <summary>Подтверждение.</summary>
+    //Подтверждение
     [ObservableProperty] private string _confirmPassword = string.Empty;
-
-    /// <summary>Загружает данные.</summary>
+    //Загружает данные
     public async Task LoadDataAsync()
     {
+        var version = ++_loadVersion;
         IsBusy = true;
         try
         {
             DbPath = _databaseService.DatabasePath;
-
-        await using var context = await _contextFactory.CreateDbContextAsync();
-
-        var mediaCounts = await context.MediaAttachmentLinks
-            .GroupBy(l => new { l.OwnerType, l.OwnerId })
-            .Select(g => new { g.Key.OwnerType, g.Key.OwnerId, Count = g.Count() })
-            .ToListAsync();
-        var mediaByOwner = mediaCounts.ToDictionary(x => (x.OwnerType, x.OwnerId), x => x.Count);
-
-        var peopleRaw = await context.People.AsNoTracking()
-            .Where(p => p.MergedIntoPersonId == null)
-            .OrderByDescending(p => p.CreatedAt)
-            // Поле FullName в модели не маппится (NotMapped) — в SQL оно не транслируется,
-            // поэтому выбираем компоненты ФИО и склеиваем их после загрузки.
-            .Select(p => new { p.Id, p.LastName, p.FirstName, p.SecondName, p.Status, p.BirthDate })
-            .ToListAsync();
-
-        var personIdsForAlias = peopleRaw
-            .Where(p => p.Status == Models.Enums.IdentityStatus.Anonymous)
-            .Select(p => p.Id).ToList();
-        var primaryAliases = personIdsForAlias.Count > 0
-            ? await context.PersonAliases.AsNoTracking()
-                .Where(a => a.IsPrimary && personIdsForAlias.Contains(a.PersonId))
-                .ToDictionaryAsync(a => a.PersonId, a => a.Value)
-            : new Dictionary<int, string>();
-
-        Replace(People, peopleRaw.Select(p => new PersonSummary(
-            p.Id,
-            p.Status == Models.Enums.IdentityStatus.Identified
-                ? Services.Search.PersonSearchFilters.JoinFullName(p.LastName, p.FirstName, p.SecondName)
-                : primaryAliases.GetValueOrDefault(p.Id, "Аноним #" + p.Id),
-            p.Status, p.BirthDate,
-            mediaByOwner.GetValueOrDefault((MediaOwnerType.Person, p.Id), 0))));
-
-        var companiesRaw = await _companyService.ListAsync(null);
-        Replace(Companies, companiesRaw.Select(c => c with
-        { MediaCount = mediaByOwner.GetValueOrDefault((MediaOwnerType.Company, c.Id), 0) }));
-
-        var eventsRaw = await _eventService.ListAsync();
-        Replace(Events, eventsRaw.Select(e => e with
-        { MediaCount = mediaByOwner.GetValueOrDefault((MediaOwnerType.Event, e.Id), 0) }));
-
-        Replace(Logs, await _auditLogService.GetRecentLogsAsync(100));
-
-        AllMedia.Clear();
-
-        var allMedia = await _mediaService.GetAllMediaAsync();
-        var personIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Person).Select(m => m.OwnerId).Distinct().ToList();
-        var companyIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Company).Select(m => m.OwnerId).Distinct().ToList();
-        var eventIds = allMedia.Where(m => m.OwnerType == MediaOwnerType.Event).Select(m => m.OwnerId).Distinct().ToList();
-
-        var peopleRawDict = await context.People.AsNoTracking()
-            .Where(p => personIds.Contains(p.Id))
-            .Select(p => new { p.Id, p.LastName, p.FirstName, p.SecondName, p.Status })
-            .ToListAsync();
-        var anonymousIdsForDict = peopleRawDict
-            .Where(p => p.Status == Models.Enums.IdentityStatus.Anonymous)
-            .Select(p => p.Id).ToList();
-        var primaryAliasesForDict = anonymousIdsForDict.Count > 0
-            ? await context.PersonAliases.AsNoTracking()
-                .Where(a => a.IsPrimary && anonymousIdsForDict.Contains(a.PersonId))
-                .ToDictionaryAsync(a => a.PersonId, a => a.Value)
-            : new Dictionary<int, string>();
-        var peopleDict = peopleRawDict.ToDictionary(
-            p => p.Id,
-            p => p.Status == Models.Enums.IdentityStatus.Identified
-                ? Services.Search.PersonSearchFilters.JoinFullName(p.LastName, p.FirstName, p.SecondName)
-                : primaryAliasesForDict.GetValueOrDefault(p.Id, $"Аноним #{p.Id}"));
-        var companiesDict = await context.Companies.Where(c => companyIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c.Name);
-        var eventsDict = await context.Events.Where(e => eventIds.Contains(e.Id))
-            .ToDictionaryAsync(e => e.Id, e => e.Title);
-
-        foreach (var item in allMedia)
-        {
-            var ownerName = item.OwnerType switch
+            var data = await _settingsDataService.LoadAsync();
+            if (version != _loadVersion) return;
+            Replace(People, data.People);
+            Replace(Companies, data.Companies);
+            Replace(Events, data.Events);
+            Replace(Logs, data.Logs);
+            foreach (var old in AllMedia) old.Dispose();
+            AllMedia.Clear();
+            foreach (var item in data.Media)
             {
-                MediaOwnerType.Person => peopleDict.GetValueOrDefault(item.OwnerId, "Удалён"),
-                MediaOwnerType.Company => companiesDict.GetValueOrDefault(item.OwnerId, "Удалён"),
-                MediaOwnerType.Event => eventsDict.GetValueOrDefault(item.OwnerId, "Удалён"),
-                _ => "Неизвестно"
-            };
-            var mediaVm = item.Media.ToViewModel(_mediaService);
-            var vm = new SettingsMediaItemViewModel(mediaVm, item.OwnerType, item.OwnerId, ownerName);
-            AllMedia.Add(vm);
-
-            // Декодируем изображение в фоне, чтобы не блокировать GUI.
-            // Виртуализация ListBox создаст контейнер только когда элемент попадет в зону видимости,
-            // но bitmap всё равно нужно декодировать — делаем это асинхронно.
-            if (vm.Media.IsImage)
-                _ = vm.Media.LoadImageAsync();
+                var media = item.Media.ToViewModel(_mediaService);
+                AllMedia.Add(new SettingsMediaItemViewModel(media, item.OwnerType, item.OwnerId, item.OwnerName));
+            }
+            MediaTotal = AllMedia.Count;
         }
-        MediaTotal = AllMedia.Count;
-    }
-    finally
-    {
-        IsBusy = false;
-    }
+        catch (Exception ex)
+        {
+            if (version == _loadVersion) _notificationService.Show("Ошибка загрузки настроек", ex.Message, NotificationType.Error);
+        }
+        finally { if (version == _loadVersion) IsBusy = false; }
     }
 
-    /// <summary>Заменяет содержимое коллекции.</summary>
+    //Заменяет содержимое коллекции
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> source)
     {
         target.Clear();
         foreach (var x in source) target.Add(x);
     }
 
-    /// <summary>Смена мастер-пароля.</summary>
+    //Смена пароля
     [RelayCommand]
     private async Task ChangePasswordAsync()
     {
         if (string.IsNullOrWhiteSpace(OldPassword) || string.IsNullOrWhiteSpace(NewPassword))
         {
-            _notificationService.Show("Внимание", "Заполните все поля паролей.", NotificationType.Warning);
+            _notificationService.Show("Внимание", "Заполните все поля паролей", NotificationType.Warning);
             return;
         }
         if (NewPassword != ConfirmPassword)
         {
-            _notificationService.Show("Ошибка", "Новый пароль и подтверждение не совпадают.", NotificationType.Error);
+            _notificationService.Show("Ошибка", "Новый пароль и подтверждение не совпадают", NotificationType.Error);
             return;
         }
         try
@@ -236,16 +153,13 @@ public partial class SettingsViewModel : ObservableObject
             _notificationService.Show("Ошибка смены пароля", ex.Message, NotificationType.Error);
         }
     }
-
-    /// <summary>Экспорт зашифрованной копии.</summary>
+    //Экспорт зашифрованной копии
     [RelayCommand]
     private async Task ExportEncryptedAsync() => await ExportAsync(encrypted: true);
-
-    /// <summary>Экспорт в открытом виде.</summary>
+    //Экспорт в открытом виде
     [RelayCommand]
     private async Task ExportUnencryptedAsync() => await ExportAsync(encrypted: false);
-
-    /// <summary>Общая логика экспорта БД.</summary>
+    //>Общая логика экспорта БД
     private async Task ExportAsync(bool encrypted)
     {
         var dialog = new SaveFileDialog
@@ -272,7 +186,7 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Заполнить БД тестовыми данными.</summary>
+    //аполнить БД тестовыми данными
     [RelayCommand]
     private async Task SeedDataAsync()
     {
@@ -300,11 +214,11 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>Открыть редактирование организации.</summary>
+    //Открыть редактирование организации
     [RelayCommand]
     private void EditCompany(CompanySummary summary) { if (summary != null) UpdateCompanyRequested?.Invoke(summary.Id); }
 
-    /// <summary>Удалить организацию.</summary>
+    //>Удалить организацию
     [RelayCommand]
     private async Task DeleteCompanyAsync(CompanySummary summary)
     {
@@ -318,11 +232,11 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception ex) { _notificationService.Show("Ошибка", ex.Message, NotificationType.Error); }
     }
 
-    /// <summary>Открыть редактирование события.</summary>
+    //Открыть редактирование события
     [RelayCommand]
     private void EditEvent(EventSummary summary) { if (summary != null) UpdateEventRequested?.Invoke(summary.Id); }
 
-    /// <summary>Удалить событие.</summary>
+    //Удалить событие
     [RelayCommand]
     private async Task DeleteEventAsync(EventSummary summary)
     {

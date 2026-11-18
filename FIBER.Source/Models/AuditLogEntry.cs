@@ -3,28 +3,27 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FIBER.Source.Models;
 
-/// <summary>Запись журнала действий приложения.</summary>
+// Запись журнала действий приложения
 public class AuditLogEntry
 {
-    /// <summary>Первичный ключ.</summary>
+    //Первичный ключ
     public int Id { get; set; }
 
-    /// <summary>Время события.</summary>
+    // Время события
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
-    /// <summary>Уровень.</summary>
+    // Уровен
     public string Level { get; set; } = string.Empty;
 
-    /// <summary>Код действия.</summary>
+    // Код действия
     public string Action { get; set; } = string.Empty;
 
-    /// <summary>Объект действия.</summary>
+    // Объект действия
     public string ActionObject { get; set; } = "FIBER Source";
 
-    /// <summary>Детали.</summary>
+    // Детали
     public string? Details { get; set; }
 
-    /// <summary>Человекочитаемое название действия для UI (не сохраняется в БД).</summary>
     [NotMapped]
     public string DisplayAction => Action switch
     {
@@ -46,7 +45,7 @@ public class AuditLogEntry
         "Media.RemoveAllForOwner" => "Удалены все медиафайлы владельца",
         "Media.ExtractFailed" => "Ошибка извлечения медиа",
         "Auth.Startup" => "Запуск приложения",
-        "Auth.ChangePassword" => "Смена мастер-пароля",
+        "Auth.ChangePassword" => "Смена пароля",
         "Database.Export" => "Экспорт файла БД",
         "Storage.Maintenance" => "Обслуживание хранилища",
         _ => Action

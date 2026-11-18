@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,7 @@ public sealed class StorageMaintenanceService : BackgroundService
             try { await Task.Delay(Period, stoppingToken); }
             catch (OperationCanceledException) { break; }
 
-            try { CleanupTemp(); }
+            try { await TemporaryFiles.CleanupAsync(); }
             catch (Exception ex) { _logger.LogError(ex, "Ошибка очистки Temp."); }
         }
 
@@ -69,6 +70,21 @@ public sealed class StorageMaintenanceService : BackgroundService
         var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<FiberSourceDbContext>>();
         var auditLog = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
         await using var context = await factory.CreateDbContextAsync(ct);
+        await context.Database.OpenConnectionAsync(ct);
+        foreach (var pragma in new[] { "PRAGMA cipher_integrity_check;", "PRAGMA quick_check;", "PRAGMA foreign_key_check;" })
+        {
+            await using var command = context.Database.GetDbConnection().CreateCommand();
+            command.CommandText = pragma;
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var result = reader.GetValue(0)?.ToString();
+                if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"{pragma} {result}");
+            }
+        }
+
+        await using var transaction = await context.Database.BeginTransactionAsync(ct);
 
         var personIds = await context.People.Select(p => p.Id).ToHashSetAsync(ct);
         var companyIds = await context.Companies.Select(c => c.Id).ToHashSetAsync(ct);
@@ -90,37 +106,18 @@ public sealed class StorageMaintenanceService : BackgroundService
             _logger.LogInformation("Удалено битых MediaAttachmentLink: {Count}", badLinks.Count);
         }
 
-        var orphanMedia = await context.MediaAttachments
+        var orphanCount = await context.MediaAttachments
             .Where(m => !m.Links.Any())
-            .ToListAsync(ct);
+            .ExecuteDeleteAsync(ct);
+        await transaction.CommitAsync(ct);
 
-        if (orphanMedia.Count > 0)
-        {
-            context.MediaAttachments.RemoveRange(orphanMedia);
-            await context.SaveChangesAsync(ct);
-            _logger.LogInformation("Удалено осиротевших MediaAttachment: {Count}", orphanMedia.Count);
-        }
+        await TemporaryFiles.CleanupAsync();
 
-        CleanupTemp();
-
-        if (badLinks.Count + orphanMedia.Count > 0)
+        if (badLinks.Count + orphanCount > 0)
         {
             await auditLog.LogAsync("Storage.Maintenance",
-                $"BadLinks={badLinks.Count}, OrphanMedia={orphanMedia.Count}");
+                $"BadLinks={badLinks.Count}, OrphanMedia={orphanCount}");
         }
     }
 
-    /// <summary>Удаляет все файлы из %Temp%\FIBER\.</summary>
-    private void CleanupTemp()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "FIBER");
-        if (!Directory.Exists(tempDir)) return;
-
-        foreach (var f in Directory.GetFiles(tempDir))
-        {
-            try { File.Delete(f); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Не удалось удалить temp-файл {File}", f); }
-        }
-        _logger.LogInformation("Очистка временного каталога завершена.");
-    }
 }

@@ -13,16 +13,10 @@ using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 using Border = System.Windows.Controls.Border;
 
 namespace FIBER.Source.Views;
-
-/// <summary>Диалог выбора медиафайлов: мультивыбор из общего пула медиа.</summary>
 public partial class MediaSelectionWindow : Window
 {
     private readonly MediaSelectionViewModel _vm;
-
-    /// <summary>Id выбранных медиа (пусто — ничего не выбрано).</summary>
     public IReadOnlyList<int> SelectedMediaIds { get; private set; } = Array.Empty<int>();
-
-    /// <summary>Создаёт диалог.</summary>
     public MediaSelectionWindow(string title, IEnumerable<MediaItemViewModel> availableMedia, IReadOnlyCollection<int> alreadyAddedMediaIds)
     {
         InitializeComponent();

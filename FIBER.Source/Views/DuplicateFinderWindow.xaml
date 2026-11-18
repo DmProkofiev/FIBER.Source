@@ -62,8 +62,7 @@
                     </ListView.View>
                 </ListView>
             </Border>
-
-            <TextBlock Grid.Row="3" Text="Двойной клик по строке — открыть запись"
+            <TextBlock Grid.Row="3"
                        FontFamily="Times New Roman" FontSize="12" FontStyle="Italic"
                        Foreground="#AAAAAA" HorizontalAlignment="Center" Margin="0,0,0,6"/>
 

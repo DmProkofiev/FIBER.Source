@@ -393,6 +393,11 @@ namespace FIBER.Source.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("InteractionTypeTo")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -424,6 +429,11 @@ namespace FIBER.Source.Migrations
                     b.Property<int>("CompanyId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CompanyRole")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -431,17 +441,21 @@ namespace FIBER.Source.Migrations
                     b.Property<int>("PersonId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Role")
+                    b.Property<string>("PersonRole")
                         .IsRequired()
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyId");
+                    b.HasIndex("PersonId")
+                        .HasDatabaseName("IX_CompanyPerson_PersonId");
 
-                    b.HasIndex("PersonId");
+                    b.HasIndex("CompanyId", "PersonId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_CompanyPerson_Natural");
 
-                    b.ToTable("CompanyPeople");
+                    b.ToTable("CompanyPeople", (string)null);
                 });
 
             modelBuilder.Entity("FIBER.Source.Models.Joins.EventEvent", b =>
@@ -545,7 +559,10 @@ namespace FIBER.Source.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("Kind")
+                    b.Property<int>("KindFrom")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("KindTo")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Notes")
@@ -563,7 +580,7 @@ namespace FIBER.Source.Migrations
                     b.HasIndex("RelatedPersonId")
                         .HasDatabaseName("IX_PersonRelationship_RelatedPersonId");
 
-                    b.HasIndex("PersonId", "RelatedPersonId", "Kind")
+                    b.HasIndex("PersonId", "RelatedPersonId")
                         .IsUnique()
                         .HasDatabaseName("UQ_PersonRelationship_Natural");
 
@@ -797,13 +814,15 @@ namespace FIBER.Source.Migrations
                         .WithMany("CompanyPeople")
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_CompanyPerson_Company");
 
                     b.HasOne("FIBER.Source.Models.Person", "Person")
                         .WithMany("CompanyPeople")
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_CompanyPerson_Person");
 
                     b.Navigation("Company");
 

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using FIBER.Source.Infrastructure.Data;
+using FIBER.Source.Infrastructure.Helpers;
 using FIBER.Source.Interfaces;
 using FIBER.Source.Models.Enums;
-using FIBER.Source.Models.Helpers;
 using FIBER.Source.Models.Joins;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,20 +26,23 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<EventParticipant>> ListEventParticipantsAsync(int personId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.EventParticipants.AsNoTracking()
             .Include(ep => ep.Event)
             .Include(ep => ep.Person)
+            .Include(ep => ep.Company)
             .Where(ep => ep.PersonId == personId)
             .ToListAsync();
     }
 
     public async Task<IReadOnlyList<EventParticipant>> ListParticipantsByEventAsync(int eventId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.EventParticipants.AsNoTracking()
             .Include(ep => ep.Event)
-            .Include(ep => ep.Person).ThenInclude(p => p!.Aliases)
+            .Include(ep => ep.Person!).ThenInclude(p => p.Aliases)
             .Include(ep => ep.Company)
             .Where(ep => ep.EventId == eventId)
             .ToListAsync();
@@ -47,6 +50,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<EventParticipant>> ListParticipantsByCompanyAsync(int companyId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.EventParticipants.AsNoTracking()
             .Include(ep => ep.Event)
@@ -57,6 +61,7 @@ public sealed class RelationService : IRelationService
     public async Task AddEventParticipantAsync(int eventId, int? personId, int? companyId,
         EventParticipantRole role, string notes)
     {
+        await BackgroundWork.SwitchToThreadPool();
         bool hasPerson = personId.HasValue;
         bool hasCompany = companyId.HasValue;
         if (hasPerson == hasCompany)
@@ -91,6 +96,7 @@ public sealed class RelationService : IRelationService
 
     public async Task RemoveEventParticipantAsync(int participantId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var item = await context.EventParticipants.FirstOrDefaultAsync(ep => ep.Id == participantId);
         if (item is null) return;
@@ -102,6 +108,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<PersonRelationship>> ListRelationshipsAsync(int personId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.PersonRelationships.AsNoTracking()
             .Include(r => r.Person)
@@ -112,6 +119,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<PersonRelationship>> ListReverseRelationshipsAsync(int personId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.PersonRelationships.AsNoTracking()
             .Include(r => r.Person).ThenInclude(p => p.Aliases)
@@ -121,8 +129,9 @@ public sealed class RelationService : IRelationService
     }
 
     public async Task AddPersonRelationshipAsync(int personId, int relatedPersonId,
-        PersonRelationKind kind, string notes)
+        PersonRelationKind kindFrom, PersonRelationKind kindTo, string notes)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (personId == relatedPersonId)
             throw new InvalidOperationException("Связь человека с самим собой невозможна");
 
@@ -134,51 +143,26 @@ public sealed class RelationService : IRelationService
             throw new InvalidOperationException($"Личность Id={relatedPersonId} не найдена");
 
         bool exists = await context.PersonRelationships.AnyAsync(r =>
-            r.PersonId == personId && r.RelatedPersonId == relatedPersonId && r.Kind == kind);
+            (r.PersonId == personId && r.RelatedPersonId == relatedPersonId) ||
+            (r.PersonId == relatedPersonId && r.RelatedPersonId == personId));
         if (exists) return;
 
-        await using var tx = await context.Database.BeginTransactionAsync();
-        try
+        context.PersonRelationships.Add(new PersonRelationship
         {
-            context.PersonRelationships.Add(new PersonRelationship
-            {
-                PersonId = personId,
-                RelatedPersonId = relatedPersonId,
-                Kind = kind,
-                Notes = notes ?? string.Empty
-            });
-
-            var inverse = PersonRelationKinds.InverseOf(kind);
-            if (inverse != kind && inverse != PersonRelationKind.Other)
-            {
-                bool inverseExists = await context.PersonRelationships.AnyAsync(r =>
-                    r.PersonId == relatedPersonId && r.RelatedPersonId == personId && r.Kind == inverse);
-                if (!inverseExists)
-                {
-                    context.PersonRelationships.Add(new PersonRelationship
-                    {
-                        PersonId = relatedPersonId,
-                        RelatedPersonId = personId,
-                        Kind = inverse,
-                        Notes = string.Empty
-                    });
-                }
-            }
-
-            await context.SaveChangesAsync();
-            await tx.CommitAsync();
-            await _auditLog.LogAsync("Relation.AddPersonRelationship",
-                $"Person={personId}, Related={relatedPersonId}, Kind={kind}");
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            throw;
-        }
+            PersonId = personId,
+            RelatedPersonId = relatedPersonId,
+            KindFrom = kindFrom,
+            KindTo = kindTo,
+            Notes = notes ?? string.Empty
+        });
+        await context.SaveChangesAsync();
+        await _auditLog.LogAsync("Relation.AddPersonRelationship",
+            $"Person={personId}, Related={relatedPersonId}, KindFrom={kindFrom}, KindTo={kindTo}");
     }
 
     public async Task RemovePersonRelationshipAsync(int relationshipId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var item = await context.PersonRelationships.FirstOrDefaultAsync(r => r.Id == relationshipId);
         if (item is null) return;
@@ -190,6 +174,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<CompanyInteraction>> ListCompanyInteractionsAsync(int companyId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.CompanyInteractions.AsNoTracking()
             .Include(ci => ci.SourceCompany)
@@ -199,13 +184,15 @@ public sealed class RelationService : IRelationService
     }
 
     public async Task AddCompanyInteractionAsync(int sourceCompanyId, int targetCompanyId,
-        string interactionType, string notes)
+        string interactionType, string interactionTypeTo, string notes)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (sourceCompanyId == targetCompanyId) return;
         await using var context = await _contextFactory.CreateDbContextAsync();
 
         bool exists = await context.CompanyInteractions.AnyAsync(ci =>
-            ci.SourceCompanyId == sourceCompanyId && ci.TargetCompanyId == targetCompanyId);
+            (ci.SourceCompanyId == sourceCompanyId && ci.TargetCompanyId == targetCompanyId) ||
+            (ci.SourceCompanyId == targetCompanyId && ci.TargetCompanyId == sourceCompanyId));
         if (exists) return;
 
         context.CompanyInteractions.Add(new CompanyInteraction
@@ -213,6 +200,7 @@ public sealed class RelationService : IRelationService
             SourceCompanyId = sourceCompanyId,
             TargetCompanyId = targetCompanyId,
             InteractionType = interactionType ?? string.Empty,
+            InteractionTypeTo = interactionTypeTo ?? string.Empty,
             Notes = notes ?? string.Empty
         });
         await context.SaveChangesAsync();
@@ -222,9 +210,11 @@ public sealed class RelationService : IRelationService
 
     public async Task RemoveCompanyInteractionAsync(int sourceCompanyId, int targetCompanyId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var item = await context.CompanyInteractions.FirstOrDefaultAsync(ci =>
-            ci.SourceCompanyId == sourceCompanyId && ci.TargetCompanyId == targetCompanyId);
+            (ci.SourceCompanyId == sourceCompanyId && ci.TargetCompanyId == targetCompanyId) ||
+            (ci.SourceCompanyId == targetCompanyId && ci.TargetCompanyId == sourceCompanyId));
         if (item is null) return;
 
         context.CompanyInteractions.Remove(item);
@@ -233,10 +223,9 @@ public sealed class RelationService : IRelationService
             $"Source={sourceCompanyId}, Target={targetCompanyId}");
     }
 
-    // ----- Связи «организация ↔ личность» -----
-
     public async Task<IReadOnlyList<CompanyPerson>> ListCompanyPeopleAsync(int companyId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.CompanyPeople.AsNoTracking()
             .Include(cp => cp.Person).ThenInclude(p => p.Aliases)
@@ -246,6 +235,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<CompanyPerson>> ListPersonCompaniesAsync(int personId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.CompanyPeople.AsNoTracking()
             .Include(cp => cp.Company)
@@ -253,8 +243,9 @@ public sealed class RelationService : IRelationService
             .ToListAsync();
     }
 
-    public async Task AddCompanyPersonAsync(int companyId, int personId, string role, string notes)
+    public async Task AddCompanyPersonAsync(int companyId, int personId, string personRole, string companyRole, string notes)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (companyId <= 0 || personId <= 0)
             throw new InvalidOperationException("Некорректные идентификаторы организации или лица");
 
@@ -273,7 +264,8 @@ public sealed class RelationService : IRelationService
         {
             CompanyId = companyId,
             PersonId = personId,
-            Role = role ?? string.Empty,
+            PersonRole = personRole ?? string.Empty,
+            CompanyRole = companyRole ?? string.Empty,
             Notes = notes ?? string.Empty
         });
         await context.SaveChangesAsync();
@@ -283,6 +275,7 @@ public sealed class RelationService : IRelationService
 
     public async Task RemoveCompanyPersonAsync(int companyPersonId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var item = await context.CompanyPeople.FirstOrDefaultAsync(cp => cp.Id == companyPersonId);
         if (item is null) return;
@@ -292,10 +285,9 @@ public sealed class RelationService : IRelationService
         await _auditLog.LogAsync("Relation.RemoveCompanyPerson", $"CompanyPerson={companyPersonId}");
     }
 
-    // ----- Связи «событие ↔ событие» -----
-
     public async Task<IReadOnlyList<EventEvent>> ListEventEventsAsync(int eventId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.EventEvents.AsNoTracking()
             .Include(ee => ee.TargetEvent)
@@ -305,6 +297,7 @@ public sealed class RelationService : IRelationService
 
     public async Task<IReadOnlyList<EventEvent>> ListReverseEventEventsAsync(int eventId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         return await context.EventEvents.AsNoTracking()
             .Include(ee => ee.SourceEvent)
@@ -315,6 +308,7 @@ public sealed class RelationService : IRelationService
     public async Task AddEventEventAsync(int sourceEventId, int targetEventId,
         string relationshipType, string notes)
     {
+        await BackgroundWork.SwitchToThreadPool();
         if (sourceEventId <= 0 || targetEventId <= 0)
             throw new InvalidOperationException("Некорректные идентификаторы событий");
 
@@ -346,6 +340,7 @@ public sealed class RelationService : IRelationService
 
     public async Task RemoveEventEventAsync(int eventEventId)
     {
+        await BackgroundWork.SwitchToThreadPool();
         await using var context = await _contextFactory.CreateDbContextAsync();
         var item = await context.EventEvents.FirstOrDefaultAsync(ee => ee.Id == eventEventId);
         if (item is null) return;

@@ -9,11 +9,6 @@ using FIBER.Source.ViewModels;
 using UserControl = System.Windows.Controls.UserControl;
 
 namespace FIBER.Source.Views.Search;
-
-/// <summary>
-/// Унифицированная панель деталей выбранной сущности для SearchView.
-/// Устраняет дублирование разметки между вкладками Личности / Организации / События.
-/// </summary>
 public partial class EntityDetailsPanel : UserControl
 {
     public EntityDetailsPanel() => InitializeComponent();
@@ -166,8 +161,6 @@ public partial class EntityDetailsPanel : UserControl
         if (e.ClickCount != 2) return;
         if (sender is not System.Windows.FrameworkElement element) return;
         if (element.DataContext is not MediaItemViewModel mediaVm) return;
-
-        // Ищем ZoomImageCommand в DataContext UserControl (SearchViewModel)
         if (DataContext is SearchViewModel vm)
             vm.ZoomImageCommand.Execute(mediaVm);
     }

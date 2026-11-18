@@ -14,7 +14,7 @@ public interface IDatabaseService
     string CurrentPassword { get; }
 
     /// <summary>Проверяет, существует ли файл БД.</summary>
-    bool DatabaseExists();
+    Task<bool> DatabaseExistsAsync();
 
     /// <summary>Пытается открыть существующую БД с паролем; false при неверном пароле.</summary>
     Task<bool> TryUnlockAsync(string password);

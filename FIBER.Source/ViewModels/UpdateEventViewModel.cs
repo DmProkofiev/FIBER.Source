@@ -17,7 +17,7 @@ namespace FIBER.Source.ViewModels;
 
 public partial class UpdateEventViewModel : ObservableValidator
 {
-    // ----- Зависимости -----
+    // Зависимости
 
     private readonly IEventService _eventService;
     private readonly ICompanyService _companyService;
@@ -48,7 +48,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         _notificationService = notificationService;
     }
 
-    // ----- Коллекции для UI -----
+    // Коллекции для UI
 
     public ObservableCollection<CompanySummary> Companies { get; } = new();
     public ObservableCollection<PersonSummary> Persons { get; } = new();
@@ -60,7 +60,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     public ObservableCollection<MediaItemViewModel> ExistingVideos { get; } = new();
     public ObservableCollection<MediaItemViewModel> ExistingAudio { get; } = new();
 
-    // ----- Поля события -----
+    // Поля события
 
     [ObservableProperty] private int _eventId;
 
@@ -73,40 +73,39 @@ public partial class UpdateEventViewModel : ObservableValidator
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string _notes = string.Empty;
 
-    // ----- Организаторы -----
+    // Организаторы
 
     [ObservableProperty] private int? _organizerCompanyId;
     [ObservableProperty] private int? _organizerPersonId;
 
-    // ----- Выбор нового участника в селекторах -----
+    // Выбор нового участника в селекторах
 
     [ObservableProperty] private int? _selectedPersonId;
     [ObservableProperty] private int? _selectedCompanyId;
     [ObservableProperty] private int? _selectedTargetEventId;
 
-    // ----- Состояние -----
+    // Состояние
 
     [ObservableProperty] private bool _isBusy;
 
-    // ----- Загрузка -----
+    // Загрузка
 
     public async Task LoadAsync(int eventId)
     {
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        await TempFiles.ClearTempFilesAsync(_mediaService);
         ClearExistingMedia();
         Participants.Clear();
 
         if (Companies.Count == 0)
         {
             var companies = await _companyService.ListAsync(null);
-            Companies.Add(new CompanySummary(0, "(не указан)", null));
+            Companies.Add(new CompanySummary(0, "не указан", null));
             foreach (var c in companies) Companies.Add(c);
         }
         if (Persons.Count == 0)
         {
             var persons = await _personService.SearchAsync(string.Empty);
-            Persons.Add(new PersonSummary(0, "(не указан)", IdentityStatus.Anonymous, null));
+            Persons.Add(new PersonSummary(0, "не указан", IdentityStatus.Anonymous, null));
             foreach (var p in persons) Persons.Add(p);
         }
 
@@ -139,31 +138,21 @@ public partial class UpdateEventViewModel : ObservableValidator
             {
                 Participants.Add(EventParticipantEditVM.ForCompany(p.Company.Id, p.Company.Name));
             }
-
-            // Точечный CRUD связей: запоминаем Id существующей записи участника,
-            // чтобы при сохранении обновлять её на месте, а не пересоздавать.
             var last = Participants[^1];
             last.Id = p.Id;
             last.Role = p.Role;
             last.Notes = p.Notes;
         }
-
-        // Справочник событий для связи «событие ↔ событие».
         AvailableEvents.Clear();
         foreach (var e in await _eventService.ListAsync(null))
             if (e.Id != eventId) AvailableEvents.Add(e);
-
-        // Связи события с другими событиями.
         EventEvents.Clear();
         foreach (var ee in ev.EventEvents)
             EventEvents.Add(EventEventEditVM.FromModel(ee));
-
         await LoadExistingMediaAsync(eventId);
     }
 
     private OwnerMedia? _ownerMedia;
-
-    // Загрузка медиа владельца в коллекции UI (изображения лениво подгружаются в память).
     private async Task LoadExistingMediaAsync(int ownerId)
     {
         _mediaManagement.ClearMedia(_ownerMedia ?? new OwnerMedia());
@@ -187,7 +176,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         SelectedTargetEventId = null;
     }
 
-    // ----- Медиа -----
+    // Медиа
 
     public async Task HandleFilesDropAsync(string[] files)
     {
@@ -195,9 +184,9 @@ public partial class UpdateEventViewModel : ObservableValidator
     }
 
     [RelayCommand]
-    private void RemoveTempFile(MediaItemViewModel item)
+    private async Task RemoveTempFile(MediaItemViewModel item)
     {
-        _mediaManagement.RemoveTempFile(TempFiles, item);
+        await _mediaManagement.RemoveTempFileAsync(TempFiles, item);
     }
 
     [RelayCommand]
@@ -207,9 +196,10 @@ public partial class UpdateEventViewModel : ObservableValidator
         ExistingImages.Remove(media);
         ExistingVideos.Remove(media);
         ExistingAudio.Remove(media);
+        media.Dispose();
     }
 
-    // ----- Участники -----
+    // Участники
 
     [RelayCommand]
     private void AddPersonParticipant()
@@ -217,7 +207,6 @@ public partial class UpdateEventViewModel : ObservableValidator
         if (SelectedPersonId == null) return;
         var person = Persons.FirstOrDefault(p => p.Id == SelectedPersonId.Value);
         if (person == null) return;
-        // Защита от дубля: такой участник уже в списке.
         if (Participants.Any(p => p.PersonId == person.Id))
         {
             _notificationService.Show("Внимание", "Этот участник уже добавлен", NotificationType.Warning);
@@ -235,7 +224,6 @@ public partial class UpdateEventViewModel : ObservableValidator
         if (SelectedCompanyId == null) return;
         var company = Companies.FirstOrDefault(c => c.Id == SelectedCompanyId.Value);
         if (company == null) return;
-        // Защита от дубля: такой участник уже в списке.
         if (Participants.Any(p => p.CompanyId == company.Id))
         {
             _notificationService.Show("Внимание", "Эта организация уже добавлена как участник", NotificationType.Warning);
@@ -254,7 +242,7 @@ public partial class UpdateEventViewModel : ObservableValidator
         Participants.Remove(item);
     }
 
-    // ----- Связи «событие ↔ событие» -----
+    // Связи событие событие
 
     [RelayCommand]
     private void AddEventEvent()
@@ -292,24 +280,18 @@ public partial class UpdateEventViewModel : ObservableValidator
             .Select(ee => ee.ToInput())
             .ToList();
 
-    // ----- Сохранение -----
+    // Сохранение
 
     [RelayCommand]
     private async Task AddExistingMedia()
     {
-        // Передаём уже добавленные MediaId из TempFiles, чтобы они отмечались галочкой и не дублировались
         var alreadyAdded = TempFiles.Where(m => m.MediaId.HasValue).Select(m => m.MediaId!.Value).ToList();
         var selected = await _mediaManagement.SelectExistingMediaAsync(MediaOwnerType.Event, EventId, alreadyAdded);
         if (selected.Count == 0) return;
-
-        // Все элементы из SelectExistingMediaAsync имеют MediaId (они загружены из БД),
-        // поэтому newMedia всегда пуст — упрощаем логику.
         var existingIds = selected
             .Where(m => m.MediaId.HasValue)
             .Select(m => m.MediaId!.Value)
             .ToList();
-
-        // Уже привязанные к этому событию файлы пропускаются — о защите сообщаем пользователю.
         int skipped = 0;
         if (existingIds.Count > 0)
         {
@@ -347,8 +329,6 @@ public partial class UpdateEventViewModel : ObservableValidator
                 OrganizerCompanyId == 0 ? null : OrganizerCompanyId,
                 OrganizerPersonId == 0 ? null : OrganizerPersonId,
                 Participants.Select(p => p.ToInput()).ToList(),
-                // Точечный CRUD связей: участники с Id обновляются на месте,
-                // без Id — создаются, удалённые из списка — удаляются.
                 ParticipantLinks: Participants.Select(p => p.ToEditInput()).ToList(),
                 EventEvents: BuildEventEventsInput());
 
@@ -356,7 +336,6 @@ public partial class UpdateEventViewModel : ObservableValidator
 
             if (TempFiles.Count > 0)
             {
-                // Существующие медиа — привязать к владельцу
                 var existingIds = TempFiles
                     .Where(m => m.MediaId.HasValue)
                     .Select(m => m.MediaId!.Value)
@@ -366,7 +345,6 @@ public partial class UpdateEventViewModel : ObservableValidator
                     await _mediaManagement.LinkExistingMediaAsync(existingIds, MediaOwnerType.Event, EventId);
                 }
 
-                // Новые медиа — закоммитить в БД
                 var newMedia = TempFiles.Where(m => !m.MediaId.HasValue).ToList();
                 if (newMedia.Count > 0)
                 {
@@ -374,7 +352,7 @@ public partial class UpdateEventViewModel : ObservableValidator
                         newMedia.Select(m => m.ToDto()).ToList(), MediaOwnerType.Event, EventId);
                 }
 
-                TempFiles.Clear();
+                await TempFiles.ClearTempFilesAsync(_mediaService);
             }
 
             _notificationService.Show("Успех", "Изменения сохранены", NotificationType.Success);
@@ -390,8 +368,7 @@ public partial class UpdateEventViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _mediaService.DeleteTempFiles(TempFiles.Select(m => m.ToDto()));
-        TempFiles.Clear();
+        _ = TempFiles.ClearTempFilesAsync(_mediaService);
         ClearExistingMedia();
         Cancelled?.Invoke();
     }

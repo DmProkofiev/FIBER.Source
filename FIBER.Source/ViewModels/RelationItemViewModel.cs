@@ -2,44 +2,50 @@ using FIBER.Source.Models.Enums;
 
 namespace FIBER.Source.ViewModels;
 
-// Одна связь для отображения в SearchView: тип связи, целевой объект и
-// дополнительные сведения о связи (роль, заметки и т.п.).
-// Поля TargetType / TargetId позволяют выполнить переход на связанный объект.
-// Только для просмотра — CRUD выполняется в режиме редактирования записи.
+// Одна связь для отображения в SearchView.
+// Табличная форма: "Имя (Роль) <-> Имя (Роль)" с отдельными ссылками на навигацию
 public sealed class RelationItemViewModel
 {
-    public RelationItemViewModel(string kind, string target, string? details = null)
+    public RelationItemViewModel(
+        string sourceDisplayName, string? sourceRole,
+        string targetDisplayName, string? targetRole,
+        string? notes,
+        RelationTargetType? targetType = null, int? targetId = null,
+        RelationTargetType? sourceType = null, int? sourceId = null,
+        bool isEventParticipant = false)
     {
-        Kind = kind;
-        Target = target;
-        Details = details?.Trim() ?? string.Empty;
-    }
-
-    public RelationItemViewModel(string kind, string target, RelationTargetType targetType, int targetId,
-        string? details = null)
-        : this(kind, target, details)
-    {
+        SourceDisplayName = sourceDisplayName;
+        SourceRole = sourceRole;
+        TargetDisplayName = targetDisplayName;
+        TargetRole = targetRole;
+        Notes = notes?.Trim() ?? string.Empty;
         TargetType = targetType;
         TargetId = targetId;
+        SourceType = sourceType;
+        SourceId = sourceId;
+        IsEventParticipant = isEventParticipant;
     }
 
-    public string Kind { get; }
-    public string Target { get; }
+    public string SourceDisplayName { get; }
+    public string? SourceRole { get; }
+    public string TargetDisplayName { get; }
+    public string? TargetRole { get; }
+    public string Notes { get; }
 
-    /// <summary>Дополнительные сведения о связи; пустая строка — сведений нет.</summary>
-    public string Details { get; }
-
-    /// <summary>Признак наличия дополнительных сведений (управляет видимостью в UI).</summary>
-    public bool HasDetails => Details.Length > 0;
-
-    /// <summary>Тип целевого объекта (для перехода по ссылке).</summary>
+    public string SourceDisplayWithRole =>
+        HasSourceRole ? $"{SourceDisplayName} ({SourceRole})" : SourceDisplayName;
+    public string TargetDisplayWithRole =>
+        HasTargetRole ? $"{TargetDisplayName} ({TargetRole})" : TargetDisplayName;
+    public bool HasSourceRole => !string.IsNullOrWhiteSpace(SourceRole) && SourceRole != "Другое";
+    public bool HasTargetRole => !string.IsNullOrWhiteSpace(TargetRole) && TargetRole != "Другое";
+    public bool HasNotes => Notes.Length > 0;
     public RelationTargetType? TargetType { get; }
-
-    /// <summary>Идентификатор целевого объекта (для перехода по ссылке).</summary>
     public int? TargetId { get; }
-
-    /// <summary>Признак того, что по элементу можно перейти (клик).</summary>
-    public bool CanNavigate => TargetType.HasValue && TargetId.HasValue;
+    public RelationTargetType? SourceType { get; }
+    public int? SourceId { get; }
+    public bool CanNavigateTarget => TargetType.HasValue && TargetId.HasValue;
+    public bool CanNavigateSource => SourceType.HasValue && SourceId.HasValue;
+    public bool IsEventParticipant { get; }
 }
 
 // Тип целевого объекта связи.

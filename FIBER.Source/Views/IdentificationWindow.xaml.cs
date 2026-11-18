@@ -4,12 +4,8 @@ using FIBER.Source.ViewModels;
 
 namespace FIBER.Source.Views;
 
-/// <summary>
-/// Окно ввода мастер-пароля для fiber.db.
-/// </summary>
 public partial class IdentificationWindow : Window
 {
-    /// <summary>Создаёт окно и VM.</summary>
     public IdentificationWindow(IDatabaseService databaseService)
     {
         InitializeComponent();
