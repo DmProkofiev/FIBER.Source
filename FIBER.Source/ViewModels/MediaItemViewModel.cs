@@ -70,8 +70,8 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         var ext = Path.GetExtension(filePath)?.ToLowerInvariant();
         IsImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
-        IsVideo = ext is ".mp4" or ".avi" or ".wmv";
-        IsAudio = ext is ".mp3" or ".wav" or ".wma";
+        IsVideo = ext is ".mp4" or ".avi" or ".wmv" or ".mkv" or ".mov" or ".flv" or ".webm" or ".m4v";
+        IsAudio = ext is ".mp3" or ".wav" or ".wma" or ".m4a" or ".aac" or ".flac" or ".ogg" or ".aiff" or ".aif";
 
         if (IsImage)
         {
@@ -104,8 +104,8 @@ public partial class MediaItemViewModel : ObservableObject, IDisposable
 
         var ext = Path.GetExtension(originalName)?.ToLowerInvariant();
         IsImage = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
-        IsVideo = ext is ".mp4" or ".avi" or ".wmv";
-        IsAudio = ext is ".mp3" or ".wav" or ".wma";
+        IsVideo = ext is ".mp4" or ".avi" or ".wmv" or ".mkv" or ".mov" or ".flv" or ".webm" or ".m4v";
+        IsAudio = ext is ".mp3" or ".wav" or ".wma" or ".m4a" or ".aac" or ".flac" or ".ogg" or ".aiff" or ".aif";
         _mediaService = mediaService;
         _mediaIdForLazyLoad = mediaId;
         MediaId = mediaId;

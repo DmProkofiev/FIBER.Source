@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Threading;
 
 namespace FIBER.Source.Services.MediaManagement;
 
@@ -172,6 +174,7 @@ public sealed class MediaManagementService : IMediaManagementService
     /// Обрабатывает перетаскивание файлов (добавляет во временные файлы).
     public async Task<int> HandleFilesDropAsync(ObservableCollection<MediaItemViewModel> tempFiles, string[] filePaths)
     {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
         var newFiles = await _mediaService.SaveToTempAsync(filePaths);
         int skipped = 0;
 
@@ -192,15 +195,23 @@ public sealed class MediaManagementService : IMediaManagementService
             {
                 var vm = DtoToVm(dto);
                 vm.MediaId = existingMediaId.Value;
-                tempFiles.Add(vm);
+                AddToTempFiles(tempFiles, vm, dispatcher);
             }
             else
             {
-                tempFiles.Add(DtoToVm(dto));
+                AddToTempFiles(tempFiles, DtoToVm(dto), dispatcher);
             }
         }
 
         return skipped;
+    }
+
+    private static void AddToTempFiles(ObservableCollection<MediaItemViewModel> tempFiles, MediaItemViewModel vm, Dispatcher? dispatcher)
+    {
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+            dispatcher.Invoke(() => tempFiles.Add(vm));
+        else
+            tempFiles.Add(vm);
     }
 
     /// Удаляет временный файл из коллекции и диска

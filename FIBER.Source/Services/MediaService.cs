@@ -30,8 +30,8 @@ public sealed class MediaService : IMediaService
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp",
-        ".mp4", ".avi", ".wmv",
-        ".mp3", ".wav", ".wma"
+        ".mp4", ".avi", ".wmv", ".mkv", ".mov", ".flv", ".webm", ".m4v",
+        ".mp3", ".wav", ".wma", ".m4a", ".aac", ".flac", ".ogg", ".aiff", ".aif"
     };
 
     /// <summary>Максимальный размер одного файла (500 МБ).</summary>
@@ -79,10 +79,10 @@ public sealed class MediaService : IMediaService
         extension.ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp";
 
     private static bool IsVideoExtension(string extension) =>
-        extension.ToLowerInvariant() is ".mp4" or ".avi" or ".wmv";
+        extension.ToLowerInvariant() is ".mp4" or ".avi" or ".wmv" or ".mkv" or ".mov" or ".flv" or ".webm" or ".m4v";
 
     private static bool IsAudioExtension(string extension) =>
-        extension.ToLowerInvariant() is ".mp3" or ".wav" or ".wma";
+        extension.ToLowerInvariant() is ".mp3" or ".wav" or ".wma" or ".m4a" or ".aac" or ".flac" or ".ogg" or ".aiff" or ".aif";
 
     /// <summary>Копирует выбранные файлы во временный каталог %Temp%\FIBER\ для предпросмотра.</summary>
     public async Task<List<MediaItemDto>> SaveToTempAsync(string[] filePaths)
@@ -243,14 +243,8 @@ public sealed class MediaService : IMediaService
                 CreatedAt = DateTime.UtcNow
             };
             context.MediaAttachments.Add(media);
-
-            // Сохраняем медиа, чтобы получить реальный ID
+            // Сохраняем медиа, чтобы получить реальный ID перед созданием ссылки
             await context.SaveChangesAsync();
-            // Не удерживаем BLOB всех файлов пакета в ChangeTracker до конца импорта.
-            context.Entry(media).State = EntityState.Detached;
-            media.Data = Array.Empty<byte>();
-
-            // Создаём ссылку
             context.MediaAttachmentLinks.Add(new MediaAttachmentLink
             {
                 MediaAttachmentId = media.Id,
@@ -617,9 +611,20 @@ public sealed class MediaService : IMediaService
         ".mp4" => "video/mp4",
         ".avi" => "video/x-msvideo",
         ".wmv" => "video/x-ms-wmv",
+        ".mkv" => "video/x-matroska",
+        ".mov" => "video/quicktime",
+        ".flv" => "video/x-flv",
+        ".webm" => "video/webm",
+        ".m4v" => "video/x-m4v",
         ".mp3" => "audio/mpeg",
         ".wav" => "audio/wav",
         ".wma" => "audio/x-ms-wma",
+        ".m4a" => "audio/mp4",
+        ".aac" => "audio/aac",
+        ".flac" => "audio/flac",
+        ".ogg" => "audio/ogg",
+        ".aiff" => "audio/aiff",
+        ".aif" => "audio/aiff",
         _ => "application/octet-stream"
     };
 
